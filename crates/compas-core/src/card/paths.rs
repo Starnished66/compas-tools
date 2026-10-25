@@ -9,7 +9,10 @@ use crate::error::{Error, IoContext, Result};
 /// creating the missing ones when asked. Callers validate `dest` itself.
 pub(super) fn resolve(root: &Path, dest: &str, create_parents: bool) -> Result<PathBuf> {
     let relative = Path::new(dest);
-    if relative.components().any(|c| !matches!(c, Component::Normal(_))) {
+    if relative
+        .components()
+        .any(|c| !matches!(c, Component::Normal(_)))
+    {
         return Err(Error::Rejected(format!("unsafe path {dest}")));
     }
     let full = root.join(relative);
@@ -19,7 +22,12 @@ pub(super) fn resolve(root: &Path, dest: &str, create_parents: bool) -> Result<P
         current.push(component);
         match fs::symlink_metadata(&current) {
             Ok(meta) if meta.is_dir() => {}
-            Ok(_) => return Err(Error::Rejected(format!("{} is not a folder", current.display()))),
+            Ok(_) => {
+                return Err(Error::Rejected(format!(
+                    "{} is not a folder",
+                    current.display()
+                )))
+            }
             Err(e) if e.kind() == ErrorKind::NotFound => {
                 if !create_parents {
                     return Ok(full); // nothing below a missing folder can exist
@@ -36,7 +44,10 @@ pub(super) fn resolve(root: &Path, dest: &str, create_parents: bool) -> Result<P
 pub(super) fn ensure_real_dir(dir: &Path) -> io::Result<()> {
     match fs::symlink_metadata(dir) {
         Ok(meta) if meta.is_dir() => Ok(()),
-        Ok(_) => Err(io::Error::new(ErrorKind::AlreadyExists, "not a real folder")),
+        Ok(_) => Err(io::Error::new(
+            ErrorKind::AlreadyExists,
+            "not a real folder",
+        )),
         Err(e) if e.kind() == ErrorKind::NotFound => fs::create_dir(dir),
         Err(e) => Err(e),
     }
@@ -55,7 +66,10 @@ mod tests {
         let path = resolve(root, "a/b/c.txt", true).unwrap();
         assert!(root.join("a/b").is_dir());
         assert_eq!(path, root.join("a/b/c.txt"));
-        assert_eq!(resolve(root, "x/y.txt", false).unwrap(), root.join("x/y.txt"));
+        assert_eq!(
+            resolve(root, "x/y.txt", false).unwrap(),
+            root.join("x/y.txt")
+        );
         assert!(!root.join("x").exists());
 
         std::os::unix::fs::symlink(outside.path(), root.join("link")).unwrap();

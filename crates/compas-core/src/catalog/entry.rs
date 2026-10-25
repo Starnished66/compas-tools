@@ -35,7 +35,9 @@ pub fn list(catalog: &Catalog, card: &Card, plugin_api: Option<u32>) -> Result<V
     let record = Record::read(card);
     let disabled = disabled::read(card)?;
     let is_enabled = |script: &Option<String>| {
-        script.as_ref().map_or(true, |s| !disabled.iter().any(|d| d == s))
+        script
+            .as_ref()
+            .is_none_or(|s| !disabled.iter().any(|d| d == s))
     };
 
     let mut entries: Vec<Entry> = catalog
@@ -112,12 +114,29 @@ mod tests {
     #[tokio::test]
     async fn lists_catalog_and_removed_rows_with_flags() {
         let (dir, card) = fake_card();
-        let layout = spec("lay", "1.0", &[(".plugins/L.lua", "l", false), (".plugins/L/player_layouts/l.xml", "x", false)]);
-        let theme = spec("thm", "1.0", &[(".plugins/T.lua", "t", false), ("Themes/Night.theme", "n", false)]);
+        let layout = spec(
+            "lay",
+            "1.0",
+            &[
+                (".plugins/L.lua", "l", false),
+                (".plugins/L/player_layouts/l.xml", "x", false),
+            ],
+        );
+        let theme = spec(
+            "thm",
+            "1.0",
+            &[
+                (".plugins/T.lua", "t", false),
+                ("Themes/Night.theme", "n", false),
+            ],
+        );
         let (_server, catalog) = publish(&[layout, theme]).await;
 
         let gone = spec("gone", "0.9", &[(".plugins/Gone.lua", "g", false)]).plugin;
-        crate::catalog::record::Record::default().with_installed(&gone).write(&card).unwrap();
+        crate::catalog::record::Record::default()
+            .with_installed(&gone)
+            .write(&card)
+            .unwrap();
         write_file(dir.path(), ".plugins/.disabled", b"Gone.lua\n");
         write_file(dir.path(), ".plugins/T.lua", b"mine");
 

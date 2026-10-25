@@ -34,7 +34,11 @@ pub async fn fetch_latest() -> Result<Release> {
 
 /// The latest release and its `SHA256SUMS`, which must be among its assets.
 pub async fn fetch_latest_from(api_base: &str) -> Result<Release> {
-    let bytes = get_bytes(&format!("{api_base}/repos/{REPO}/releases/latest"), METADATA_LIMIT).await?;
+    let bytes = get_bytes(
+        &format!("{api_base}/repos/{REPO}/releases/latest"),
+        METADATA_LIMIT,
+    )
+    .await?;
     let api: ApiRelease =
         serde_json::from_slice(&bytes).map_err(|e| Error::InvalidRelease(e.to_string()))?;
     let sums = api
@@ -45,7 +49,10 @@ pub async fn fetch_latest_from(api_base: &str) -> Result<Release> {
     let sums = get_bytes(&sums.browser_download_url, SUMS_LIMIT).await?;
 
     Ok(Release {
-        name: api.name.filter(|n| !n.is_empty()).unwrap_or_else(|| api.tag_name.clone()),
+        name: api
+            .name
+            .filter(|n| !n.is_empty())
+            .unwrap_or_else(|| api.tag_name.clone()),
         tag: api.tag_name,
         notes: api.body.unwrap_or_default(),
         published_at: api.published_at.unwrap_or_default(),
@@ -53,7 +60,11 @@ pub async fn fetch_latest_from(api_base: &str) -> Result<Release> {
         assets: api
             .assets
             .into_iter()
-            .map(|a| Asset { name: a.name, size: a.size, url: a.browser_download_url })
+            .map(|a| Asset {
+                name: a.name,
+                size: a.size,
+                url: a.browser_download_url,
+            })
             .collect(),
         checksums: parse_sums(&String::from_utf8_lossy(&sums)),
     })
@@ -65,8 +76,7 @@ fn parse_sums(text: &str) -> HashMap<String, String> {
         .filter_map(|line| {
             let (sha, name) = line.split_once(' ')?;
             let name = name.trim_start_matches([' ', '*']);
-            (is_sha256(sha) && !name.is_empty())
-                .then(|| (name.to_string(), sha.to_string()))
+            (is_sha256(sha) && !name.is_empty()).then(|| (name.to_string(), sha.to_string()))
         })
         .collect()
 }
@@ -78,7 +88,10 @@ mod tests {
     #[test]
     fn parses_sha256sum_lines() {
         let sha = "a".repeat(64);
-        let sums = parse_sums(&format!("{sha}  one\n{sha} *two\nnot a line\n{}  bad\n", "g".repeat(64)));
+        let sums = parse_sums(&format!(
+            "{sha}  one\n{sha} *two\nnot a line\n{}  bad\n",
+            "g".repeat(64)
+        ));
         assert_eq!(sums.len(), 2);
         assert_eq!(sums["one"], sha);
         assert_eq!(sums["two"], sha);

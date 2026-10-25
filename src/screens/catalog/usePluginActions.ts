@@ -1,0 +1,92 @@
+import { useCallback, useState } from 'react';
+
+import {
+  installPlugin,
+  setPluginEnabled,
+  uninstallPlugin,
+  updateAllPlugins,
+  updatePlugin,
+} from '../../api/catalog';
+import type { PluginEntry, Progress, UpdateAllReport } from '../../api/types';
+import { useOperation } from '../../hooks/useOperation';
+
+type ChangeKind = 'install' | 'update';
+
+type Dialog =
+  { type: 'replace'; id: string; kind: ChangeKind } | { type: 'remove'; id: string } | null;
+
+/** Every way the user changes the card from a catalog view. */
+export function usePluginActions(reload: () => Promise<void>) {
+  const operation = useOperation();
+  const { run } = operation;
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<Dialog>(null);
+  const [report, setReport] = useState<UpdateAllReport | null>(null);
+
+  /** Runs `task`, then re-reads the card, whatever the result. */
+  const track = useCallback(
+    async <T>(
+      id: string | null,
+      task: (onProgress: (progress: Progress) => void) => Promise<T>,
+    ) => {
+      setActiveId(id);
+      const result = await run(task);
+      setActiveId(null);
+      await reload();
+      return result;
+    },
+    [run, reload],
+  );
+
+  const change = useCallback(
+    async (id: string, kind: ChangeKind, force: boolean) => {
+      const apply = kind === 'install' ? installPlugin : updatePlugin;
+      const outcome = await track(id, (onProgress) => apply(id, force, onProgress));
+      if (outcome === 'needs_confirmation') setDialog({ type: 'replace', id, kind });
+    },
+    [track],
+  );
+
+  const confirm = useCallback(async () => {
+    const current = dialog;
+    setDialog(null);
+    if (current?.type === 'replace') await change(current.id, current.kind, true);
+    if (current?.type === 'remove') {
+      await track(current.id, (onProgress) => uninstallPlugin(current.id, onProgress));
+    }
+  }, [dialog, change, track]);
+
+  return {
+    busy: operation.busy,
+    progress: operation.progress,
+    error: operation.error,
+    clearError: operation.clearError,
+    activeId,
+    dialog,
+    report,
+    dismissReport: useCallback(() => {
+      setReport(null);
+    }, []),
+    cancelDialog: useCallback(() => {
+      setDialog(null);
+    }, []),
+    confirm,
+    install: useCallback((id: string) => change(id, 'install', false), [change]),
+    update: useCallback((id: string) => change(id, 'update', false), [change]),
+    askUninstall: useCallback((id: string) => {
+      setDialog({ type: 'remove', id });
+    }, []),
+    toggle: useCallback(
+      (entry: PluginEntry, enabled: boolean) =>
+        track(null, async () => {
+          if (entry.script) await setPluginEnabled(entry.script, enabled);
+        }),
+      [track],
+    ),
+    updateAll: useCallback(async () => {
+      setReport(null);
+      const result = await track(null, (onProgress) => updateAllPlugins(onProgress));
+      if (result) setReport(result);
+    }, [track]),
+  };
+}

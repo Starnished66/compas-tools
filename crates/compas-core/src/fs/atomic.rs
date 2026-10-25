@@ -10,7 +10,10 @@ static COUNTER: AtomicU32 = AtomicU32::new(0);
 /// A unique hidden temporary name next to `dest`, so the final rename stays on
 /// one filesystem and a leftover from another run is never reused.
 pub fn temp_sibling(dest: &Path) -> PathBuf {
-    let name = dest.file_name().map(|n| n.to_string_lossy()).unwrap_or_default();
+    let name = dest
+        .file_name()
+        .map(|n| n.to_string_lossy())
+        .unwrap_or_default();
     let n = COUNTER.fetch_add(1, Ordering::Relaxed);
     dest.with_file_name(format!(".{name}.tmp.{}.{n}", std::process::id()))
 }

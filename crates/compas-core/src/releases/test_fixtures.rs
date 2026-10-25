@@ -12,9 +12,15 @@ pub async fn release(tag: &str) -> (TestServer, Release) {
     let mut files: Vec<(String, Vec<u8>)> = vec![("compas_player".into(), R1_PLAYER.to_vec())];
     for board in ["r1", "r3proii", "r3ii_2025"] {
         if board != "r1" {
-            files.push((format!("compas_player_{board}"), format!("player {board}").into_bytes()));
+            files.push((
+                format!("compas_player_{board}"),
+                format!("player {board}").into_bytes(),
+            ));
         }
-        files.push((format!("{board}.upt"), format!("image {board}").into_bytes()));
+        files.push((
+            format!("{board}.upt"),
+            format!("image {board}").into_bytes(),
+        ));
     }
     let sums: String = files
         .iter()

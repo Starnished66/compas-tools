@@ -3,3 +3,4 @@ node_modules/
 dist/
 artifacts/
 *.AppImage
+src-tauri/gen/

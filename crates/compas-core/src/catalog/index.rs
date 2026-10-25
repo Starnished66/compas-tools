@@ -172,13 +172,16 @@ pub(super) mod tests {
     }
 
     fn index(plugins: Vec<Value>) -> Vec<u8> {
-        json!({ "schema": 1, "tag": "v1", "plugins": plugins }).to_string().into_bytes()
+        json!({ "schema": 1, "tag": "v1", "plugins": plugins })
+            .to_string()
+            .into_bytes()
     }
 
     #[test]
     fn accepts_a_valid_index() {
         let mut p = plugin_json("a", ".plugins/A.lua", 10);
-        p["preview"] = json!({ "asset": "p.jpg", "sha256": sha('b'), "size": 5, "width": 10, "height": 20 });
+        p["preview"] =
+            json!({ "asset": "p.jpg", "sha256": sha('b'), "size": 5, "width": 10, "height": 20 });
         let parsed = parse(&index(vec![p, plugin_json("b", ".plugins/B.lua", 3)])).unwrap();
         assert_eq!(parsed.tag, "v1");
         assert_eq!(parsed.plugins[0].script(), Some("A.lua"));
@@ -201,15 +204,41 @@ pub(super) mod tests {
             ("control char", with(&|p| p["description"] = json!("a\nb"))),
             ("size mismatch", with(&|p| p["size"] = json!(11))),
             ("no files", with(&|p| p["files"] = json!([]))),
-            ("bad dest", with(&|p| p["files"][0]["dest"] = json!(".plugins/.disabled"))),
-            ("no script", with(&|p| p["files"][0]["dest"] = json!("Data/x.bin"))),
+            (
+                "bad dest",
+                with(&|p| p["files"][0]["dest"] = json!(".plugins/.disabled")),
+            ),
+            (
+                "no script",
+                with(&|p| p["files"][0]["dest"] = json!("Data/x.bin")),
+            ),
             ("bad sha", with(&|p| p["files"][0]["sha256"] = json!("xyz"))),
-            ("zero size file", with(&|p| { p["files"][0]["size"] = json!(0); p["size"] = json!(0) })),
-            ("keep not bool", with(&|p| p["files"][0]["keep"] = json!("yes"))),
-            ("bad preview", with(&|p| p["preview"] = json!({ "asset": "p", "sha256": sha('b'), "size": 5, "width": 241, "height": 1 }))),
+            (
+                "zero size file",
+                with(&|p| {
+                    p["files"][0]["size"] = json!(0);
+                    p["size"] = json!(0)
+                }),
+            ),
+            (
+                "keep not bool",
+                with(&|p| p["files"][0]["keep"] = json!("yes")),
+            ),
+            (
+                "bad preview",
+                with(
+                    &|p| p["preview"] = json!({ "asset": "p", "sha256": sha('b'), "size": 5, "width": 241, "height": 1 }),
+                ),
+            ),
             ("duplicate id", index(vec![good(), good()])),
-            ("overlap", index(vec![good(), plugin_json("b", ".plugins/A.lua", 3)])),
-            ("schema", br#"{"schema":2,"tag":"v1","plugins":[]}"#.to_vec()),
+            (
+                "overlap",
+                index(vec![good(), plugin_json("b", ".plugins/A.lua", 3)]),
+            ),
+            (
+                "schema",
+                br#"{"schema":2,"tag":"v1","plugins":[]}"#.to_vec(),
+            ),
             ("tag", br#"{"schema":1,"tag":"v 1","plugins":[]}"#.to_vec()),
             ("not json", b"<html>".to_vec()),
         ];

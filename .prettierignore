@@ -1,0 +1,9 @@
+dist
+node_modules
+target
+artifacts
+src-tauri/gen
+src-tauri/icons
+package-lock.json
+# Shared verbatim with compas-app.
+src/i18n/translate.ts

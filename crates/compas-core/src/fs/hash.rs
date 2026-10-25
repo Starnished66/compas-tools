@@ -8,7 +8,9 @@ use crate::error::{IoContext, Result};
 
 /// Whether `s` is a lowercase hex SHA-256 digest.
 pub fn is_sha256(s: &str) -> bool {
-    s.len() == 64 && s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    s.len() == 64
+        && s.bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
 /// Lowercase hex SHA-256 of a file.

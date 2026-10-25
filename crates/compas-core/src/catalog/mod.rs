@@ -57,7 +57,10 @@ impl Catalog {
     }
 
     pub async fn fetch_from(index_url: &str, releases_base: &str) -> Result<Self> {
-        Self::parse(&net::get_bytes(index_url, INDEX_LIMIT).await?, releases_base)
+        Self::parse(
+            &net::get_bytes(index_url, INDEX_LIMIT).await?,
+            releases_base,
+        )
     }
 
     pub fn get(&self, id: &str) -> Result<&Plugin> {

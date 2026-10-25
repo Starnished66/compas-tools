@@ -38,14 +38,25 @@ pub async fn update_all(
     let total = ids.len() as u64;
     let mut report = UpdateAllReport::default();
     for (i, id) in ids.into_iter().enumerate() {
-        on_progress(Progress { phase: Phase::Updating, done: i as u64, total });
+        on_progress(Progress {
+            phase: Phase::Updating,
+            done: i as u64,
+            total,
+        });
         match update(card, catalog, &id, false, &|_| {}).await {
             Ok(Outcome::Done) => report.updated.push(id),
             Ok(Outcome::NeedsConfirmation) => report.needs_confirmation.push(id),
-            Err(e) => report.failed.push(Failure { id, message: e.to_string() }),
+            Err(e) => report.failed.push(Failure {
+                id,
+                message: e.to_string(),
+            }),
         }
     }
-    on_progress(Progress { phase: Phase::Updating, done: total, total });
+    on_progress(Progress {
+        phase: Phase::Updating,
+        done: total,
+        total,
+    });
     Ok(report)
 }
 
@@ -85,7 +96,13 @@ mod tests {
         assert_eq!(report.needs_confirmation, ["b"]);
         assert_eq!(report.failed.len(), 1);
         assert_eq!(report.failed[0].id, "d");
-        assert_eq!(std::fs::read_to_string(dir.path().join(".plugins/A.lua")).unwrap(), "a2");
-        assert_eq!(std::fs::read_to_string(dir.path().join(".plugins/B.lua")).unwrap(), "edited");
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join(".plugins/A.lua")).unwrap(),
+            "a2"
+        );
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join(".plugins/B.lua")).unwrap(),
+            "edited"
+        );
     }
 }

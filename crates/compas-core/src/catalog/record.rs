@@ -101,7 +101,12 @@ impl Record {
 
     pub fn without(&self, id: &str) -> Self {
         Self {
-            plugins: self.plugins.iter().filter(|p| p.id != id).cloned().collect(),
+            plugins: self
+                .plugins
+                .iter()
+                .filter(|p| p.id != id)
+                .cloned()
+                .collect(),
         }
     }
 
@@ -119,14 +124,19 @@ impl Record {
         for p in &self.plugins {
             out.push_str(&format!("P {} {}\n", p.id, p.version));
             for f in &p.files {
-                out.push_str(&format!("F\t{}\t{}\t{}\n", f.dest, f.sha256, u8::from(f.keep)));
+                out.push_str(&format!(
+                    "F\t{}\t{}\t{}\n",
+                    f.dest,
+                    f.sha256,
+                    u8::from(f.keep)
+                ));
             }
         }
         out
     }
 
     fn parse(text: &str) -> Option<Self> {
-        let mut plugins: Vec<RecordedPlugin> = Vec::new();
+        let mut record = Self::default();
         let mut dests = HashSet::new();
         for line in text.split_inclusive('\n') {
             let line = line.strip_suffix('\n').unwrap_or(line);
@@ -134,53 +144,59 @@ impl Record {
                 return None;
             }
             if let Some(rest) = line.strip_prefix("P ") {
-                if plugins.last().is_some_and(|p| p.files.is_empty()) || plugins.len() >= MAX_RECORDED
-                {
-                    return None;
-                }
-                let fields: Vec<&str> = rest.split_whitespace().collect();
-                let [id, ver] = fields[..] else { return None };
-                if !validate::is_id(id)
-                    || !version::is_valid(ver)
-                    || plugins.iter().any(|p| p.id == id)
-                {
-                    return None;
-                }
-                plugins.push(RecordedPlugin {
-                    id: id.into(),
-                    version: ver.into(),
-                    files: Vec::new(),
-                });
-            } else if let Some(rest) = line.strip_prefix("F\t") {
-                let [d, sha, keep] = rest.split('\t').collect::<Vec<_>>()[..] else {
-                    return None;
-                };
-                let keep = match keep {
-                    "0" => false,
-                    "1" => true,
-                    _ => return None,
-                };
-                let plugin = plugins.last_mut()?;
-                if !dest::is_valid(d)
-                    || !validate::is_sha256(sha)
-                    || plugin.files.len() >= MAX_FILES
-                    || !dests.insert(d.to_ascii_lowercase())
-                {
-                    return None;
-                }
-                plugin.files.push(RecordedFile {
-                    dest: d.into(),
-                    sha256: sha.into(),
-                    keep,
-                });
+                record.push_plugin(rest)?;
             } else {
-                return None;
+                record.push_file(line.strip_prefix("F\t")?, &mut dests)?;
             }
         }
-        plugins
+        record
+            .plugins
             .last()
-            .map_or(true, |p| !p.files.is_empty())
-            .then_some(Self { plugins })
+            .is_none_or(|p| !p.files.is_empty())
+            .then_some(record)
+    }
+
+    /// A `P` line; the previous plugin must have gotten its files.
+    fn push_plugin(&mut self, fields: &str) -> Option<()> {
+        let [id, ver] = fields.split_whitespace().collect::<Vec<_>>()[..] else {
+            return None;
+        };
+        let valid = validate::is_id(id)
+            && version::is_valid(ver)
+            && self.get(id).is_none()
+            && self.plugins.len() < MAX_RECORDED
+            && self.plugins.last().is_none_or(|p| !p.files.is_empty());
+        valid.then(|| {
+            self.plugins.push(RecordedPlugin {
+                id: id.into(),
+                version: ver.into(),
+                files: Vec::new(),
+            });
+        })
+    }
+
+    /// An `F` line (without its prefix) for the latest plugin.
+    fn push_file(&mut self, fields: &str, dests: &mut HashSet<String>) -> Option<()> {
+        let [dest, sha, keep] = fields.split('\t').collect::<Vec<_>>()[..] else {
+            return None;
+        };
+        let keep = match keep {
+            "0" => false,
+            "1" => true,
+            _ => return None,
+        };
+        let plugin = self.plugins.last_mut()?;
+        let valid = dest::is_valid(dest)
+            && validate::is_sha256(sha)
+            && plugin.files.len() < MAX_FILES
+            && dests.insert(dest.to_ascii_lowercase());
+        valid.then(|| {
+            plugin.files.push(RecordedFile {
+                dest: dest.into(),
+                sha256: sha.into(),
+                keep,
+            });
+        })
     }
 }
 
@@ -209,7 +225,7 @@ mod tests {
         write_file(dir.path(), ".plugins/.store_installed", sample().as_bytes());
         let record = Record::read(&card);
         assert_eq!(record.plugins.len(), 2);
-        assert_eq!(record.plugins[0].files[1].keep, true);
+        assert!(record.plugins[0].files[1].keep);
         record.write(&card).unwrap();
         let text = std::fs::read_to_string(dir.path().join(".plugins/.store_installed")).unwrap();
         assert_eq!(text, sample());
@@ -220,17 +236,17 @@ mod tests {
         let (dir, card) = fake_card();
         let a = format!("F\t.plugins/A.lua\t{}\t0\n", sha('a'));
         let bad = [
-            "P a 1\n".to_string(),                                   // no files
-            format!("{a}P a 1\n"),                                    // F before P
-            format!("P a 1\n{a}P a 2\n{a}"),                          // duplicate id
-            format!("P A 1\n{a}"),                                    // bad id
-            format!("P a 1.x\n{a}"),                                  // bad version
-            format!("P a 1\n{a}{a}"),                                 // repeated dest
-            format!("P a 1\n{a}P b 1\n{a}"),                          // dest shared across plugins
-            format!("P a 1\nF\t.plugins/A.lua\t{}\t2\n", sha('a')),   // bad keep
-            format!("P a 1\nF\t.compas/x\t{}\t0\n", sha('a')),        // bad dest
-            format!("P a 1 extra\n{a}"),                              // extra field
-            format!("X\nP a 1\n{a}"),                                 // unknown line
+            "P a 1\n".to_string(),                                  // no files
+            format!("{a}P a 1\n"),                                  // F before P
+            format!("P a 1\n{a}P a 2\n{a}"),                        // duplicate id
+            format!("P A 1\n{a}"),                                  // bad id
+            format!("P a 1.x\n{a}"),                                // bad version
+            format!("P a 1\n{a}{a}"),                               // repeated dest
+            format!("P a 1\n{a}P b 1\n{a}"),                        // dest shared across plugins
+            format!("P a 1\nF\t.plugins/A.lua\t{}\t2\n", sha('a')), // bad keep
+            format!("P a 1\nF\t.compas/x\t{}\t0\n", sha('a')),      // bad dest
+            format!("P a 1 extra\n{a}"),                            // extra field
+            format!("X\nP a 1\n{a}"),                               // unknown line
         ];
         for text in bad {
             write_file(dir.path(), ".plugins/.store_installed", text.as_bytes());

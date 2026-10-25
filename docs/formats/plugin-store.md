@@ -31,26 +31,26 @@ URL: `https://github.com/Starnished66/compas-plugins/releases/latest/download/in
 
 The whole index is rejected on the first violation of any rule:
 
-| Field | Rule |
-| --- | --- |
-| `schema` | integer, exactly 1 |
-| `tag` | token (`[A-Za-z0-9_.-]`), 1 to 63 chars |
-| `plugins` | array, at most 200 entries |
-| `id` | `regex_id`: `[a-z0-9][a-z0-9_.-]{0,62}`; unique across the index |
-| `name` | 1 to 64 chars, no control chars (< 32 or 127) |
-| `version` | `store_version_valid`: 1 to 31 chars, 1 to 4 numeric groups separated by `.`, no empty groups |
-| `description`, `category`, `author` | strings (may be empty), no control chars, at most 400, 32 and 64 chars |
-| `api_min` | integer 1 to 2^32-1 |
-| `size` | integer 0 to 2^32-1; must equal the sum of the file sizes |
-| `files` | array of 1 to 32 entries |
-| `files[].asset` | token (`[A-Za-z0-9_.-]`), 1 to 127 chars |
-| `files[].sha256` | exactly 64 lowercase hex chars |
-| `files[].size` | integer 1 to 1 MiB (`STORE_FILE_LIMIT`) |
-| `files[].keep` | optional boolean, default false |
-| `files[].dest` | `plugin_store_dest_valid`, see below |
-| `preview` | optional object, see below |
+| Field                               | Rule                                                                                          |
+| ----------------------------------- | --------------------------------------------------------------------------------------------- |
+| `schema`                            | integer, exactly 1                                                                            |
+| `tag`                               | token (`[A-Za-z0-9_.-]`), 1 to 63 chars                                                       |
+| `plugins`                           | array, at most 200 entries                                                                    |
+| `id`                                | `regex_id`: `[a-z0-9][a-z0-9_.-]{0,62}`; unique across the index                              |
+| `name`                              | 1 to 64 chars, no control chars (< 32 or 127)                                                 |
+| `version`                           | `store_version_valid`: 1 to 31 chars, 1 to 4 numeric groups separated by `.`, no empty groups |
+| `description`, `category`, `author` | strings (may be empty), no control chars, at most 400, 32 and 64 chars                        |
+| `api_min`                           | integer 1 to 2^32-1                                                                           |
+| `size`                              | integer 0 to 2^32-1; must equal the sum of the file sizes                                     |
+| `files`                             | array of 1 to 32 entries                                                                      |
+| `files[].asset`                     | token (`[A-Za-z0-9_.-]`), 1 to 127 chars                                                      |
+| `files[].sha256`                    | exactly 64 lowercase hex chars                                                                |
+| `files[].size`                      | integer 1 to 1 MiB (`STORE_FILE_LIMIT`)                                                       |
+| `files[].keep`                      | optional boolean, default false                                                               |
+| `files[].dest`                      | `plugin_store_dest_valid`, see below                                                          |
+| `preview`                           | optional object, see below                                                                    |
 
-Other rules over `files`: exactly one file is the *script* (`script_dest`: a
+Other rules over `files`: exactly one file is the _script_ (`script_dest`: a
 `.lua` file, longer than `.lua`, directly inside `.plugins/`); no two
 destinations of the whole index collide (`store_dests_collide`: equal, or one is
 a folder containing the other).
@@ -191,7 +191,7 @@ Commit (with the stage already verified):
    be a real directory, never a symlink); if the destination exists rename it
    to `<stage>/<i>.backup`; rename `<stage>/<i>.part` to the destination.
 3. Write the new record (see above). If this fails, roll back.
-4. Remove files of the *old* record of this plugin that are no longer in the
+4. Remove files of the _old_ record of this plugin that are no longer in the
    new file list, are not `keep`, and still have the recorded SHA-256 (a
    modified file is left).
 5. Delete the backups, `sync`, remove the stage directory.

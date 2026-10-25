@@ -51,25 +51,25 @@ Containerfile              Linux build environment (Ubuntu 22.04 base)
 
 ## On-card layout used by phase 1
 
-| Path on the card | Owner | Purpose |
-| --- | --- | --- |
-| `.compas/` | player | Marks a Compás card |
-| `.compas/device.json` | player | Model, player version, plugin API level |
-| `.compas/compas_player` | tools | Player-only update file |
-| `<board>.upt` at the root | tools | Full firmware image (`r1`, `r3proii`, `r3ii_2025`) |
-| `.plugins/` | shared | Plugins, layouts and themes |
-| `.plugins/.store_installed` | shared | Store install record, same format as the player |
-| `.plugins/.disabled` | shared | Disabled plugin file names, one per line |
+| Path on the card            | Owner  | Purpose                                            |
+| --------------------------- | ------ | -------------------------------------------------- |
+| `.compas/`                  | player | Marks a Compás card                                |
+| `.compas/device.json`       | player | Model, player version, plugin API level            |
+| `.compas/compas_player`     | tools  | Player-only update file                            |
+| `<board>.upt` at the root   | tools  | Full firmware image (`r1`, `r3proii`, `r3ii_2025`) |
+| `.plugins/`                 | shared | Plugins, layouts and themes                        |
+| `.plugins/.store_installed` | shared | Store install record, same format as the player    |
+| `.plugins/.disabled`        | shared | Disabled plugin file names, one per line           |
 
 The plugin store semantics mirror `src/network/plugin_store.c` in compas-player.
 They are written up in [formats/plugin-store.md](formats/plugin-store.md).
 
 ## External sources
 
-| Source | URL |
-| --- | --- |
-| Plugin catalog | `https://github.com/Starnished66/compas-plugins/releases/latest/download/index.json` |
-| Catalog assets | `https://github.com/Starnished66/compas-plugins/releases/download/<tag>/<asset>` |
+| Source          | URL                                                                                   |
+| --------------- | ------------------------------------------------------------------------------------- |
+| Plugin catalog  | `https://github.com/Starnished66/compas-plugins/releases/latest/download/index.json`  |
+| Catalog assets  | `https://github.com/Starnished66/compas-plugins/releases/download/<tag>/<asset>`      |
 | Player releases | GitHub API, latest release of `Starnished66/compas-player` (assets plus `SHA256SUMS`) |
 
 Every downloaded file is checked against its published size and SHA-256 before

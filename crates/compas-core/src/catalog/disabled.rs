@@ -28,7 +28,9 @@ pub(super) fn read(card: &Card) -> Result<Vec<String>> {
 /// Enables or disables the plugin whose script is `script` (a file name).
 pub fn set_enabled(card: &Card, script: &str, enabled: bool) -> Result<()> {
     if script.is_empty() || script.contains(['/', '\\', '\n', '\r']) {
-        return Err(Error::Rejected(format!("invalid plugin file name {script}")));
+        return Err(Error::Rejected(format!(
+            "invalid plugin file name {script}"
+        )));
     }
     let mut names = read(card)?;
     let listed = names.iter().any(|n| n == script);
@@ -55,7 +57,10 @@ mod tests {
     fn disables_and_enables_idempotently() {
         let (dir, card) = fake_card();
         set_enabled(&card, "A.lua", true).unwrap();
-        assert!(!dir.path().join(".plugins/.disabled").exists(), "no-op writes nothing");
+        assert!(
+            !dir.path().join(".plugins/.disabled").exists(),
+            "no-op writes nothing"
+        );
 
         set_enabled(&card, "A.lua", false).unwrap();
         set_enabled(&card, "B.lua", false).unwrap();

@@ -45,7 +45,10 @@ mod tests {
         assert_eq!(compare("1.2", "1.2.0"), Ordering::Equal);
         assert_eq!(compare("1.2", "1.2.1"), Ordering::Less);
         assert_eq!(compare("01.002", "1.2"), Ordering::Equal);
-        assert_eq!(compare("99999999999999999999", "100000000000000000000"), Ordering::Less);
+        assert_eq!(
+            compare("99999999999999999999", "100000000000000000000"),
+            Ordering::Less
+        );
     }
 
     #[test]

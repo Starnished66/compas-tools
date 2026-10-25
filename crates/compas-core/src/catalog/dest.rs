@@ -9,7 +9,9 @@ pub fn is_valid(dest: &str) -> bool {
         && dest
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b" ._-/".contains(&b))
-        && dest.split('/').all(|s| !s.is_empty() && s != "." && s != "..")
+        && dest
+            .split('/')
+            .all(|s| !s.is_empty() && s != "." && s != "..")
         && lower != ".compas"
         && !lower.starts_with(".compas/")
         && !lower.starts_with(".plugins/.")
@@ -29,7 +31,11 @@ pub fn script_name(dest: &str) -> Option<&str> {
 /// Two destinations that cannot both exist: equal, or one holds the other.
 pub fn collide(a: &str, b: &str) -> bool {
     let (a, b) = (a.to_ascii_lowercase(), b.to_ascii_lowercase());
-    let (short, long) = if a.len() <= b.len() { (&a, &b) } else { (&b, &a) };
+    let (short, long) = if a.len() <= b.len() {
+        (&a, &b)
+    } else {
+        (&b, &a)
+    };
     short == long || (long.starts_with(short.as_str()) && long[short.len()..].starts_with('/'))
 }
 
@@ -43,8 +49,19 @@ mod tests {
             assert!(is_valid(ok), "{ok}");
         }
         for bad in [
-            "", "/abs", "a//b", "a/./b", "../x", "a/..", ".compas", ".COMPAS/x",
-            ".plugins/.store_installed", ".Plugins/.disabled", "r1.UPT", "a\\b", "é.lua",
+            "",
+            "/abs",
+            "a//b",
+            "a/./b",
+            "../x",
+            "a/..",
+            ".compas",
+            ".COMPAS/x",
+            ".plugins/.store_installed",
+            ".Plugins/.disabled",
+            "r1.UPT",
+            "a\\b",
+            "é.lua",
             &"a".repeat(256),
         ] {
             assert!(!is_valid(bad), "{bad}");

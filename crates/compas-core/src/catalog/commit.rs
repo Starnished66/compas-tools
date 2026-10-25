@@ -79,7 +79,10 @@ fn place_files(
         let backup = match existing {
             Ok(meta) if meta.is_file() => Some(stage.path().join(format!("{i}.backup"))),
             Ok(_) => {
-                return Err(Error::Rejected(format!("{} is not a regular file", target.display())))
+                return Err(Error::Rejected(format!(
+                    "{} is not a regular file",
+                    target.display()
+                )))
             }
             Err(_) => None,
         };
@@ -116,12 +119,16 @@ pub(super) fn restore(applied: &[Applied]) -> bool {
 /// Removes files of the old version that the new one no longer ships, unless
 /// the user changed them or they are `keep` files.
 fn remove_dropped(card: &Card, plugin: &Plugin, record: &Record) {
-    let Some(old) = record.get(&plugin.id) else { return };
+    let Some(old) = record.get(&plugin.id) else {
+        return;
+    };
     for file in old.files.iter().filter(|f| !f.keep) {
         if plugin.dests().any(|d| d.eq_ignore_ascii_case(&file.dest)) {
             continue;
         }
-        let Ok(target) = card.resolve(&file.dest, false) else { continue };
+        let Ok(target) = card.resolve(&file.dest, false) else {
+            continue;
+        };
         let untouched = fs::symlink_metadata(&target).is_ok_and(|m| m.is_file())
             && sha256_file(&target).is_ok_and(|sha| sha == file.sha256);
         if untouched {

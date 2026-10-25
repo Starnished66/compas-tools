@@ -41,9 +41,9 @@ pub fn compute(
             PluginState::Installed
         };
     }
-    let script_present = plugin
-        .script()
-        .is_some_and(|name| fs::symlink_metadata(card.plugins_dir().join(name)).is_ok_and(|m| m.is_file()));
+    let script_present = plugin.script().is_some_and(|name| {
+        fs::symlink_metadata(card.plugins_dir().join(name)).is_ok_and(|m| m.is_file())
+    });
     if script_present {
         PluginState::Manual
     } else if incompatible {
@@ -65,14 +65,33 @@ mod tests {
         let mut p = spec("a", "1.1", &[(".plugins/A.lua", "x", false)]).plugin;
 
         assert_eq!(compute(&p, None, &card, Some(17)), PluginState::Available);
-        assert_eq!(compute(&p, Some("1.0"), &card, Some(17)), PluginState::Update);
-        assert_eq!(compute(&p, Some("1.1"), &card, Some(17)), PluginState::Installed);
-        assert_eq!(compute(&p, Some("2.0"), &card, Some(17)), PluginState::Installed);
+        assert_eq!(
+            compute(&p, Some("1.0"), &card, Some(17)),
+            PluginState::Update
+        );
+        assert_eq!(
+            compute(&p, Some("1.1"), &card, Some(17)),
+            PluginState::Installed
+        );
+        assert_eq!(
+            compute(&p, Some("2.0"), &card, Some(17)),
+            PluginState::Installed
+        );
 
         p.api_min = 18;
-        assert_eq!(compute(&p, None, &card, Some(17)), PluginState::Incompatible);
-        assert_eq!(compute(&p, Some("1.0"), &card, Some(17)), PluginState::Installed);
-        assert_eq!(compute(&p, None, &card, None), PluginState::Available, "unknown api");
+        assert_eq!(
+            compute(&p, None, &card, Some(17)),
+            PluginState::Incompatible
+        );
+        assert_eq!(
+            compute(&p, Some("1.0"), &card, Some(17)),
+            PluginState::Installed
+        );
+        assert_eq!(
+            compute(&p, None, &card, None),
+            PluginState::Available,
+            "unknown api"
+        );
 
         write_file(dir.path(), ".plugins/A.lua", b"hand made");
         assert_eq!(compute(&p, None, &card, None), PluginState::Manual);

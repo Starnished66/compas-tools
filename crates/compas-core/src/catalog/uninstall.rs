@@ -21,14 +21,23 @@ pub fn uninstall(card: &Card, id: &str, on_progress: OnProgress<'_>) -> Result<(
     let mut moved = Vec::new();
     let mut result = Ok(());
     for (i, file) in files.iter().enumerate() {
-        on_progress(Progress { phase: Phase::Removing, done: i as u64, total: files.len() as u64 });
-        let Ok(target) = card.resolve(&file.dest, false) else { continue };
+        on_progress(Progress {
+            phase: Phase::Removing,
+            done: i as u64,
+            total: files.len() as u64,
+        });
+        let Ok(target) = card.resolve(&file.dest, false) else {
+            continue;
+        };
         if !fs::symlink_metadata(&target).is_ok_and(|m| m.is_file()) {
             continue;
         }
         let backup = stage.path().join(format!("{i}.backup"));
         match fs::rename(&target, &backup).at(&target) {
-            Ok(()) => moved.push(Applied { target, backup: Some(backup) }),
+            Ok(()) => moved.push(Applied {
+                target,
+                backup: Some(backup),
+            }),
             Err(e) => {
                 result = Err(e);
                 break;
@@ -44,7 +53,11 @@ pub fn uninstall(card: &Card, id: &str, on_progress: OnProgress<'_>) -> Result<(
         }
         return Err(error);
     }
-    on_progress(Progress { phase: Phase::Removing, done: files.len() as u64, total: files.len() as u64 });
+    on_progress(Progress {
+        phase: Phase::Removing,
+        done: files.len() as u64,
+        total: files.len() as u64,
+    });
     Ok(())
 }
 
@@ -58,11 +71,15 @@ mod tests {
     #[tokio::test]
     async fn removes_files_and_record_but_keeps_keep_files() {
         let (dir, card) = fake_card();
-        let s = spec("p", "1.0", &[
-            (".plugins/P.lua", "lua", false),
-            ("Data/p.txt", "data", false),
-            ("Data/user.txt", "mine", true),
-        ]);
+        let s = spec(
+            "p",
+            "1.0",
+            &[
+                (".plugins/P.lua", "lua", false),
+                ("Data/p.txt", "data", false),
+                ("Data/user.txt", "mine", true),
+            ],
+        );
         let (_server, catalog) = publish(&[s]).await;
         install(&card, &catalog, "p", false, &|_| {}).await.unwrap();
 
@@ -77,7 +94,10 @@ mod tests {
     #[test]
     fn unknown_plugin_is_not_found() {
         let (_dir, card) = fake_card();
-        assert!(matches!(uninstall(&card, "x", &|_| {}), Err(Error::NotFound(_))));
+        assert!(matches!(
+            uninstall(&card, "x", &|_| {}),
+            Err(Error::NotFound(_))
+        ));
     }
 
     #[cfg(unix)]
@@ -86,7 +106,14 @@ mod tests {
         use std::os::unix::fs::PermissionsExt;
 
         let (dir, card) = fake_card();
-        let s = spec("p", "1.0", &[("Data/p.txt", "data", false), (".plugins/P.lua", "lua", false)]);
+        let s = spec(
+            "p",
+            "1.0",
+            &[
+                ("Data/p.txt", "data", false),
+                (".plugins/P.lua", "lua", false),
+            ],
+        );
         let (_server, catalog) = publish(&[s]).await;
         install(&card, &catalog, "p", false, &|_| {}).await.unwrap();
 

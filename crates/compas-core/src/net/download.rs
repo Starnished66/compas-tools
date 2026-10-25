@@ -41,7 +41,9 @@ async fn stream_to(
     while let Some(chunk) = response.chunk().await? {
         done += chunk.len() as u64;
         if done > size {
-            return Err(Error::Verification(format!("{url} is larger than {size} bytes")));
+            return Err(Error::Verification(format!(
+                "{url} is larger than {size} bytes"
+            )));
         }
         hasher.update(&chunk);
         file.write_all(&chunk).await.at(tmp)?;
@@ -73,10 +75,16 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let dest = dir.path().join("f");
         let last = Cell::new(0);
-        download_verified(&server.url("/f"), &dest, 100_000, &sha256_hex(&body), |d, t| {
-            assert_eq!(t, 100_000);
-            last.set(d);
-        })
+        download_verified(
+            &server.url("/f"),
+            &dest,
+            100_000,
+            &sha256_hex(&body),
+            |d, t| {
+                assert_eq!(t, 100_000);
+                last.set(d);
+            },
+        )
         .await
         .unwrap();
         assert_eq!(fs::read(&dest).unwrap(), body);
@@ -111,7 +119,11 @@ mod tests {
         let dest = dir.path().join("f");
         fs::write(&dest, b"old").unwrap();
         let bad = sha256_hex(b"x");
-        assert!(download_verified(&server.url("/f"), &dest, 3, &bad, |_, _| {}).await.is_err());
+        assert!(
+            download_verified(&server.url("/f"), &dest, 3, &bad, |_, _| {})
+                .await
+                .is_err()
+        );
         assert_eq!(fs::read(&dest).unwrap(), b"old");
     }
 }

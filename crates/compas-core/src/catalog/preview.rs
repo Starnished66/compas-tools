@@ -34,7 +34,7 @@ fn is_valid(path: &Path, preview: &Preview) -> bool {
 mod tests {
     use super::super::test_fixtures::{publish, spec};
     use super::*;
-    
+
     #[tokio::test]
     async fn downloads_once_and_repairs_a_corrupt_cache_file() {
         let image = b"\xff\xd8 pretend jpeg \xff\xd9".to_vec();

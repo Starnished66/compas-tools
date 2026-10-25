@@ -67,8 +67,15 @@ mod tests {
         assert_eq!(c(&["Themes/.hidden/x.theme"]), (false, false));
         assert_eq!(c(&["Themes/x.THEME"]), (false, false));
         assert_eq!(c(&["Themes/a.theme"]), (false, true));
-        assert_eq!(c(&["Themes/.theme"]), (false, false), "no name before the extension");
-        assert_eq!(c(&["Themes/Dark.theme", ".plugins/x/player_layouts/l.xml"]), (false, true));
+        assert_eq!(
+            c(&["Themes/.theme"]),
+            (false, false),
+            "no name before the extension"
+        );
+        assert_eq!(
+            c(&["Themes/Dark.theme", ".plugins/x/player_layouts/l.xml"]),
+            (false, true)
+        );
     }
 
     #[test]
@@ -77,7 +84,13 @@ mod tests {
         assert_eq!(c(&[".plugins/player_layouts/l.XML"]), (true, false));
         assert_eq!(c(&[".plugins/Bundle/player_layouts/l.xml"]), (true, false));
         assert_eq!(c(&[".plugins/Bundle/other/l.xml"]), (false, false));
-        assert_eq!(c(&[".plugins/Bundle/player_layouts/sub/l.xml"]), (false, false));
-        assert_eq!(c(&[".plugins/a.lua", ".plugins/B/player_layouts/p.png"]), (false, false));
+        assert_eq!(
+            c(&[".plugins/Bundle/player_layouts/sub/l.xml"]),
+            (false, false)
+        );
+        assert_eq!(
+            c(&[".plugins/a.lua", ".plugins/B/player_layouts/p.png"]),
+            (false, false)
+        );
     }
 }

@@ -74,7 +74,10 @@ mod tests {
     fn unknown_when_missing_malformed_or_other_schema() {
         let (dir, card) = fake_card();
         assert!(card.device().unwrap().is_none());
-        for body in ["not json", r#"{"schema":2,"model":"r1","player_version":"1","plugin_api":1}"#] {
+        for body in [
+            "not json",
+            r#"{"schema":2,"model":"r1","player_version":"1","plugin_api":1}"#,
+        ] {
             write_file(dir.path(), ".compas/device.json", body.as_bytes());
             assert!(card.device().unwrap().is_none());
         }

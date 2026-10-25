@@ -119,9 +119,18 @@ mod tests {
 
     #[test]
     fn asset_names_per_board() {
-        assert_eq!(Release::asset_name(Kind::PlayerOnly, Model::R1), "compas_player");
-        assert_eq!(Release::asset_name(Kind::PlayerOnly, Model::R3ProII), "compas_player_r3proii");
-        assert_eq!(Release::asset_name(Kind::FullImage, Model::R3II2025), "r3ii_2025.upt");
+        assert_eq!(
+            Release::asset_name(Kind::PlayerOnly, Model::R1),
+            "compas_player"
+        );
+        assert_eq!(
+            Release::asset_name(Kind::PlayerOnly, Model::R3ProII),
+            "compas_player_r3proii"
+        );
+        assert_eq!(
+            Release::asset_name(Kind::FullImage, Model::R3II2025),
+            "r3ii_2025.upt"
+        );
     }
 
     #[tokio::test]
@@ -139,9 +148,15 @@ mod tests {
     async fn missing_asset_or_checksum_is_an_error() {
         let (_server, mut release) = release("v1.2.0").await;
         release.checksums.remove("r1.upt");
-        assert!(matches!(release.file(Kind::FullImage, Model::R1), Err(Error::InvalidRelease(_))));
+        assert!(matches!(
+            release.file(Kind::FullImage, Model::R1),
+            Err(Error::InvalidRelease(_))
+        ));
         release.assets.clear();
-        assert!(matches!(release.file(Kind::PlayerOnly, Model::R1), Err(Error::InvalidRelease(_))));
+        assert!(matches!(
+            release.file(Kind::PlayerOnly, Model::R1),
+            Err(Error::InvalidRelease(_))
+        ));
     }
 
     #[tokio::test]

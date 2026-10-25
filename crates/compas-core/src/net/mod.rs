@@ -44,7 +44,9 @@ pub async fn get_bytes(url: &str, limit: usize) -> Result<Vec<u8>> {
     let mut body = Vec::new();
     while let Some(chunk) = response.chunk().await? {
         if body.len() + chunk.len() > limit {
-            return Err(Error::Verification(format!("{url} is larger than {limit} bytes")));
+            return Err(Error::Verification(format!(
+                "{url} is larger than {limit} bytes"
+            )));
         }
         body.extend_from_slice(&chunk);
     }

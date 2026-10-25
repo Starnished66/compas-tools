@@ -66,12 +66,19 @@ impl Card {
             .as_ref()
             .map(|v| v.name.clone())
             .filter(|n| !n.is_empty())
-            .or_else(|| self.root.file_name().map(|n| n.to_string_lossy().into_owned()))
+            .or_else(|| {
+                self.root
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+            })
             .unwrap_or_else(|| self.root.display().to_string());
         Ok(CardInfo {
             label,
             root: self.root.clone(),
-            file_system: volume.as_ref().map(|v| v.file_system.clone()).unwrap_or_default(),
+            file_system: volume
+                .as_ref()
+                .map(|v| v.file_system.clone())
+                .unwrap_or_default(),
             total_bytes: volume.as_ref().map_or(0, |v| v.total_bytes),
             free_bytes: volume.as_ref().map_or(0, |v| v.available_bytes),
             device: self.device()?,

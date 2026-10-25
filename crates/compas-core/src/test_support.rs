@@ -34,7 +34,9 @@ impl TestServer {
         let routes: Arc<HashMap<String, Vec<u8>>> = Arc::new(routes(&base).into_iter().collect());
         tokio::spawn(async move {
             loop {
-                let Ok((mut socket, _)) = listener.accept().await else { return };
+                let Ok((mut socket, _)) = listener.accept().await else {
+                    return;
+                };
                 let routes = routes.clone();
                 tokio::spawn(async move {
                     let mut request = Vec::new();

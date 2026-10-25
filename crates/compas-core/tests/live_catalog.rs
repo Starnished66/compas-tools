@@ -14,9 +14,14 @@ async fn installs_the_smallest_real_plugin_into_a_temp_card() {
     let catalog = Catalog::fetch().await.unwrap();
     assert!(!catalog.plugins.is_empty());
     let smallest = catalog.plugins.iter().min_by_key(|p| p.size).unwrap();
-    println!("installing {} {} ({} bytes)", smallest.id, smallest.version, smallest.size);
+    println!(
+        "installing {} {} ({} bytes)",
+        smallest.id, smallest.version, smallest.size
+    );
 
-    let outcome = catalog::install(&card, &catalog, &smallest.id, false, &|_| {}).await.unwrap();
+    let outcome = catalog::install(&card, &catalog, &smallest.id, false, &|_| {})
+        .await
+        .unwrap();
     assert_eq!(outcome, Outcome::Done);
     let script = smallest.script().unwrap();
     assert!(dir.path().join(".plugins").join(script).is_file());
