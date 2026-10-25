@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
-use super::clutter::is_clutter_name;
 use super::names::{fat_safe_name, name_too_long, player_path_fits};
+use super::reserved::{is_firmware_image, is_hidden, reserved_destination};
 use crate::card::Card;
 use crate::error::{Error, Result};
 
@@ -38,6 +38,8 @@ pub enum IssueKind {
     PathTooLong,
     NameConflict,
     Unreadable,
+    /// A hidden name, a firmware image, or something the player owns.
+    ReservedName,
 }
 
 /// Something that keeps one file out of the transfer.
@@ -61,7 +63,11 @@ pub struct Plan {
     pub issues: Vec<Issue>,
     /// Folder or file names that had to change to be valid on FAT.
     pub renames: Vec<Rename>,
+    /// Hidden files, macOS leftovers and firmware images inside folders.
     pub skipped_clutter: u64,
+    /// Some source could not be read, so a mirror removes nothing: the files
+    /// it could not see would look like extras.
+    pub deletions_blocked: bool,
 }
 
 impl Plan {
@@ -78,6 +84,7 @@ impl Plan {
             issues: self.issues.clone(),
             renames: self.renames.clone(),
             skipped_clutter: self.skipped_clutter,
+            deletions_blocked: self.deletions_blocked,
         }
     }
 }
@@ -93,6 +100,7 @@ pub struct PlanSummary {
     pub issues: Vec<Issue>,
     pub renames: Vec<Rename>,
     pub skipped_clutter: u64,
+    pub deletions_blocked: bool,
 }
 
 struct Planner<'a> {
@@ -101,6 +109,9 @@ struct Planner<'a> {
     plan: Plan,
     /// Lowercased destinations of every source file, usable or not.
     claimed: HashSet<String>,
+    /// Lowercased `folder/` prefixes of linked folders, which are not copied
+    /// but must not have their card copies deleted either.
+    claimed_dirs: Vec<String>,
 }
 
 /// Works out what copying `sources` (files and folders) onto the card involves.
@@ -110,6 +121,7 @@ pub fn plan(card: &Card, sources: &[PathBuf], options: &PlanOptions) -> Result<P
         options,
         plan: Plan::default(),
         claimed: HashSet::new(),
+        claimed_dirs: Vec::new(),
     };
     let base: Vec<String> = options
         .dest_dir
@@ -117,6 +129,12 @@ pub fn plan(card: &Card, sources: &[PathBuf], options: &PlanOptions) -> Result<P
         .filter(|s| !s.is_empty())
         .map(|s| planner.safe_segment(s))
         .collect();
+    if reserved_destination(&base) {
+        return Err(Error::Rejected(format!(
+            "The card folder \"{}\" is hidden or belongs to the player.",
+            options.dest_dir
+        )));
+    }
 
     for source in sources {
         let name = source
@@ -125,6 +143,10 @@ pub fn plan(card: &Card, sources: &[PathBuf], options: &PlanOptions) -> Result<P
             .to_string_lossy();
         let mut dest = base.clone();
         dest.push(planner.safe_segment(&name));
+        if reserved_destination(&dest) {
+            planner.issue(source, IssueKind::ReservedName);
+            continue;
+        }
         match fs::metadata(source) {
             Ok(meta) if meta.is_dir() => planner.walk(source, &dest),
             Ok(meta) if meta.is_file() => planner.add_file(source, &dest, meta.len()),
@@ -165,7 +187,7 @@ impl Planner<'_> {
         entries.sort_by_key(fs::DirEntry::file_name);
         for entry in entries {
             let name = entry.file_name().to_string_lossy().into_owned();
-            if is_clutter_name(&name) {
+            if is_hidden(&name) || is_firmware_image(&name) {
                 self.plan.skipped_clutter += 1;
                 continue;
             }
@@ -175,7 +197,13 @@ impl Planner<'_> {
             };
             let mut child = dest.to_vec();
             child.push(self.safe_segment(&name));
-            if kind.is_dir() {
+            if kind.is_symlink() {
+                // Not copied (it could loop or leave the folder), but whatever
+                // the card has under that name is not an extra.
+                let claim = child.join("/").to_lowercase();
+                self.claimed_dirs.push(format!("{claim}/"));
+                self.claimed.insert(claim);
+            } else if kind.is_dir() {
                 self.walk(&entry.path(), &child);
             } else if kind.is_file() {
                 match entry.metadata() {
@@ -183,7 +211,6 @@ impl Planner<'_> {
                     Err(_) => self.issue(&entry.path(), IssueKind::Unreadable),
                 }
             }
-            // Links inside a folder are left out: they could loop or leave it.
         }
     }
 
@@ -228,24 +255,43 @@ impl Planner<'_> {
                 "mirroring needs a folder, not a file".into(),
             ));
         }
+        if self
+            .plan
+            .issues
+            .iter()
+            .any(|i| i.kind == IssueKind::Unreadable)
+        {
+            self.plan.deletions_blocked = true;
+            return Ok(());
+        }
         let name = source
             .file_name()
             .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
         let mut root = base.to_vec();
         root.push(fat_safe_name(&name));
+        if reserved_destination(&root) {
+            return Err(Error::Rejected(format!(
+                "\"{name}\" is hidden or belongs to the player and cannot be mirrored."
+            )));
+        }
         let relative = root.join("/");
         let dir = self.card.resolve(&relative, false)?;
         let mut found = Vec::new();
         list_files(&dir, &relative, &mut found);
         self.plan.deletions = found
             .into_iter()
-            .filter(|f| !self.claimed.contains(&f.to_lowercase()))
+            .filter(|f| {
+                let lower = f.to_lowercase();
+                !self.claimed.contains(&lower)
+                    && !self.claimed_dirs.iter().any(|d| lower.starts_with(d))
+            })
             .collect();
         Ok(())
     }
 }
 
-/// Regular files below `dir`, as `prefix/…` paths; links are not followed.
+/// Regular files below `dir`, as `prefix/…` paths. Links are not followed and
+/// hidden entries and firmware images are never listed, so never deleted.
 fn list_files(dir: &Path, prefix: &str, out: &mut Vec<String>) {
     if !fs::symlink_metadata(dir).is_ok_and(|m| m.is_dir()) {
         return;
@@ -258,10 +304,13 @@ fn list_files(dir: &Path, prefix: &str, out: &mut Vec<String>) {
         let Ok(kind) = entry.file_type() else {
             continue;
         };
+        if is_hidden(&name) {
+            continue;
+        }
         let relative = format!("{prefix}/{name}");
         if kind.is_dir() {
             list_files(&entry.path(), &relative, out);
-        } else if kind.is_file() && !is_clutter_name(&name) {
+        } else if kind.is_file() && !is_firmware_image(&name) {
             out.push(relative);
         }
     }
@@ -269,142 +318,4 @@ fn list_files(dir: &Path, prefix: &str, out: &mut Vec<String>) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::test_support::{fake_card, write_file};
-
-    fn dests(plan: &Plan) -> Vec<&str> {
-        plan.items.iter().map(|i| i.dest.as_str()).collect()
-    }
-
-    #[test]
-    fn folders_and_files_land_under_the_chosen_folder() {
-        let (_card_dir, card) = fake_card();
-        let src = tempfile::tempdir().unwrap();
-        write_file(src.path(), "Album/01.flac", b"a");
-        write_file(src.path(), "Album/cover.jpg", b"b");
-        write_file(src.path(), "single.mp3", b"c");
-
-        let sources = [src.path().join("Album"), src.path().join("single.mp3")];
-        let options = PlanOptions {
-            dest_dir: "Music/Rock".into(),
-            ..PlanOptions::default()
-        };
-        let plan = plan(&card, &sources, &options).unwrap();
-        assert_eq!(
-            dests(&plan),
-            [
-                "Music/Rock/Album/01.flac",
-                "Music/Rock/Album/cover.jpg",
-                "Music/Rock/single.mp3"
-            ]
-        );
-        assert_eq!(plan.total_bytes(), 3);
-        assert!(plan.issues.is_empty());
-    }
-
-    #[test]
-    fn clutter_links_and_bad_names_are_handled() {
-        let (_card_dir, card) = fake_card();
-        let src = tempfile::tempdir().unwrap();
-        write_file(src.path(), "Disc/._01.flac", b"apple");
-        write_file(src.path(), "Disc/.DS_Store", b"");
-        write_file(src.path(), "Disc/AC:DC?.flac", b"x");
-        write_file(src.path(), "Disc/Why.", b"x");
-        #[cfg(unix)]
-        std::os::unix::fs::symlink(src.path(), src.path().join("Disc/loop")).unwrap();
-
-        let plan = plan(&card, &[src.path().join("Disc")], &PlanOptions::default()).unwrap();
-        assert_eq!(dests(&plan), ["Disc/AC_DC_.flac", "Disc/Why"]);
-        assert_eq!(plan.skipped_clutter, 2);
-        assert_eq!(plan.renames.len(), 2);
-        assert_eq!(plan.renames[0].from, "AC:DC?.flac");
-    }
-
-    #[test]
-    fn size_name_length_path_length_and_conflicts_keep_files_out() {
-        let (_card_dir, card) = fake_card();
-        let src = tempfile::tempdir().unwrap();
-        write_file(src.path(), "big.flac", &[0u8; 20]);
-        write_file(src.path(), "long.mp3", b"x");
-        let deep = "d".repeat(200);
-        write_file(src.path(), &format!("{deep}/{deep}/{deep}/song.mp3"), b"x");
-        write_file(src.path(), "a?.mp3", b"1");
-        write_file(src.path(), "a_.mp3", b"2");
-        write_file(src.path(), "ok.mp3", b"3");
-
-        let options = PlanOptions {
-            max_file_bytes: Some(10),
-            ..PlanOptions::default()
-        };
-        let plan = plan(&card, &[src.path().to_path_buf()], &options).unwrap();
-        let kind_of = |needle: &str| {
-            plan.issues
-                .iter()
-                .find(|i| i.source.contains(needle))
-                .map(|i| i.kind)
-        };
-        let folder = src
-            .path()
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .into_owned();
-        assert_eq!(kind_of("big.flac"), Some(IssueKind::TooLargeForFat));
-        assert_eq!(kind_of("song.mp3"), Some(IssueKind::PathTooLong));
-        assert_eq!(kind_of("a_.mp3"), Some(IssueKind::NameConflict));
-        assert!(dests(&plan).contains(&format!("{folder}/ok.mp3").as_str()));
-        assert_eq!(
-            plan.items.len(),
-            3,
-            "ok.mp3 and the first of the conflicting pair"
-        );
-    }
-
-    #[test]
-    fn existing_files_are_flagged() {
-        let (card_dir, card) = fake_card();
-        write_file(card_dir.path(), "Album/01.flac", b"old");
-        let src = tempfile::tempdir().unwrap();
-        write_file(src.path(), "Album/01.flac", b"new");
-        write_file(src.path(), "Album/02.flac", b"new");
-        let plan = plan(&card, &[src.path().join("Album")], &PlanOptions::default()).unwrap();
-        let exists: Vec<_> = plan.items.iter().map(|i| i.exists).collect();
-        assert_eq!(exists, [true, false]);
-    }
-
-    #[test]
-    fn mirror_lists_card_files_the_folder_no_longer_has() {
-        let (card_dir, card) = fake_card();
-        write_file(card_dir.path(), "Album/01.flac", b"x");
-        write_file(card_dir.path(), "Album/gone.flac", b"x");
-        write_file(card_dir.path(), "Album/Disc 2/old.flac", b"x");
-        write_file(card_dir.path(), "Other/keep.flac", b"x");
-        let src = tempfile::tempdir().unwrap();
-        write_file(src.path(), "Album/01.flac", b"x");
-        let options = PlanOptions {
-            delete_extra: true,
-            ..PlanOptions::default()
-        };
-
-        let plan = plan(&card, &[src.path().join("Album")], &options).unwrap();
-        assert_eq!(plan.deletions, ["Album/Disc 2/old.flac", "Album/gone.flac"]);
-
-        let two = [src.path().join("Album"), src.path().join("Album")];
-        assert!(super::plan(&card, &two, &options).is_err());
-        assert!(super::plan(&card, &[src.path().join("Album/01.flac")], &options).is_err());
-    }
-
-    #[test]
-    fn the_destination_folder_cannot_climb_out() {
-        let (_card_dir, card) = fake_card();
-        let src = tempfile::tempdir().unwrap();
-        write_file(src.path(), "a.mp3", b"x");
-        let options = PlanOptions {
-            dest_dir: "../../etc/..\\x".into(),
-            ..PlanOptions::default()
-        };
-        let plan = plan(&card, &[src.path().join("a.mp3")], &options).unwrap();
-        assert_eq!(dests(&plan), ["_/_/etc/_/x/a.mp3"]);
-    }
-}
+mod tests;

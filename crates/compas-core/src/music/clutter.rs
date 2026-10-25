@@ -33,7 +33,8 @@ pub struct TidyReport {
     pub marker_written: bool,
 }
 
-/// Removes macOS clutter (`._*`, `.DS_Store`, and the root folders above)
+/// Removes macOS clutter (`._*`, `.DS_Store`, and the root folders above),
+/// never inside `.compas` or `.plugins`,
 /// and makes sure `.metadata_never_index` exists. Links are never followed.
 pub fn tidy(card: &Card) -> Result<TidyReport> {
     let mut report = TidyReport::default();
@@ -58,7 +59,7 @@ fn sweep(dir: &Path, is_root: bool, report: &mut TidyReport) {
         };
         let path = entry.path();
         if kind.is_dir() {
-            if is_root && name == ".compas" {
+            if is_root && (name == ".compas" || name == ".plugins") {
                 continue;
             }
             if is_root && ROOT_FOLDERS.contains(&name.as_str()) {
@@ -87,6 +88,8 @@ mod tests {
         write_file(root, ".Spotlight-V100/Store-V2/x", b"");
         write_file(root, ".fseventsd/0000", b"");
         write_file(root, ".compas/._keep", b"inside the player's folder");
+        write_file(root, ".plugins/._keep", b"inside the plugins folder");
+        write_file(root, ".plugins/Data/.DS_Store", b"plugin data");
         write_file(
             root,
             "Artist/Album/.Trashes/not-root",
@@ -100,6 +103,8 @@ mod tests {
         assert!(!root.join("Artist/Album/._01.flac").exists());
         assert!(!root.join(".fseventsd").exists());
         assert!(root.join(".compas/._keep").exists());
+        assert!(root.join(".plugins/._keep").exists());
+        assert!(root.join(".plugins/Data/.DS_Store").exists());
         assert!(root.join("Artist/Album/.Trashes/not-root").exists());
         assert!(root.join(".metadata_never_index").exists());
 

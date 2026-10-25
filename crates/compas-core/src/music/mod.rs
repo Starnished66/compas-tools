@@ -5,6 +5,7 @@ mod clutter;
 mod copy;
 mod names;
 mod plan;
+mod reserved;
 
 use crate::card::Card;
 use crate::error::Result;
@@ -19,7 +20,27 @@ const FAT32_MAX_FILE: u64 = u32::MAX as u64;
 
 /// The largest file the card's file system takes, when it has a limit.
 pub fn max_file_bytes(card: &Card) -> Result<Option<u64>> {
-    let fs = card.info()?.file_system.to_ascii_lowercase();
-    let fat32 = fs.contains("fat") && !fs.contains("exfat");
-    Ok(fat32.then_some(FAT32_MAX_FILE))
+    Ok(fat32_limit(&card.info()?.file_system))
+}
+
+/// Linux reports `vfat`, Windows `FAT32`, macOS `msdos`; exFAT has no 4 GiB limit.
+fn fat32_limit(file_system: &str) -> Option<u64> {
+    let fs = file_system.to_ascii_lowercase();
+    let fat = (fs.contains("fat") && !fs.contains("exfat")) || fs == "msdos";
+    fat.then_some(FAT32_MAX_FILE)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_fat_file_systems_have_the_4_gib_limit() {
+        for fs in ["vfat", "FAT32", "fat", "msdos", "MSDOS"] {
+            assert_eq!(fat32_limit(fs), Some(u32::MAX as u64), "{fs}");
+        }
+        for fs in ["exfat", "exFAT", "ntfs", "btrfs", "ext4", "apfs", ""] {
+            assert_eq!(fat32_limit(fs), None, "{fs}");
+        }
+    }
 }
