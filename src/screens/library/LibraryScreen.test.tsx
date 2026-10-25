@@ -75,4 +75,21 @@ describe('LibraryScreen', () => {
     expect(await screen.findByText(/Album art checked for 20 albums/)).toBeInTheDocument();
     expect(screen.queryByText(/shifted by/)).not.toBeInTheDocument();
   });
+
+  it('shows partial album art counts together with the warning', async () => {
+    vi.mocked(buildArt).mockResolvedValue({
+      board: 'r1',
+      albums: 10,
+      written: 8,
+      unchanged: 1,
+      no_art: 1,
+      mtime_offset: 0,
+      warning: 'Some album covers could not be written; the others were.',
+    });
+    render(<LibraryScreen onChooseCard={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Build album art' }));
+    expect(await screen.findByText(/Album art checked for 10 albums/)).toBeInTheDocument();
+    expect(screen.getByText(/Some album covers could not be written/)).toBeInTheDocument();
+    expect(screen.getByText('Written').nextSibling).toHaveTextContent('8');
+  });
 });

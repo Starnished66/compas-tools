@@ -20,6 +20,7 @@ const plan: PlanView = {
   issues: [{ source: '/music/huge.flac', kind: 'too_large_for_fat' }],
   renames: [{ from: 'AC:DC.flac', to: 'AC_DC.flac' }],
   skipped_clutter: 2,
+  deletions_blocked: false,
   free_bytes: 10 * 1024 * 1024,
   max_file_bytes: 4294967295,
 };
@@ -67,7 +68,14 @@ describe('MusicScreen', () => {
     expect(await screen.findByText(/3 files, 3\.0 MB/)).toBeInTheDocument();
     expect(screen.getByText(/Too big for a FAT32 card/)).toBeInTheDocument();
     expect(screen.getByText(/AC:DC.flac → AC_DC.flac/)).toBeInTheDocument();
-    expect(screen.getByText(/2 macOS leftover files/)).toBeInTheDocument();
+    expect(screen.getByText(/2 hidden files, macOS leftovers/)).toBeInTheDocument();
+  });
+
+  it('explains why a mirror removes nothing when a source could not be read', async () => {
+    vi.mocked(planTransfer).mockResolvedValue({ ...plan, deletions_blocked: true });
+    render(<MusicScreen onChooseCard={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Add folders…' }));
+    expect(await screen.findByText(/Nothing will be removed from the card/)).toBeInTheDocument();
   });
 
   it('copies and reports the result with eject advice', async () => {

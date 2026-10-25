@@ -114,7 +114,7 @@ export function UpdatesScreen({ onChooseCard }: Props) {
           description={t(
             'Replaces just the player program. Quick, and keeps the rest of the system as it is.',
           )}
-          disabled={!latest || !model}
+          disabled={!latest || !model || operation.busy}
           busy={operation.busy && activeKind === 'player_only'}
           progress={operation.progress}
           placed={placed?.kind === 'player_only' ? placed.file : null}
@@ -127,7 +127,7 @@ export function UpdatesScreen({ onChooseCard }: Props) {
           description={t(
             'The complete system image. Use it when a release says the system itself changed.',
           )}
-          disabled={!latest || !model}
+          disabled={!latest || !model || operation.busy}
           busy={operation.busy && activeKind === 'full_image'}
           progress={operation.progress}
           placed={placed?.kind === 'full_image' ? placed.file : null}

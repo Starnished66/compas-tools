@@ -90,7 +90,12 @@ export interface PlacedFile {
 }
 
 export type IssueKind =
-  'too_large_for_fat' | 'name_too_long' | 'path_too_long' | 'name_conflict' | 'unreadable';
+  | 'too_large_for_fat'
+  | 'name_too_long'
+  | 'path_too_long'
+  | 'name_conflict'
+  | 'unreadable'
+  | 'reserved_name';
 
 export interface PlanView {
   files: number;
@@ -101,6 +106,8 @@ export interface PlanView {
   issues: { source: string; kind: IssueKind }[];
   renames: { from: string; to: string }[];
   skipped_clutter: number;
+  /** A mirror removes nothing because some source could not be read. */
+  deletions_blocked: boolean;
   free_bytes: number;
   max_file_bytes: number | null;
 }
@@ -154,4 +161,6 @@ export interface ArtDone {
   unchanged: number;
   no_art: number;
   mtime_offset: number;
+  /** The tool finished but some covers could not be written. */
+  warning?: string | null;
 }

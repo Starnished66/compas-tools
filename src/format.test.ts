@@ -14,6 +14,8 @@ describe('progressLabel', () => {
     expect(progressLabel({ phase: 'downloading', done: 1, total: 4 })).toBe('Downloading… 25%');
     expect(progressLabel({ phase: 'downloading', done: 0, total: 0 })).toBe('Downloading… 0%');
     expect(progressLabel({ phase: 'updating', done: 1, total: 4 })).toBe('Updating plugins… 25%');
+    expect(progressLabel({ phase: 'reading_tags', done: 3, total: 4 })).toBe('Reading tags… 75%');
+    expect(progressLabel({ phase: 'reading_tags', done: 4, total: 4 })).toBe('Saving the library…');
     expect(progressLabel({ phase: 'removing', done: 0, total: 1 })).toBe('Removing…');
   });
 });

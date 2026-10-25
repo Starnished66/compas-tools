@@ -44,7 +44,7 @@ export function ScanResult({ done }: { done: ScanDone }) {
 
 export function ArtResult({ done }: { done: ArtDone }) {
   return (
-    <Notice tone="success">
+    <Notice tone={done.warning ? 'warning' : 'success'}>
       <p>{t('Album art checked for {albums} albums.', { albums: done.albums })}</p>
       <dl className="details-list">
         <dt>{t('Written')}</dt>
@@ -54,6 +54,7 @@ export function ArtResult({ done }: { done: ArtDone }) {
         <dt>{t('No art found')}</dt>
         <dd>{done.no_art}</dd>
       </dl>
+      {done.warning && <p>{done.warning}</p>}
       <OffsetNote seconds={done.mtime_offset} />
     </Notice>
   );

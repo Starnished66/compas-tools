@@ -15,6 +15,8 @@ function issueText(kind: IssueKind): string {
       return t('Another file ends up with the same name');
     case 'unreadable':
       return t('Cannot be read');
+    case 'reserved_name':
+      return t('A hidden name, a firmware image or something the player owns');
   }
 }
 
@@ -44,7 +46,7 @@ export function PlanPreview({ plan }: { plan: PlanView }) {
       )}
       {plan.skipped_clutter > 0 && (
         <p className="muted">
-          {t('{count} macOS leftover files (._*, .DS_Store) are left out.', {
+          {t('{count} hidden files, macOS leftovers and firmware images are left out.', {
             count: plan.skipped_clutter,
           })}
         </p>
@@ -80,6 +82,11 @@ export function PlanPreview({ plan }: { plan: PlanView }) {
               </li>
             ))}
           </ul>
+        </Notice>
+      )}
+      {plan.deletions_blocked && (
+        <Notice tone="warning">
+          <p>{t('Nothing will be removed from the card, because some files could not be read.')}</p>
         </Notice>
       )}
       {plan.deletions.length > 0 && (

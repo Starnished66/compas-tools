@@ -30,6 +30,24 @@
 }
 
 .source-list__path {
+  flex: 1;
   min-width: 0;
-  overflow-wrap: anywhere;
+}
+
+/* Middle ellipsis: the start shrinks with an ellipsis, the end always shows. */
+.middle-ellipsis {
+  display: flex;
+  min-width: 0;
+}
+
+.middle-ellipsis__start {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.middle-ellipsis__end {
+  flex: none;
+  white-space: pre;
 }

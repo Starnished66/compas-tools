@@ -7,6 +7,7 @@ import { CatalogView } from './screens/catalog/CatalogView';
 import { LibraryScreen } from './screens/library/LibraryScreen';
 import { MusicScreen } from './screens/music/MusicScreen';
 import { UpdatesScreen } from './screens/updates/UpdatesScreen';
+import { OperationProvider } from './hooks/useOperation';
 import { CardProvider, useCard } from './state/CardContext';
 import { CatalogProvider } from './state/CatalogContext';
 
@@ -37,9 +38,11 @@ function Shell() {
 export function App() {
   return (
     <CardProvider>
-      <CatalogProvider>
-        <Shell />
-      </CatalogProvider>
+      <OperationProvider>
+        <CatalogProvider>
+          <Shell />
+        </CatalogProvider>
+      </OperationProvider>
     </CardProvider>
   );
 }

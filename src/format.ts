@@ -30,7 +30,10 @@ export function progressLabel({ phase, done, total }: Progress): string {
     case 'scanning':
       return t('Looking for music…');
     case 'reading_tags':
-      return t('Reading tags… {percent}%', { percent });
+      // The tool reports no step of its own before it writes: full means saving.
+      return total > 0 && done >= total
+        ? t('Saving the library…')
+        : t('Reading tags… {percent}%', { percent });
     case 'saving':
       return t('Saving the library…');
     case 'building_art':

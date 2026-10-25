@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -25,6 +25,11 @@ export function CatalogView({ view, onChooseCard }: Props) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // The card may have changed behind the app's back since this view was last open.
+  useEffect(() => {
+    void load(false);
+  }, [load]);
 
   const inThisView = useMemo(() => entries.filter((e) => inView(e, view)), [entries, view]);
   const shown = useMemo(

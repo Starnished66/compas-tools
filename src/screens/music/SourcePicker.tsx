@@ -2,6 +2,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 
 import { errorMessage } from '../../api/invoke';
 import { Button } from '../../components/Button';
+import { MiddleEllipsis } from '../../components/MiddleEllipsis';
 import { t } from '../../i18n';
 
 interface Props {
@@ -41,7 +42,9 @@ export function SourcePicker({ sources, hovering, disabled, onAdd, onRemove, onE
         <ul className="source-list">
           {sources.map((path) => (
             <li key={path}>
-              <span className="source-list__path">{path}</span>
+              <span className="source-list__path">
+                <MiddleEllipsis text={path} />
+              </span>
               <Button
                 disabled={disabled}
                 aria-label={t('Remove {path}', { path })}

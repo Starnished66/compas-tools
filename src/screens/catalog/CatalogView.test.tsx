@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { installPlugin, loadEntries, moveRecordAside } from '../../api/catalog';
+import { OperationProvider, useOperation } from '../../hooks/useOperation';
 import { CatalogProvider } from '../../state/CatalogContext';
 import { ActionDialog } from './ActionDialog';
 import { card, entry } from '../../test/fixtures';
@@ -18,13 +19,30 @@ vi.mock('../../api/catalog');
 const mockedCard = { ...card };
 vi.mock('../../state/CardContext', () => ({ useCard: () => ({ card: mockedCard }) }));
 
-function renderView(withView = true) {
-  return render(
-    <CatalogProvider>
-      {withView && <CatalogView view="plugins" onChooseCard={vi.fn()} />}
-      <ActionDialog />
-    </CatalogProvider>,
+/** Stands in for another screen (Library, Music) that writes to the card. */
+function OtherScreen({ release }: { release: Promise<void> }) {
+  const operation = useOperation();
+  return (
+    <button type="button" onClick={() => void operation.run(() => release)}>
+      Start other operation
+    </button>
   );
+}
+
+function tree(withView = true, other?: Promise<void>) {
+  return (
+    <OperationProvider>
+      <CatalogProvider>
+        {withView && <CatalogView view="plugins" onChooseCard={vi.fn()} />}
+        <ActionDialog />
+        {other && <OtherScreen release={other} />}
+      </CatalogProvider>
+    </OperationProvider>
+  );
+}
+
+function renderView(withView = true, other?: Promise<void>) {
+  return render(tree(withView, other));
 }
 
 describe('CatalogView', () => {
@@ -82,11 +100,7 @@ describe('CatalogView', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Install Alpha' }));
     await screen.findByRole('dialog', { name: 'Replace a local file?' });
 
-    rerender(
-      <CatalogProvider>
-        <ActionDialog />
-      </CatalogProvider>,
-    );
+    rerender(tree(false));
     expect(screen.getByRole('dialog', { name: 'Replace a local file?' })).toBeVisible();
   });
 
@@ -97,12 +111,13 @@ describe('CatalogView', () => {
   });
 
   it('offers to move a damaged record aside and reloads', async () => {
-    vi.mocked(loadEntries).mockRejectedValueOnce({ code: 'record_damaged', message: 'Damaged' });
+    vi.mocked(loadEntries).mockRejectedValue({ code: 'record_damaged', message: 'Damaged' });
     vi.mocked(moveRecordAside).mockResolvedValue(null);
     renderView();
     expect(await screen.findByRole('alert')).toHaveTextContent('Damaged');
     expect(screen.queryByText('Alpha')).not.toBeInTheDocument();
 
+    vi.mocked(loadEntries).mockResolvedValue(entries);
     await userEvent.click(screen.getByRole('button', { name: 'Move the record aside' }));
     expect(moveRecordAside).toHaveBeenCalled();
     expect(await screen.findByText('Alpha')).toBeInTheDocument();
@@ -115,14 +130,28 @@ describe('CatalogView', () => {
     await screen.findByRole('dialog', { name: 'Replace a local file?' });
 
     mockedCard.root = '/media/other';
-    rerender(
-      <CatalogProvider>
-        <CatalogView view="plugins" onChooseCard={vi.fn()} />
-        <ActionDialog />
-      </CatalogProvider>,
-    );
+    rerender(tree());
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  it('disables changes and shows the shared progress while another screen writes to the card', async () => {
+    let finish: () => void = () => undefined;
+    const release = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    renderView(true, release);
+    const install = await screen.findByRole('button', { name: 'Install Alpha' });
+    expect(install).toBeEnabled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Start other operation' }));
+    expect(screen.getByRole('button', { name: 'Install Alpha' })).toBeDisabled();
+    expect(screen.getByRole('progressbar', { name: 'Working on the card' })).toBeInTheDocument();
+
+    finish();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Install Alpha' })).toBeEnabled();
     });
   });
 });
