@@ -23,12 +23,12 @@ interface Props {
 }
 
 const SKIP_TEXT = {
-  private: 'credentials or private data',
-  too_large: 'too large',
-  binary: 'not text, so it cannot be masked',
-  unreadable: 'could not be read',
-  unsupported_name: 'its name cannot be copied safely',
-} as const;
+  private: () => t('credentials or private data'),
+  too_large: () => t('too large'),
+  binary: () => t('not text, so it cannot be masked'),
+  unreadable: () => t('could not be read'),
+  unsupported_name: () => t('its name cannot be copied safely'),
+};
 
 export function InstallPanel({ device, onFinished, onChoose }: Props) {
   const operation = useOperation();
@@ -219,7 +219,7 @@ function BackupResult({ backup }: { backup: BackupReport }) {
           <ul>
             {backup.skipped.map((s) => (
               <li key={s.path}>
-                {s.path}: {t(SKIP_TEXT[s.reason])}
+                {s.path}: {SKIP_TEXT[s.reason]()}
               </li>
             ))}
           </ul>

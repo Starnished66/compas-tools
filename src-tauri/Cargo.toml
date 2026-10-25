@@ -14,4 +14,9 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"
+tauri-plugin-updater = { version = "2", optional = true }
 tokio = { version = "1", features = ["fs", "sync"] }
+
+[features]
+# Self-update from GitHub releases. Off until the owner has made a signing key; see docs/RELEASING.md.
+updater = ["dep:tauri-plugin-updater"]

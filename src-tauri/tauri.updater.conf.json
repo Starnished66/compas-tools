@@ -1,0 +1,11 @@
+{
+  "bundle": { "createUpdaterArtifacts": true },
+  "plugins": {
+    "updater": {
+      "pubkey": "REPLACE WITH THE CONTENT OF THE PUBLIC KEY FILE (see docs/RELEASING.md)",
+      "endpoints": [
+        "https://github.com/Starnished66/compas-tools/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}

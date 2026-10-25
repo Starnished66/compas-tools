@@ -6,11 +6,11 @@ mod error;
 mod sidecar;
 mod state;
 
-use commands::{adb, card, catalog, library, music, releases};
+use commands::{adb, app_update, card, catalog, library, music, releases};
 use tauri::Manager;
 
 fn main() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         // Two instances would write to the same card; focus the first instead.
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {
@@ -20,8 +20,13 @@ fn main() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .manage(state::AppState::default())
+        .manage(state::AppState::default());
+    #[cfg(feature = "updater")]
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    builder
         .invoke_handler(tauri::generate_handler![
+            app_update::app_update_check,
+            app_update::app_update_install,
             adb::adb_status,
             adb::adb_download,
             adb::adb_devices,

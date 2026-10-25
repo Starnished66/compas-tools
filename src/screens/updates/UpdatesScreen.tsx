@@ -11,6 +11,7 @@ import { Notice } from '../../components/Notice';
 import { useOperation } from '../../hooks/useOperation';
 import { t } from '../../i18n';
 import { useCard } from '../../state/CardContext';
+import { AppUpdatePanel } from './AppUpdatePanel';
 import { PlaceAction } from './PlaceAction';
 import { ReleaseSummary } from './ReleaseSummary';
 
@@ -54,6 +55,7 @@ export function UpdatesScreen({ onChooseCard }: Props) {
     return (
       <section className="screen">
         <h1>{t('Updates')}</h1>
+        <AppUpdatePanel />
         <EmptyState title={t('Choose your card first')}>
           <p className="muted">{t('Updates are copied onto the SD card of your player.')}</p>
           <Button variant="primary" onClick={onChooseCard}>
@@ -82,6 +84,7 @@ export function UpdatesScreen({ onChooseCard }: Props) {
           {t('Check again')}
         </Button>
       </div>
+      <AppUpdatePanel />
       {loadError && <ErrorBanner message={loadError} />}
       {operation.error && (
         <ErrorBanner message={operation.error} onDismiss={operation.clearError} />

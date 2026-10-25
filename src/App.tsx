@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { useLanguage } from './i18n';
 import { Sidebar, type ScreenId } from './components/Sidebar';
 import { CardScreen } from './screens/card/CardScreen';
 import { ActionDialog } from './screens/catalog/ActionDialog';
@@ -14,6 +15,7 @@ import { CatalogProvider } from './state/CatalogContext';
 import { MusicProvider } from './state/MusicContext';
 
 function Shell() {
+  useLanguage(); // re-render everything when the language changes
   const { card } = useCard();
   const [screen, setScreen] = useState<ScreenId>('card');
   const toCard = () => {

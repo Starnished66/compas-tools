@@ -1,5 +1,6 @@
 import { t } from '../i18n';
 import { Icon } from './Icon';
+import { LanguagePicker } from './LanguagePicker';
 
 export type ScreenId =
   'card' | 'device' | 'music' | 'library' | 'plugins' | 'layouts' | 'themes' | 'updates';
@@ -39,6 +40,7 @@ export function Sidebar({ current, cardLabel, onNavigate }: Props) {
         </button>
       ))}
       <p className="sidebar__card">{cardLabel ?? t('No card selected')}</p>
+      <LanguagePicker />
     </nav>
   );
 }

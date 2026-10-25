@@ -116,3 +116,11 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+.language-picker {
+  padding: 0 var(--space-3) var(--space-2);
+}
+
+.language-picker .field {
+  width: 100%;
+}
