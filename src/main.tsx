@@ -8,6 +8,7 @@ import './styles/layout.css';
 import './styles/components.css';
 import './styles/catalog.css';
 import './styles/updates.css';
+import './styles/music.css';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('missing #root');

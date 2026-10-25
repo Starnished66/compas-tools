@@ -29,6 +29,23 @@ Design notes live in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the plan in
 On macOS and Windows install Rust and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
 and run the same `cargo` / `npm` commands directly.
 
+## Library tool (compas-sdtool)
+
+The library database and album-art cache are built by `compas-sdtool`, the player's own
+library code as a command-line program. It is bundled as a Tauri `externalBin`, so the
+binary for the build target must exist in `src-tauri/binaries/` before any `cargo` or
+`tauri` command that builds `src-tauri` (it is not committed):
+
+```sh
+scripts/build-sdtool.sh                         # Linux, built in the container
+SDTOOL_TARGET=windows scripts/build-sdtool.sh   # Windows .exe (MinGW, in the container)
+SDTOOL_SRC=/path/to/worktree scripts/build-sdtool.sh
+```
+
+The sources default to `~/.cache/compas-tools/player-sdtool` (compas-player, branch
+`feature/compas-sdtool`; the CLI is described in its `docs/SDTOOL.md`). On macOS the script
+builds natively. Output names follow Tauri's target-triple convention.
+
 ## Run
 
 ```sh

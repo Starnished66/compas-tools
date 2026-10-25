@@ -1,8 +1,10 @@
 import type { CardInfo, Model } from '../../api/types';
+import { EjectAdvice } from '../../components/EjectAdvice';
 import { Notice } from '../../components/Notice';
 import { ModelPicker } from '../../components/ModelPicker';
 import { formatBytes } from '../../format';
 import { t } from '../../i18n';
+import { LibraryStatus } from '../library/LibraryStatus';
 
 interface Props {
   card: CardInfo;
@@ -54,13 +56,8 @@ export function CardDetails({ card, model, onChooseModel }: Props) {
           <ModelPicker value={model} onChange={onChooseModel} />
         </Notice>
       )}
-      <Notice tone="info">
-        <p>
-          {t(
-            'Before removing the card, eject it in your system (or use Safely Remove) so every change is written to it.',
-          )}
-        </p>
-      </Notice>
+      <LibraryStatus />
+      <EjectAdvice />
     </section>
   );
 }

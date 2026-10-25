@@ -29,6 +29,8 @@ crates/compas-core/        Pure Rust library: all behaviour
   src/fs/                  Atomic writes, staging, free space
   src/catalog/             Plugin catalog, installed record, enable/disable
   src/releases/            Player releases and card update placement
+  src/music/               Transfer planning, verified copy, FAT rules, macOS clutter
+  src/sdtool/              compas-sdtool sidecar: library database and album art
 src-tauri/                 Tauri app: commands, events, app state
   src/commands/            One file per feature area, thin wrappers
 src/                       React + TypeScript UI (Vite)

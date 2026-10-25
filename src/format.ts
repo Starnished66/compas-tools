@@ -27,6 +27,18 @@ export function progressLabel({ phase, done, total }: Progress): string {
       return t('Installing…');
     case 'removing':
       return t('Removing…');
+    case 'scanning':
+      return t('Looking for music…');
+    case 'reading_tags':
+      return t('Reading tags… {percent}%', { percent });
+    case 'saving':
+      return t('Saving the library…');
+    case 'building_art':
+      return t('Building album art… {percent}%', { percent });
+    case 'copying':
+      return t('Copying… {percent}%', { percent });
+    case 'cleaning':
+      return t('Tidying up…');
     case 'updating':
       return t('Updating plugins… {percent}%', { percent });
   }

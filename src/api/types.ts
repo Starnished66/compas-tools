@@ -50,7 +50,17 @@ export interface UpdateAllReport {
   failed: { id: string; message: string }[];
 }
 
-export type Phase = 'downloading' | 'installing' | 'removing' | 'updating';
+export type Phase =
+  | 'downloading'
+  | 'installing'
+  | 'removing'
+  | 'updating'
+  | 'scanning'
+  | 'reading_tags'
+  | 'saving'
+  | 'building_art'
+  | 'copying'
+  | 'cleaning';
 
 export interface Progress {
   phase: Phase;
@@ -77,4 +87,59 @@ export interface LatestRelease {
 export interface PlacedFile {
   path: string;
   other_upts: string[];
+}
+
+export type IssueKind =
+  'too_large_for_fat' | 'name_too_long' | 'path_too_long' | 'name_conflict' | 'unreadable';
+
+export interface PlanView {
+  files: number;
+  total_bytes: number;
+  /** Files whose name already exists on the card. */
+  existing: number;
+  deletions: string[];
+  issues: { source: string; kind: IssueKind }[];
+  renames: { from: string; to: string }[];
+  skipped_clutter: number;
+  free_bytes: number;
+  max_file_bytes: number | null;
+}
+
+export interface CopyView {
+  copied: number;
+  replaced: number;
+  skipped_identical: number;
+  deleted: number;
+  failed: { path: string; message: string }[];
+  tidy: { removed: number; marker_written: boolean };
+}
+
+export interface LibraryStatus {
+  sdtool_version: string;
+  database_format: number;
+  /** 0 when the card has no library yet. */
+  generation: number;
+  songs: number;
+  format_mismatch: boolean;
+}
+
+export interface ScanDone {
+  files: number;
+  parsed: number;
+  unchanged: number;
+  failed: number;
+  skipped: number;
+  songs: number;
+  generation: number;
+  written: boolean;
+  mtime_offset: number;
+}
+
+export interface ArtDone {
+  board: string;
+  albums: number;
+  written: number;
+  unchanged: number;
+  no_art: number;
+  mtime_offset: number;
 }
