@@ -40,6 +40,7 @@ fn main() {
             music::music_plan,
             music::music_copy,
             music::music_tidy,
+            music::music_update_library,
             releases::releases_latest,
             releases::releases_place,
             releases::releases_other_upts,

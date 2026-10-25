@@ -40,6 +40,13 @@ pub struct ArtDone {
     pub mtime_offset: i64,
 }
 
+/// Both steps of a library update.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct LibraryUpdate {
+    pub scan: ScanDone,
+    pub art: ArtDone,
+}
+
 /// The tool's `progress` phase name, as one of our phases.
 pub(super) fn phase(name: &str) -> Option<Phase> {
     match name {

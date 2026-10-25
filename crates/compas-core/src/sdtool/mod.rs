@@ -16,7 +16,7 @@ use crate::card::{Card, Model};
 use crate::error::{Error, Result};
 use crate::progress::{OnProgress, Progress};
 
-pub use events::{ArtDone, LibraryInfo, ScanDone};
+pub use events::{ArtDone, LibraryInfo, LibraryUpdate, ScanDone};
 
 /// Last stderr lines kept to explain a crash.
 const STDERR_TAIL: usize = 5;
@@ -71,6 +71,18 @@ impl SdTool {
         }
         extra.extend(offset_args(mtime_offset));
         self.run(args("art", card, extra), on_progress).await
+    }
+
+    /// What a card needs after its music changed: scan the library, then build
+    /// the album art, as one run.
+    pub async fn update_library(
+        &self,
+        card: &Card,
+        on_progress: OnProgress<'_>,
+    ) -> Result<LibraryUpdate> {
+        let scan = self.scan(card, ScanOptions::default(), on_progress).await?;
+        let art = self.art(card, None, None, on_progress).await?;
+        Ok(LibraryUpdate { scan, art })
     }
 
     /// Runs the tool, forwarding progress lines, and returns its final object.

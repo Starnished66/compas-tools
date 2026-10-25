@@ -11,6 +11,7 @@ pub mod net;
 pub mod progress;
 pub mod releases;
 pub mod sdtool;
+pub mod transfer;
 pub mod version;
 
 #[cfg(test)]

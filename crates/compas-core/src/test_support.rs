@@ -89,3 +89,25 @@ pub fn write_file(root: &Path, rel: &str, data: &[u8]) {
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(path, data).unwrap();
 }
+
+/// A stand-in `compas-sdtool`: a shell script whose body decides what each
+/// command (`$1`) prints. Every call is appended to `calls.log` next to it.
+#[cfg(unix)]
+pub fn script_tool(dir: &Path, body: &str) -> crate::sdtool::SdTool {
+    use std::os::unix::fs::PermissionsExt;
+
+    let path = dir.join("fake-sdtool");
+    let log = dir.join("calls.log");
+    let script = format!("#!/bin/sh\necho \"$1\" >> '{}'\n{body}\n", log.display());
+    fs::write(&path, script).unwrap();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+    crate::sdtool::SdTool::new(path)
+}
+
+/// Commands the fake tool was called with, in order.
+#[cfg(unix)]
+pub fn calls(dir: &Path) -> Vec<String> {
+    fs::read_to_string(dir.join("calls.log"))
+        .map(|text| text.lines().map(str::to_string).collect())
+        .unwrap_or_default()
+}
