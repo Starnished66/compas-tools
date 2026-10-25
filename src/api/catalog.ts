@@ -21,6 +21,8 @@ export const uninstallPlugin = (pluginId: string, onProgress: OnProgress) =>
 export const setPluginEnabled = (script: string, enabled: boolean) =>
   call<null>('catalog_set_enabled', { script, enabled });
 
+export const moveRecordAside = () => call<null>('catalog_move_record_aside');
+
 /** Fetches the verified preview image and returns a blob URL for it. */
 export async function loadPreviewUrl(pluginId: string): Promise<string> {
   const bytes = await call<ArrayBuffer>('catalog_preview', { pluginId });

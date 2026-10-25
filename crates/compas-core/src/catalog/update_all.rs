@@ -21,6 +21,8 @@ pub struct UpdateAllReport {
     pub failed: Vec<Failure>,
 }
 
+const SCALE: u64 = 1000;
+
 /// Updates every compatible plugin that has a newer version, without
 /// replacing local files. One failure does not stop the others.
 pub async fn update_all(
@@ -35,15 +37,31 @@ pub async fn update_all(
         .map(|e| e.id)
         .collect();
 
-    let total = ids.len() as u64;
+    // Each plugin gets SCALE steps; its own download and install fill them.
+    let total = ids.len() as u64 * SCALE;
     let mut report = UpdateAllReport::default();
     for (i, id) in ids.into_iter().enumerate() {
-        on_progress(Progress {
+        let base = i as u64 * SCALE;
+        let step = |p: Progress| {
+            let fraction = SCALE * p.done.min(p.total) / p.total.max(1);
+            // Downloading fills the first 90% of a plugin's share, installing the rest.
+            let within = match p.phase {
+                Phase::Downloading => fraction * 9 / 10,
+                _ => SCALE * 9 / 10 + fraction / 10,
+            };
+            let done = base + within;
+            on_progress(Progress {
+                phase: Phase::Updating,
+                done,
+                total,
+            });
+        };
+        step(Progress {
             phase: Phase::Updating,
-            done: i as u64,
-            total,
+            done: 0,
+            total: 1,
         });
-        match update(card, catalog, &id, false, &|_| {}).await {
+        match update(card, catalog, &id, false, &step).await {
             Ok(Outcome::Done) => report.updated.push(id),
             Ok(Outcome::NeedsConfirmation) => report.needs_confirmation.push(id),
             Err(e) => report.failed.push(Failure {
@@ -91,7 +109,19 @@ mod tests {
         let (_server, mut c2) = publish(&new).await;
         c2.plugins[3].files[0].sha256 = "f".repeat(64);
 
-        let report = update_all(&card, &c2, &|_| {}).await.unwrap();
+        let seen = std::sync::Mutex::new(Vec::new());
+        let report = update_all(&card, &c2, &|p| seen.lock().unwrap().push(p))
+            .await
+            .unwrap();
+        let seen = seen.into_inner().unwrap();
+        assert!(seen
+            .iter()
+            .all(|p| p.phase == Phase::Updating && p.total == 3 * SCALE));
+        assert!(
+            seen.windows(2).all(|w| w[0].done <= w[1].done),
+            "never goes backwards"
+        );
+        assert_eq!(seen.last().unwrap().done, 3 * SCALE);
         assert_eq!(report.updated, ["a"]);
         assert_eq!(report.needs_confirmation, ["b"]);
         assert_eq!(report.failed.len(), 1);

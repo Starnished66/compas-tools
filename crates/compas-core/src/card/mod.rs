@@ -36,7 +36,9 @@ impl Card {
     /// Validates a mount point or a folder picked by the user.
     pub fn open(root: impl Into<PathBuf>) -> Result<Self> {
         let root = root.into();
-        if !root.join(".compas").is_dir() {
+        // A link in place of `.compas` could lead every operation off the card.
+        let compas = std::fs::symlink_metadata(root.join(".compas"));
+        if !compas.is_ok_and(|m| m.is_dir()) {
             return Err(Error::InvalidCard(format!(
                 "{} has no .compas folder",
                 root.display()
@@ -110,6 +112,14 @@ mod tests {
         assert!(matches!(Card::open(dir.path()), Err(Error::InvalidCard(_))));
         std::fs::create_dir(dir.path().join(".compas")).unwrap();
         assert!(Card::open(dir.path()).is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn open_refuses_a_symlinked_compas_folder() {
+        let (dir, outside) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+        std::os::unix::fs::symlink(outside.path(), dir.path().join(".compas")).unwrap();
+        assert!(matches!(Card::open(dir.path()), Err(Error::InvalidCard(_))));
     }
 
     #[test]

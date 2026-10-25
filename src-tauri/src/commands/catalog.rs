@@ -89,6 +89,13 @@ pub async fn catalog_set_enabled(
     Ok(catalog::set_enabled(&state.card()?, &script, enabled)?)
 }
 
+/// Renames a damaged installed-plugins record out of the way.
+#[tauri::command]
+pub async fn catalog_move_record_aside(state: State<'_, AppState>) -> CommandResult<()> {
+    let _busy = state.try_busy()?;
+    Ok(catalog::move_record_aside(&state.card()?)?)
+}
+
 /// The verified preview image as raw bytes.
 #[tauri::command]
 pub async fn catalog_preview(

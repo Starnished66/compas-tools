@@ -9,7 +9,7 @@ import {
 } from 'react';
 
 import { usePluginActions, type PluginActions } from '../hooks/usePluginActions';
-import { errorMessage } from '../api/invoke';
+import { errorCode, errorMessage } from '../api/invoke';
 import { loadEntries } from '../api/catalog';
 import type { PluginEntry } from '../api/types';
 import { useCard } from './CardContext';
@@ -18,6 +18,8 @@ interface CatalogContextValue {
   entries: PluginEntry[];
   loading: boolean;
   error: string | null;
+  /** The installed-plugins record is damaged; `moveRecordAside` starts it over. */
+  recordDamaged: boolean;
   /** Re-evaluates the catalog against the card; `refresh` fetches the index again. */
   load: (refresh: boolean) => Promise<void>;
   /** Install, update and remove state lives here so it survives switching views. */
@@ -33,6 +35,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
   const [entries, setEntries] = useState<PluginEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recordDamaged, setRecordDamaged] = useState(false);
 
   const latest = useRef(0);
 
@@ -43,11 +46,16 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
       const request = ++latest.current;
       setLoading(true);
       setError(null);
+      setRecordDamaged(false);
       try {
         const loaded = await loadEntries(refresh);
         if (request === latest.current) setEntries(loaded);
       } catch (failure) {
-        if (request === latest.current) setError(errorMessage(failure));
+        if (request === latest.current) {
+          setEntries([]);
+          setError(errorMessage(failure));
+          setRecordDamaged(errorCode(failure) === 'record_damaged');
+        }
       } finally {
         if (request === latest.current) setLoading(false);
       }
@@ -55,15 +63,17 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     [root],
   );
   const actions = usePluginActions(() => load(false));
+  const { reset } = actions;
 
   useEffect(() => {
     latest.current += 1; // drop answers still pending for the previous card
     setEntries([]);
+    reset();
     void load(true);
-  }, [load]);
+  }, [load, reset]);
 
   return (
-    <CatalogContext.Provider value={{ entries, loading, error, load, actions }}>
+    <CatalogContext.Provider value={{ entries, loading, error, recordDamaged, load, actions }}>
       {children}
     </CatalogContext.Provider>
   );

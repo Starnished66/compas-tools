@@ -13,7 +13,7 @@ describe('progressLabel', () => {
   it('describes each phase', () => {
     expect(progressLabel({ phase: 'downloading', done: 1, total: 4 })).toBe('Downloading… 25%');
     expect(progressLabel({ phase: 'downloading', done: 0, total: 0 })).toBe('Downloading… 0%');
-    expect(progressLabel({ phase: 'updating', done: 1, total: 3 })).toBe('Updating 2 of 3…');
+    expect(progressLabel({ phase: 'updating', done: 1, total: 4 })).toBe('Updating plugins… 25%');
     expect(progressLabel({ phase: 'removing', done: 0, total: 1 })).toBe('Removing…');
   });
 });

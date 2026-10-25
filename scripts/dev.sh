@@ -20,6 +20,6 @@ exec podman run --rm -i "${tty[@]}" \
   -e npm_config_cache=/cache/npm \
   -e HOME=/cache/home \
   -v "$PWD":/work:Z \
-  -v compas-tools-cache:/cache \
+  -v compas-tools-cache:/cache:z \
   -w /work \
   "$IMAGE" "${@:-bash}"

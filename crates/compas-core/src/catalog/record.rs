@@ -7,11 +7,12 @@
 
 use std::collections::HashSet;
 use std::fs;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::index::{Plugin, MAX_FILES};
 use super::{dest, validate};
 use crate::card::Card;
-use crate::error::{Error, Result};
+use crate::error::{Error, IoContext, Result};
 use crate::fs::write_atomic;
 use crate::version;
 
@@ -62,9 +63,9 @@ impl Record {
             return Ok(Self::default());
         };
         if text.lines().filter(|l| l.starts_with("P ")).count() > MAX_RECORDED {
-            return Err(Error::Rejected(format!(
-                "the installed-plugins record lists more than {MAX_RECORDED} plugins"
-            )));
+            return Err(Error::RecordDamaged {
+                limit: MAX_RECORDED,
+            });
         }
         Ok(Self::parse(&text).unwrap_or_default())
     }
@@ -214,6 +215,17 @@ impl Record {
     }
 }
 
+/// Renames the record to `.store_installed.bak-<time>`, so the store starts
+/// empty while every installed file stays where it is.
+pub fn move_aside(card: &Card) -> Result<()> {
+    let from = card.plugins_dir().join(FILE_NAME);
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let to = from.with_file_name(format!("{FILE_NAME}.bak-{secs}"));
+    fs::rename(&from, &to).at(&from)
+}
+
 /// What the player's `strtol` accepts: optional whitespace and sign, leading zeros.
 fn parse_keep(field: &str) -> Option<i64> {
     field.trim_start().parse().ok()
@@ -299,7 +311,20 @@ mod tests {
             .map(|i| format!("P p{i} 1\nF\t.plugins/P{i}.lua\t{}\t0\n", sha('a')))
             .collect();
         write_file(dir.path(), ".plugins/.store_installed", text.as_bytes());
-        assert!(matches!(Record::read(&card), Err(Error::Rejected(_))));
+        assert!(matches!(
+            Record::read(&card),
+            Err(Error::RecordDamaged { .. })
+        ));
+        move_aside(&card).unwrap();
+        assert!(Record::read(&card).unwrap().plugins.is_empty());
+        let names: Vec<_> = fs::read_dir(dir.path().join(".plugins"))
+            .unwrap()
+            .flatten()
+            .collect();
+        assert!(names[0]
+            .file_name()
+            .to_string_lossy()
+            .starts_with(".store_installed.bak-"));
     }
 
     #[test]

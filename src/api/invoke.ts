@@ -43,3 +43,7 @@ export function callWithProgress<T>(
 export function errorMessage(error: unknown): string {
   return toAppError(error).message;
 }
+
+export function errorCode(error: unknown): string {
+  return toAppError(error).code;
+}

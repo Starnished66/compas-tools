@@ -28,6 +28,6 @@ export function progressLabel({ phase, done, total }: Progress): string {
     case 'removing':
       return t('Removing…');
     case 'updating':
-      return t('Updating {done} of {total}…', { done: Math.min(done + 1, total), total });
+      return t('Updating plugins… {percent}%', { percent });
   }
 }

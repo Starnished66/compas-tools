@@ -28,7 +28,8 @@ pub(super) fn read(card: &Card) -> Result<Vec<Vec<u8>>> {
 }
 
 pub(super) fn contains(names: &[Vec<u8>], script: &str) -> bool {
-    names.iter().any(|n| n == script.as_bytes())
+    // The player loads only the first lines; later ones have no effect.
+    names.iter().take(MAX_NAMES).any(|n| n == script.as_bytes())
 }
 
 /// Enables or disables the plugin whose script is `script` (a file name).
@@ -86,6 +87,21 @@ mod tests {
         write_file(dir.path(), ".plugins/.disabled", b"A.lua\r\n\r\nB.lua\n");
         assert_eq!(read(&card).unwrap(), [b"A.lua".to_vec(), b"B.lua".to_vec()]);
         assert!(set_enabled(&card, ".plugins/A.lua", false).is_err());
+    }
+
+    #[test]
+    fn only_the_first_names_count_but_all_survive_a_rewrite() {
+        let (dir, card) = fake_card();
+        let body: String = (0..70).map(|i| format!("p{i}.lua\n")).collect();
+        write_file(dir.path(), ".plugins/.disabled", body.as_bytes());
+        let names = read(&card).unwrap();
+        assert!(contains(&names, "p63.lua"));
+        assert!(!contains(&names, "p64.lua"));
+
+        set_enabled(&card, "p0.lua", true).unwrap();
+        let text = fs::read_to_string(dir.path().join(".plugins/.disabled")).unwrap();
+        assert_eq!(text.lines().count(), 69);
+        assert!(text.contains("p69.lua"));
     }
 
     #[test]

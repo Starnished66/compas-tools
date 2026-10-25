@@ -31,8 +31,7 @@ URL: `https://github.com/Starnished66/compas-plugins/releases/latest/download/in
 
 The whole index is rejected on the first violation of any rule. Integers may be
 written as integral floats (`15.0`, as `store_json_uint` accepts). Repeated keys
-in one object do not fail the index; cJSON uses the first, the desktop app the
-last.
+in one object do not fail the index; the first one wins, as in cJSON.
 
 | Field                               | Rule                                                                                          |
 | ----------------------------------- | --------------------------------------------------------------------------------------------- |

@@ -76,9 +76,7 @@ impl Plugin {
 }
 
 pub(super) fn parse(bytes: &[u8]) -> Result<RawIndex> {
-    // Going through `Value` tolerates repeated keys (the last one wins; the
-    // player's cJSON takes the first).
-    let value: serde_json::Value = serde_json::from_slice(bytes).map_err(invalid)?;
+    let value = super::json::parse(bytes).map_err(invalid)?;
     let index: RawIndex = serde_json::from_value(value).map_err(invalid)?;
     if index.schema != 1 {
         return Err(invalid("unsupported schema"));
@@ -283,7 +281,7 @@ pub(super) mod tests {
             .replace("\"name\":", "\"name\":\"first\",\"name\":");
         let parsed = parse(text.as_bytes()).unwrap();
         assert_eq!(parsed.plugins[0].api_min, 15);
-        assert_eq!(parsed.plugins[0].name, "Name");
+        assert_eq!(parsed.plugins[0].name, "first");
 
         let mut bad = plugin_json("a", ".plugins/A.lua", 10);
         bad["api_min"] = json!(15.5);

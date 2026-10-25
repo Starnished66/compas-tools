@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { installPlugin, loadEntries } from '../../api/catalog';
+import { installPlugin, loadEntries, moveRecordAside } from '../../api/catalog';
 import { CatalogProvider } from '../../state/CatalogContext';
 import { ActionDialog } from './ActionDialog';
 import { card, entry } from '../../test/fixtures';
@@ -30,6 +30,7 @@ function renderView(withView = true) {
 describe('CatalogView', () => {
   beforeEach(() => {
     mockedCard.device = card.device;
+    mockedCard.root = card.root;
     vi.mocked(installPlugin).mockReset();
     vi.mocked(loadEntries).mockResolvedValue(entries);
   });
@@ -93,5 +94,35 @@ describe('CatalogView', () => {
     mockedCard.device = null;
     renderView();
     expect(await screen.findByText(/Compatibility cannot be checked/)).toBeInTheDocument();
+  });
+
+  it('offers to move a damaged record aside and reloads', async () => {
+    vi.mocked(loadEntries).mockRejectedValueOnce({ code: 'record_damaged', message: 'Damaged' });
+    vi.mocked(moveRecordAside).mockResolvedValue(null);
+    renderView();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Damaged');
+    expect(screen.queryByText('Alpha')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Move the record aside' }));
+    expect(moveRecordAside).toHaveBeenCalled();
+    expect(await screen.findByText('Alpha')).toBeInTheDocument();
+  });
+
+  it('drops a pending confirmation when the card changes', async () => {
+    vi.mocked(installPlugin).mockResolvedValueOnce('needs_confirmation');
+    const { rerender } = renderView();
+    await userEvent.click(await screen.findByRole('button', { name: 'Install Alpha' }));
+    await screen.findByRole('dialog', { name: 'Replace a local file?' });
+
+    mockedCard.root = '/media/other';
+    rerender(
+      <CatalogProvider>
+        <CatalogView view="plugins" onChooseCard={vi.fn()} />
+        <ActionDialog />
+      </CatalogProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 });

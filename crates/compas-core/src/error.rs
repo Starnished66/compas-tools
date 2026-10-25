@@ -31,6 +31,11 @@ pub enum Error {
     NoSpace { needed: u64, available: u64 },
     #[error("not found: {0}")]
     NotFound(String),
+    #[error(
+        "The plugin record on this card is damaged (more than {limit} entries). \
+         Move the record aside to start over; installed files stay in place."
+    )]
+    RecordDamaged { limit: usize },
     #[error("{0}")]
     Rejected(String),
 }
@@ -47,6 +52,7 @@ impl Error {
             Error::InvalidRelease(_) => "invalid_release",
             Error::InvalidCard(_) => "invalid_card",
             Error::NoSpace { .. } => "no_space",
+            Error::RecordDamaged { .. } => "record_damaged",
             Error::NotFound(_) => "not_found",
             Error::Rejected(_) => "rejected",
         }

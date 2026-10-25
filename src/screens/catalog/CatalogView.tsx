@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
+import { Button } from '../../components/Button';
 import { Notice } from '../../components/Notice';
+import { ProgressBar } from '../../components/ProgressBar';
 import { t } from '../../i18n';
 import { useCard } from '../../state/CardContext';
 import { useCatalog } from '../../state/CatalogContext';
@@ -19,7 +21,7 @@ interface Props {
 
 export function CatalogView({ view, onChooseCard }: Props) {
   const { card } = useCard();
-  const { entries, loading, error, load, actions } = useCatalog();
+  const { entries, loading, error, recordDamaged, load, actions } = useCatalog();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -67,12 +69,22 @@ export function CatalogView({ view, onChooseCard }: Props) {
         <Notice tone="info">
           <p>
             {t(
-              'Compatibility cannot be checked until the player has written device.json. Update the player on this card, then scan it again.',
+              'Compatibility cannot be checked yet: no released player writes device.json. Newer player versions record it on the card automatically.',
             )}
           </p>
         </Notice>
       )}
       {error && <ErrorBanner message={error} />}
+      {recordDamaged && (
+        <div>
+          <Button disabled={actions.busy} onClick={() => void actions.moveRecordAside()}>
+            {t('Move the record aside')}
+          </Button>
+        </div>
+      )}
+      {actions.busy && !shown.some((e) => e.id === actions.activeId) && (
+        <ProgressBar progress={actions.progress} label={t('Working on the card')} />
+      )}
       {actions.error && <ErrorBanner message={actions.error} onDismiss={actions.clearError} />}
       {actions.report && (
         <UpdateAllReport

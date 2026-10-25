@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 
 import {
   installPlugin,
+  moveRecordAside,
   setPluginEnabled,
   uninstallPlugin,
   updateAllPlugins,
@@ -73,8 +74,14 @@ export function usePluginActions(reload: () => Promise<void>) {
       setDialog(null);
     }, []),
     confirm,
+    /** Drops the pending dialog and report; they belong to the card they came from. */
+    reset: useCallback(() => {
+      setDialog(null);
+      setReport(null);
+    }, []),
     install: useCallback((id: string) => change(id, 'install', false), [change]),
     update: useCallback((id: string) => change(id, 'update', false), [change]),
+    moveRecordAside: useCallback(() => track(null, () => moveRecordAside()), [track]),
     askUninstall: useCallback((id: string) => {
       setDialog({ type: 'remove', id });
     }, []),
