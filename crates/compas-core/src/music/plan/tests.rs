@@ -266,3 +266,20 @@ fn linked_source_entries_keep_their_card_copies() {
     let found = plan(&card, &[src.path().join("Album")], &options).unwrap();
     assert_eq!(found.deletions, ["Album/gone.flac"]);
 }
+
+#[test]
+fn a_mirror_never_lists_the_scan_control_files() {
+    let (card_dir, card) = fake_card();
+    write_file(card_dir.path(), "Album/database.ignore", b"");
+    write_file(card_dir.path(), "Album/Sub/Database.Unignore", b"");
+    write_file(card_dir.path(), "Album/gone.mp3", b"g");
+    let src = tempfile::tempdir().unwrap();
+    write_file(src.path(), "Album/01.mp3", b"a");
+    let options = PlanOptions {
+        delete_extra: true,
+        ..PlanOptions::default()
+    };
+
+    let found = plan(&card, &[src.path().join("Album")], &options).unwrap();
+    assert_eq!(found.deletions, ["Album/gone.mp3"]);
+}

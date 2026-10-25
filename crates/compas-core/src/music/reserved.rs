@@ -8,6 +8,12 @@ pub fn is_hidden(name: &str) -> bool {
     name.starts_with('.')
 }
 
+/// Files that steer the player's library scan; a mirror never lists or removes them.
+pub fn is_scan_control_file(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    lower == "database.ignore" || lower == "database.unignore"
+}
+
 /// A `.upt` file is a firmware image the player installs; music transfers
 /// neither copy nor delete one.
 pub fn is_firmware_image(name: &str) -> bool {
@@ -30,6 +36,13 @@ mod tests {
 
     fn reserved(path: &str) -> bool {
         reserved_destination(&path.split('/').map(str::to_string).collect::<Vec<_>>())
+    }
+
+    #[test]
+    fn scan_control_files_are_recognised_in_any_case() {
+        assert!(is_scan_control_file("database.ignore"));
+        assert!(is_scan_control_file("Database.UNIGNORE"));
+        assert!(!is_scan_control_file("database.ignore.bak"));
     }
 
     #[test]

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use super::names::{fat_safe_name, name_too_long, player_path_fits};
-use super::reserved::{is_firmware_image, is_hidden, reserved_destination};
+use super::reserved::{is_firmware_image, is_hidden, is_scan_control_file, reserved_destination};
 use crate::card::Card;
 use crate::error::{Error, Result};
 
@@ -248,11 +248,14 @@ impl Planner<'_> {
     /// Files under the mirrored folder on the card that no source file claims.
     fn find_deletions(&mut self, sources: &[PathBuf], base: &[String]) -> Result<()> {
         let [source] = sources else {
-            return Err(Error::Rejected("mirroring needs exactly one folder".into()));
+            return Err(Error::Rejected(
+                "Mirroring works on one folder at a time. Add a single folder, or turn Mirror off."
+                    .into(),
+            ));
         };
         if !source.is_dir() {
             return Err(Error::Rejected(
-                "mirroring needs a folder, not a file".into(),
+                "Mirroring needs a folder. Add a folder instead of a single file, or turn Mirror off.".into(),
             ));
         }
         if self
@@ -310,7 +313,7 @@ fn list_files(dir: &Path, prefix: &str, out: &mut Vec<String>) {
         let relative = format!("{prefix}/{name}");
         if kind.is_dir() {
             list_files(&entry.path(), &relative, out);
-        } else if kind.is_file() && !is_firmware_image(&name) {
+        } else if kind.is_file() && !is_firmware_image(&name) && !is_scan_control_file(&name) {
             out.push(relative);
         }
     }

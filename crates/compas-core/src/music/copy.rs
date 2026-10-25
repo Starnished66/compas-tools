@@ -241,7 +241,7 @@ mod tests {
     }
 
     #[test]
-    fn one_unreadable_file_does_not_stop_the_rest_or_the_mirror_deletions() {
+    fn a_source_that_vanishes_after_planning_fails_alone_and_blocks_mirror_deletions() {
         let (card_dir, card) = fake_card();
         let src = tempfile::tempdir().unwrap();
         write_file(src.path(), "A/a.flac", b"a");
