@@ -3,9 +3,10 @@
 
 mod commands;
 mod error;
+mod sidecar;
 mod state;
 
-use commands::{card, catalog, releases};
+use commands::{card, catalog, library, music, releases};
 use tauri::Manager;
 
 fn main() {
@@ -33,6 +34,12 @@ fn main() {
             catalog::catalog_set_enabled,
             catalog::catalog_move_record_aside,
             catalog::catalog_preview,
+            library::library_info,
+            library::library_scan,
+            library::library_art,
+            music::music_plan,
+            music::music_copy,
+            music::music_tidy,
             releases::releases_latest,
             releases::releases_place,
             releases::releases_other_upts,

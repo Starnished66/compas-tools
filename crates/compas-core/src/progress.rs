@@ -7,6 +7,13 @@ pub enum Phase {
     Installing,
     Removing,
     Updating,
+    /// `compas-sdtool` walking the card's folders.
+    Scanning,
+    ReadingTags,
+    Saving,
+    BuildingArt,
+    Copying,
+    Cleaning,
 }
 
 /// `done` and `total` are bytes while downloading and items otherwise.

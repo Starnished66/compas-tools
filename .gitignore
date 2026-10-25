@@ -4,3 +4,4 @@ dist/
 artifacts/
 *.AppImage
 src-tauri/gen/
+src-tauri/binaries/

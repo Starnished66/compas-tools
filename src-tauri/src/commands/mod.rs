@@ -6,6 +6,8 @@ use compas_core::Progress;
 
 pub mod card;
 pub mod catalog;
+pub mod library;
+pub mod music;
 pub mod releases;
 
 /// Adapts a Tauri channel into core's progress callback.

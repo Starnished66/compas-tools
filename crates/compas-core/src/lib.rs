@@ -6,9 +6,11 @@ pub mod card;
 pub mod catalog;
 pub mod error;
 pub mod fs;
+pub mod music;
 pub mod net;
 pub mod progress;
 pub mod releases;
+pub mod sdtool;
 pub mod version;
 
 #[cfg(test)]

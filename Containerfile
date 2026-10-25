@@ -12,6 +12,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libayatana-appindicator3-dev librsvg2-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Builds compas-sdtool (scripts/build-sdtool.sh), natively and for Windows.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        cmake python3 gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*

@@ -12,6 +12,8 @@ fi
 # Cargo, npm and the target directory live in a named volume so repeated runs
 # stay fast and build output stays out of the checkout.
 tty=(); [ -t 0 ] && tty=(-t)
+# Extra podman options, e.g. DEV_PODMAN_ARGS="-v /some/dir:/dir:ro".
+read -r -a extra <<< "${DEV_PODMAN_ARGS:-}"
 exec podman run --rm -i "${tty[@]}" \
   --userns=keep-id:uid=1000,gid=1000 \
   -e APPIMAGE_EXTRACT_AND_RUN=1 \
@@ -22,4 +24,5 @@ exec podman run --rm -i "${tty[@]}" \
   -v "$PWD":/work:Z \
   -v compas-tools-cache:/cache:z \
   -w /work \
+  "${extra[@]}" \
   "$IMAGE" "${@:-bash}"

@@ -36,6 +36,8 @@ pub enum Error {
          Move the record aside to start over; installed files stay in place."
     )]
     RecordDamaged { limit: usize },
+    #[error("{}", crate::sdtool::friendly_message(code, message))]
+    Sdtool { code: String, message: String },
     #[error("{0}")]
     Rejected(String),
 }
@@ -52,6 +54,7 @@ impl Error {
             Error::InvalidRelease(_) => "invalid_release",
             Error::InvalidCard(_) => "invalid_card",
             Error::NoSpace { .. } => "no_space",
+            Error::Sdtool { .. } => "sdtool",
             Error::RecordDamaged { .. } => "record_damaged",
             Error::NotFound(_) => "not_found",
             Error::Rejected(_) => "rejected",
