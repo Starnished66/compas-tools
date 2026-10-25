@@ -8,7 +8,7 @@ export const ICONS = {
   library: 'places/22/server-database',
   plugins: 'actions/22/plugins',
   layouts: 'actions/22/view-grid',
-  themes: 'actions/22/color-management',
+  themes: 'preferences/22/preferences-desktop-theme-global-symbolic',
   updates: 'status/22/system-software-update',
   install: 'actions/16/download',
   update: 'actions/16/go-up',
