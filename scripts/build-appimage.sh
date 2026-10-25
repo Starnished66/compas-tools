@@ -4,7 +4,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 npm ci
-[ -e src-tauri/binaries/compas-sdtool-x86_64-unknown-linux-gnu ] || scripts/build-sdtool.sh
+# Always rebuilt (make only redoes what changed) and checked against the worktree's HEAD.
+scripts/build-sdtool.sh
 scripts/dev.sh bash -c '
   rm -rf /cache/target/release/bundle &&
   npx tauri build --bundles appimage &&
