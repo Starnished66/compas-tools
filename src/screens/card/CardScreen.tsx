@@ -64,10 +64,10 @@ export function CardScreen() {
       <div className="screen__header">
         <h1>{t('Card')}</h1>
         <div className="row">
-          <Button onClick={() => void scan()} disabled={scanning}>
+          <Button icon="refresh" onClick={() => void scan()} disabled={scanning}>
             {t('Scan again')}
           </Button>
-          <Button variant="primary" onClick={() => void chooseFolder()}>
+          <Button icon="chooseFolder" variant="primary" onClick={() => void chooseFolder()}>
             {t('Choose folder…')}
           </Button>
         </div>

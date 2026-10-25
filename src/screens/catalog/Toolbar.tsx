@@ -1,4 +1,5 @@
 import { Button } from '../../components/Button';
+import { Icon } from '../../components/Icon';
 import { t } from '../../i18n';
 
 interface Props {
@@ -26,16 +27,19 @@ export function Toolbar({
 }: Props) {
   return (
     <div className="toolbar" role="search">
-      <input
-        className="field toolbar__search"
-        type="search"
-        value={query}
-        placeholder={t('Search')}
-        aria-label={t('Search')}
-        onChange={(event) => {
-          onQuery(event.target.value);
-        }}
-      />
+      <div className="search toolbar__search">
+        <Icon name="search" />
+        <input
+          className="field"
+          type="search"
+          value={query}
+          placeholder={t('Search')}
+          aria-label={t('Search')}
+          onChange={(event) => {
+            onQuery(event.target.value);
+          }}
+        />
+      </div>
       <select
         className="field"
         value={category}
@@ -51,10 +55,15 @@ export function Toolbar({
           </option>
         ))}
       </select>
-      <Button onClick={onRefresh} disabled={busy}>
+      <Button icon="refresh" onClick={onRefresh} disabled={busy}>
         {t('Refresh')}
       </Button>
-      <Button variant="primary" onClick={onUpdateAll} disabled={busy || updateCount === 0}>
+      <Button
+        variant="primary"
+        icon="update"
+        onClick={onUpdateAll}
+        disabled={busy || updateCount === 0}
+      >
         {t('Update all ({count})', { count: updateCount })}
       </Button>
     </div>

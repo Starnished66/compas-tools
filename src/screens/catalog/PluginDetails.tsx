@@ -93,21 +93,23 @@ export function PluginDetails({
       )}
       <div className="row">
         {canInstall(entry) && (
-          <Button variant="primary" disabled={disabled} onClick={onInstall}>
+          <Button icon="install" variant="primary" disabled={disabled} onClick={onInstall}>
             {t('Install')}
           </Button>
         )}
         {canUpdate(entry) && (
-          <Button variant="primary" disabled={disabled} onClick={onUpdate}>
+          <Button icon="update" variant="primary" disabled={disabled} onClick={onUpdate}>
             {t('Update')}
           </Button>
         )}
         {canUninstall(entry) && (
-          <Button variant="danger" disabled={disabled} onClick={onUninstall}>
+          <Button icon="uninstall" variant="danger" disabled={disabled} onClick={onUninstall}>
             {t('Uninstall')}
           </Button>
         )}
-        <Button onClick={onClose}>{t('Close')}</Button>
+        <Button icon="close" onClick={onClose}>
+          {t('Close')}
+        </Button>
       </div>
     </aside>
   );

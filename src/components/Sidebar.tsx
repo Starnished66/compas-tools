@@ -1,4 +1,5 @@
 import { t } from '../i18n';
+import { Icon } from './Icon';
 
 export type ScreenId =
   'card' | 'device' | 'music' | 'library' | 'plugins' | 'layouts' | 'themes' | 'updates';
@@ -33,6 +34,7 @@ export function Sidebar({ current, cardLabel, onNavigate }: Props) {
             onNavigate(item.id);
           }}
         >
+          <Icon name={item.id} />
           {item.label}
         </button>
       ))}

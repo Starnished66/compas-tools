@@ -102,6 +102,7 @@ export function MusicScreen({ onChooseCard }: Props) {
       )}
       <div>
         <Button
+          icon="copy"
           variant="primary"
           disabled={transfer.busy || !plan || plan.files + removing === 0}
           onClick={() => {

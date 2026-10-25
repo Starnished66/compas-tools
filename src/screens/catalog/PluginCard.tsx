@@ -49,6 +49,7 @@ export function PluginCard({
         {active && <ProgressBar progress={progress} label={entry.name} />}
         {canInstall(entry) && (
           <Button
+            icon="install"
             variant="primary"
             disabled={disabled}
             aria-label={t('Install {name}', { name: entry.name })}
@@ -59,6 +60,7 @@ export function PluginCard({
         )}
         {canUpdate(entry) && (
           <Button
+            icon="update"
             variant="primary"
             disabled={disabled}
             aria-label={t('Update {name} to {version}', {

@@ -31,13 +31,11 @@ export function Preview({ pluginId, available }: Props) {
     };
   }, [pluginId, available]);
 
+  if (!available) return null;
+
   return (
     <div className="preview">
-      {url ? (
-        <img src={url} alt="" />
-      ) : (
-        <span>{available ? t('Loading preview…') : t('No preview')}</span>
-      )}
+      {url ? <img src={url} alt="" /> : <span>{t('Loading preview…')}</span>}
     </div>
   );
 }

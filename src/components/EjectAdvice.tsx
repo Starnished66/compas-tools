@@ -4,7 +4,7 @@ import { Notice } from './Notice';
 /** Reminder shown wherever the card has just been written to. */
 export function EjectAdvice() {
   return (
-    <Notice tone="info">
+    <Notice tone="info" icon="eject">
       <p>
         {t(
           'Before removing the card, eject it in your system (or use Safely Remove) so every change is written to it.',

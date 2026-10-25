@@ -74,6 +74,13 @@ AppImage.
 scripts/build-appimage.sh        # writes artifacts/*.AppImage
 ```
 
+## Screenshots
+
+`scripts/screenshots.sh [dir]` runs the built app on a virtual display inside the container and
+saves every screen in the light and the dark scheme (build it first with
+`npm run build && scripts/dev.sh npx tauri build --debug --no-bundle`). The design follows KDE's
+Breeze: see [THIRD_PARTY.md](THIRD_PARTY.md) for the icons, font and colour values it uses.
+
 ## Test and lint
 
 ```sh

@@ -44,8 +44,14 @@ export function ConfirmDialog({
       <h2 id="confirm-title">{title}</h2>
       <p>{message}</p>
       <div className="dialog__actions">
-        <Button onClick={onCancel}>{t('Cancel')}</Button>
-        <Button variant={destructive ? 'danger' : 'primary'} onClick={onConfirm}>
+        <Button icon="close" onClick={onCancel}>
+          {t('Cancel')}
+        </Button>
+        <Button
+          variant={destructive ? 'danger' : 'primary'}
+          icon={destructive ? 'remove' : 'ok'}
+          onClick={onConfirm}
+        >
           {confirmLabel}
         </Button>
       </div>

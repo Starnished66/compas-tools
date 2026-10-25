@@ -34,7 +34,7 @@ export function PlaceAction({
       <h2>{title}</h2>
       <p className="muted">{description}</p>
       <div>
-        <Button variant="primary" disabled={disabled || busy} onClick={onPlace}>
+        <Button icon="copy" variant="primary" disabled={disabled || busy} onClick={onPlace}>
           {t('Copy to card')}
         </Button>
       </div>

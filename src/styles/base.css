@@ -12,33 +12,39 @@ body,
 }
 
 body {
-  background: var(--bg);
+  background: var(--window);
   color: var(--text);
-  font: 14px/1.45 var(--font);
+  font: 10pt/1.4 var(--font);
 }
 
+/* Kirigami.Heading sizes: level 1 is 1.35 and level 2 is 1.2 times the body text. */
 h1,
 h2,
 h3 {
   margin: 0;
+  font-weight: 500;
   line-height: 1.2;
 }
 
 h1 {
-  font-size: 22px;
+  font-size: 1.35em;
 }
 
 h2 {
-  font-size: 16px;
+  font-size: 1.2em;
 }
 
 p {
   margin: 0;
 }
 
+a {
+  color: var(--link);
+}
+
 :focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
+  outline: 2px solid var(--highlight);
+  outline-offset: 1px;
 }
 
 .muted {
@@ -54,9 +60,19 @@ p {
   white-space: nowrap;
 }
 
+.icon {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;
     transition: none !important;
   }
+}
+
+input[type='checkbox'] {
+  accent-color: var(--highlight);
 }

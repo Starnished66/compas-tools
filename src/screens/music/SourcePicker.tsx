@@ -31,10 +31,10 @@ export function SourcePicker({ sources, hovering, disabled, onAdd, onRemove, onE
     >
       <p>{t('Drop music files or folders here, or choose them.')}</p>
       <div className="row">
-        <Button disabled={disabled} onClick={() => void pick(false)}>
+        <Button icon="addFiles" disabled={disabled} onClick={() => void pick(false)}>
           {t('Add files…')}
         </Button>
-        <Button disabled={disabled} onClick={() => void pick(true)}>
+        <Button icon="addFolder" disabled={disabled} onClick={() => void pick(true)}>
           {t('Add folders…')}
         </Button>
       </div>
@@ -46,6 +46,7 @@ export function SourcePicker({ sources, hovering, disabled, onAdd, onRemove, onE
                 <MiddleEllipsis text={path} />
               </span>
               <Button
+                icon="remove"
                 disabled={disabled}
                 aria-label={t('Remove {path}', { path })}
                 onClick={() => {

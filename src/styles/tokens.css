@@ -1,48 +1,64 @@
+/*
+ * Breeze colours. Values come from KDE's colour schemes (plasma-breeze):
+ * /usr/share/color-schemes/BreezeLight.colors and BreezeDark.colors.
+ * The comment on each token names its [group] key.
+ */
+@font-face {
+  font-family: 'Noto Sans';
+  src: url('../assets/fonts/NotoSans-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light dark;
-  --bg: #f4f5f7;
-  --surface: #ffffff;
-  --surface-sunken: #eceef1;
-  --text: #1a1d21;
-  --text-muted: #566070;
-  --border: #d5d9e0;
-  --accent: #1f5fd6;
-  --accent-hover: #174cae;
-  --on-accent: #ffffff;
-  --danger: #b3261e;
-  --danger-surface: #fbe9e7;
-  --warning: #8a5a00;
-  --warning-surface: #fff3d6;
-  --success: #1b6e3c;
-  --success-surface: #e3f4ea;
-  --focus: #1f5fd6;
-  --radius: 8px;
+
+  /* Breeze Light */
+  --window: #eff0f1; /* [Colors:Window] BackgroundNormal */
+  --window-alt: #e3e5e7; /* [Colors:Window] BackgroundAlternate */
+  --view: #ffffff; /* [Colors:View] BackgroundNormal */
+  --view-alt: #f7f7f7; /* [Colors:View] BackgroundAlternate */
+  --button: #fcfcfc; /* [Colors:Button] BackgroundNormal */
+  --header: #dee0e2; /* [Colors:Header] BackgroundNormal */
+  --text: #232629; /* [Colors:Window] ForegroundNormal */
+  --text-muted: #707d8a; /* [Colors:Window] ForegroundInactive */
+  --link: #2980b9; /* [Colors:Window] ForegroundLink */
+  --highlight: #3daee9; /* [Colors:Selection] BackgroundNormal, DecorationFocus */
+  --on-highlight: #ffffff; /* [Colors:Selection] ForegroundNormal */
+  --negative: #da4453; /* [Colors:Window] ForegroundNegative */
+  --neutral: #f67400; /* [Colors:Window] ForegroundNeutral */
+  --positive: #27ae60; /* [Colors:Window] ForegroundPositive */
+
+  /* Breeze draws frames as a mix of text and background, not as a colour of its own. */
+  --frame: color-mix(in srgb, var(--text) 30%, var(--window));
+  --hover: color-mix(in srgb, var(--highlight) 12%, transparent);
+  --shadow: 0 2px 8px rgb(0 0 0 / 0.25);
+
+  /* Metrics: Kirigami.Units spacing (4, 8, 16) and Breeze's 5px corner radius. */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 24px;
-  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --radius: 5px;
+  --control-height: 28px;
+  --font: 'Noto Sans', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Noto Sans Mono', Menlo, Consolas, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #14161a;
-    --surface: #1d2025;
-    --surface-sunken: #262a31;
-    --text: #e8eaee;
-    --text-muted: #a0a8b5;
-    --border: #353a43;
-    --accent: #6c9bff;
-    --accent-hover: #8fb0ff;
-    --on-accent: #0b1220;
-    --danger: #ff8a80;
-    --danger-surface: #3b1f1d;
-    --warning: #f2c261;
-    --warning-surface: #33290f;
-    --success: #7fd6a0;
-    --success-surface: #15301f;
-    --focus: #8fb0ff;
+    /* Breeze Dark */
+    --window: #202326; /* [Colors:Window] BackgroundNormal */
+    --window-alt: #292c30; /* [Colors:Window] BackgroundAlternate */
+    --view: #141618; /* [Colors:View] BackgroundNormal */
+    --view-alt: #1d1f22; /* [Colors:View] BackgroundAlternate */
+    --button: #292c30; /* [Colors:Button] BackgroundNormal */
+    --header: #292c30; /* [Colors:Header] BackgroundNormal */
+    --text: #fcfcfc; /* [Colors:Window] ForegroundNormal */
+    --text-muted: #a1a9b1; /* [Colors:Window] ForegroundInactive */
+    --link: #1d99f3; /* [Colors:Window] ForegroundLink */
+    --on-highlight: #fcfcfc; /* [Colors:Selection] ForegroundNormal */
+    --shadow: 0 2px 8px rgb(0 0 0 / 0.6);
   }
 }

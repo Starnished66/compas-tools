@@ -29,7 +29,9 @@ export function UpdateAllReport({ report, entries, onDismiss }: Props) {
         </p>
       ))}
       <div>
-        <Button onClick={onDismiss}>{t('Dismiss')}</Button>
+        <Button icon="close" onClick={onDismiss}>
+          {t('Dismiss')}
+        </Button>
       </div>
     </Notice>
   );

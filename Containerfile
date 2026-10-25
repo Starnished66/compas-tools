@@ -17,6 +17,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         cmake python3 gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 \
     && rm -rf /var/lib/apt/lists/*
 
+# Runs the built app on a virtual display for screenshots (scripts/screenshots.sh).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        xvfb xdotool imagemagick dbus dbus-x11 x11-utils libgl1-mesa-dri \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
