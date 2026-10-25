@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { errorMessage } from '../api/invoke';
-import { copyTransfer, planTransfer } from '../api/music';
+import { copyTransfer, planTransfer, updateLibrary } from '../api/music';
 import type { CopyView, PlanView } from '../api/types';
 import { useOperation } from './useOperation';
 
@@ -59,6 +59,13 @@ export function useMusicTransfer(enabled: boolean) {
     await refreshPlan();
   }, [copying, sources, destDir, mirror, refreshPlan]);
 
+  /** Try again: only the library update runs, never the copy. */
+  const retryLibrary = useCallback(async () => {
+    const update = await copying.run((onProgress) => updateLibrary(onProgress));
+    if (update)
+      setResult((current) => current && { ...current, library: { status: 'updated', ...update } });
+  }, [copying]);
+
   return {
     sources,
     destDir,
@@ -75,5 +82,6 @@ export function useMusicTransfer(enabled: boolean) {
     add,
     remove,
     copy,
+    retryLibrary,
   };
 }

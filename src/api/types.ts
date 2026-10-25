@@ -112,7 +112,19 @@ export interface CopyView {
   deleted: number;
   failed: { path: string; message: string }[];
   tidy: { removed: number; marker_written: boolean };
+  library: LibraryOutcome;
 }
+
+export interface LibraryUpdate {
+  scan: ScanDone;
+  art: ArtDone;
+}
+
+/** What happened to the library after a copy. `failed` leaves the copied files in place. */
+export type LibraryOutcome =
+  | { status: 'skipped' }
+  | ({ status: 'updated' } & LibraryUpdate)
+  | { status: 'failed'; message: string };
 
 export interface LibraryStatus {
   sdtool_version: string;

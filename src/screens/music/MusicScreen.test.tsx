@@ -2,8 +2,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { open } from '@tauri-apps/plugin-dialog';
 
-import { copyTransfer, planTransfer } from '../../api/music';
-import type { CopyView, PlanView } from '../../api/types';
+import { copyTransfer, planTransfer, updateLibrary } from '../../api/music';
+import type { CopyView, LibraryUpdate, PlanView } from '../../api/types';
 import { card } from '../../test/fixtures';
 import { MusicScreen } from './MusicScreen';
 
@@ -24,6 +24,21 @@ const plan: PlanView = {
   max_file_bytes: 4294967295,
 };
 
+const update: LibraryUpdate = {
+  scan: {
+    files: 3,
+    parsed: 2,
+    unchanged: 0,
+    failed: 1,
+    skipped: 0,
+    songs: 2,
+    generation: 4,
+    written: true,
+    mtime_offset: 3600,
+  },
+  art: { board: 'r1', albums: 2, written: 2, unchanged: 0, no_art: 0, mtime_offset: 3600 },
+};
+
 const result: CopyView = {
   copied: 2,
   replaced: 0,
@@ -31,11 +46,14 @@ const result: CopyView = {
   deleted: 0,
   failed: [{ path: '/music/bad.flac', message: 'disk error' }],
   tidy: { removed: 4, marker_written: true },
+  library: { status: 'updated', ...update },
 };
 
 describe('MusicScreen', () => {
   beforeEach(() => {
     vi.mocked(planTransfer).mockResolvedValue(plan);
+    vi.mocked(copyTransfer).mockReset();
+    vi.mocked(updateLibrary).mockReset();
     vi.mocked(copyTransfer).mockResolvedValue(result);
     vi.mocked(open).mockResolvedValue(['/music/Album']);
   });
@@ -68,6 +86,58 @@ describe('MusicScreen', () => {
     );
     expect(screen.getByText(/bad.flac: disk error/)).toBeInTheDocument();
     expect(screen.getByText(/Cleaned up 4 macOS leftovers/)).toBeInTheDocument();
+    expect(screen.getByText(/eject it in your system/)).toBeInTheDocument();
+  });
+
+  async function copyOnce() {
+    render(<MusicScreen onChooseCard={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Add folders…' }));
+    const copy = screen.getByRole('button', { name: 'Copy to card' });
+    await waitFor(() => {
+      expect(copy).toBeEnabled();
+    });
+    await userEvent.click(copy);
+  }
+
+  it('shows the library update with its counts after the copy, and only then the eject advice', async () => {
+    await copyOnce();
+    expect(await screen.findByText(/Library updated: 2 songs, generation 4/)).toBeInTheDocument();
+    expect(screen.getByText('Failed').nextSibling).toHaveTextContent('1');
+    expect(screen.getAllByText(/shifted by 3600 seconds/)).toHaveLength(2);
+    expect(screen.getByText(/Album art checked for 2 albums/)).toBeInTheDocument();
+    expect(screen.getByText(/eject it in your system/)).toBeInTheDocument();
+    expect(updateLibrary).not.toHaveBeenCalled();
+  });
+
+  it('says nothing changed when the library was not updated', async () => {
+    vi.mocked(copyTransfer).mockResolvedValue({
+      ...result,
+      copied: 0,
+      skipped_identical: 3,
+      failed: [],
+      library: { status: 'skipped' },
+    });
+    await copyOnce();
+    expect(await screen.findByText(/Nothing changed on the card/)).toBeInTheDocument();
+    expect(screen.queryByText(/Library updated/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the copy when the library update fails and retries only the update', async () => {
+    vi.mocked(copyTransfer).mockResolvedValue({
+      ...result,
+      library: { status: 'failed', message: 'The library tool could not be started.' },
+    });
+    vi.mocked(updateLibrary).mockResolvedValue(update);
+    await copyOnce();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('could not be started');
+    expect(screen.getByText(/Copied 2 files/)).toBeInTheDocument();
+    expect(screen.queryByText(/eject it in your system/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText(/Library updated: 2 songs/)).toBeInTheDocument();
+    expect(updateLibrary).toHaveBeenCalledTimes(1);
+    expect(copyTransfer).toHaveBeenCalledTimes(1);
     expect(screen.getByText(/eject it in your system/)).toBeInTheDocument();
   });
 

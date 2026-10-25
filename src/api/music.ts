@@ -1,5 +1,5 @@
 import { call, callWithProgress } from './invoke';
-import type { CopyView, PlanView, Progress } from './types';
+import type { CopyView, LibraryUpdate, PlanView, Progress } from './types';
 
 export interface TransferRequest {
   sources: string[];
@@ -15,3 +15,7 @@ export const copyTransfer = (request: TransferRequest, onProgress: (progress: Pr
   callWithProgress<CopyView>('music_copy', { ...request }, onProgress);
 
 export const tidyCard = () => call<{ removed: number; marker_written: boolean }>('music_tidy');
+
+/** Repeats only the library update that follows a copy. */
+export const updateLibrary = (onProgress: (progress: Progress) => void) =>
+  callWithProgress<LibraryUpdate>('music_update_library', {}, onProgress);

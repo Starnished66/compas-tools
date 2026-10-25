@@ -1,9 +1,20 @@
 import type { CopyView } from '../../api/types';
+import { Button } from '../../components/Button';
 import { EjectAdvice } from '../../components/EjectAdvice';
+import { ErrorBanner } from '../../components/ErrorBanner';
 import { Notice } from '../../components/Notice';
 import { t } from '../../i18n';
+import { ArtResult, ScanResult } from '../library/LibraryResult';
 
-export function CopyResult({ result }: { result: CopyView }) {
+interface Props {
+  result: CopyView;
+  busy: boolean;
+  /** Reruns only the library update. */
+  onRetryLibrary: () => void;
+}
+
+export function CopyResult({ result, busy, onRetryLibrary }: Props) {
+  const { library } = result;
   return (
     <section className="stack" aria-label={t('Result')}>
       <Notice tone={result.failed.length > 0 ? 'warning' : 'success'}>
@@ -35,10 +46,27 @@ export function CopyResult({ result }: { result: CopyView }) {
           </>
         )}
       </Notice>
-      <p className="muted">
-        {t('Next: build the library on the Library screen so the player starts fast.')}
-      </p>
-      <EjectAdvice />
+      {library.status === 'skipped' && (
+        <p className="muted">{t('Nothing changed on the card, so the library was not updated.')}</p>
+      )}
+      {library.status === 'updated' && (
+        <>
+          <ScanResult done={library.scan} />
+          <ArtResult done={library.art} />
+        </>
+      )}
+      {library.status === 'failed' && (
+        <>
+          <ErrorBanner message={library.message} />
+          <p>{t('The copied files are on the card. Only the library still needs updating.')}</p>
+          <div>
+            <Button variant="primary" disabled={busy} onClick={onRetryLibrary}>
+              {t('Try again')}
+            </Button>
+          </div>
+        </>
+      )}
+      {library.status !== 'failed' && <EjectAdvice />}
     </section>
   );
 }

@@ -94,7 +94,12 @@ export function MusicScreen({ onChooseCard }: Props) {
       {transfer.planError && <ErrorBanner message={transfer.planError} />}
       {transfer.error && <ErrorBanner message={transfer.error} onDismiss={transfer.clearError} />}
       {plan && <PlanPreview plan={plan} />}
-      {transfer.busy && <ProgressBar progress={transfer.progress} label={t('Copying music')} />}
+      {transfer.busy && (
+        <ProgressBar
+          progress={transfer.progress}
+          label={t('Copying music and updating the library')}
+        />
+      )}
       <div>
         <Button
           variant="primary"
@@ -107,7 +112,13 @@ export function MusicScreen({ onChooseCard }: Props) {
           {t('Copy to card')}
         </Button>
       </div>
-      {transfer.result && <CopyResult result={transfer.result} />}
+      {transfer.result && (
+        <CopyResult
+          result={transfer.result}
+          busy={transfer.busy}
+          onRetryLibrary={() => void transfer.retryLibrary()}
+        />
+      )}
       <ConfirmDialog
         open={confirming}
         title={t('Remove files from the card?')}
