@@ -11,12 +11,12 @@ Design notes live in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the plan in
 
 ## Layout
 
-| Path | Contents |
-| --- | --- |
-| `crates/compas-core` | Rust library with all behaviour; no Tauri dependency |
-| `src-tauri` | Tauri app: thin commands and app state |
-| `src` | React + TypeScript UI |
-| `scripts` | `dev.sh` (build container), `build-appimage.sh`, `check-file-length.sh` |
+| Path                 | Contents                                                                |
+| -------------------- | ----------------------------------------------------------------------- |
+| `crates/compas-core` | Rust library with all behaviour; no Tauri dependency                    |
+| `src-tauri`          | Tauri app: thin commands and app state                                  |
+| `src`                | React + TypeScript UI                                                   |
+| `scripts`            | `dev.sh` (build container), `build-appimage.sh`, `check-file-length.sh` |
 
 ## Requirements
 
