@@ -70,7 +70,7 @@ export function CopyResult({ result, busy, onRetryLibrary }: Props) {
           <ErrorBanner message={library.message} />
           <p>{t('The copied files are on the card. Only the library still needs updating.')}</p>
           <div>
-            <Button variant="primary" disabled={busy} onClick={onRetryLibrary}>
+            <Button variant="primary" icon="refresh" disabled={busy} onClick={onRetryLibrary}>
               {t('Try again')}
             </Button>
           </div>
