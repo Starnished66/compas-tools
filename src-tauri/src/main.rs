@@ -6,7 +6,7 @@ mod error;
 mod sidecar;
 mod state;
 
-use commands::{card, catalog, library, music, releases};
+use commands::{adb, card, catalog, library, music, releases};
 use tauri::Manager;
 
 fn main() {
@@ -22,6 +22,13 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .manage(state::AppState::default())
         .invoke_handler(tauri::generate_handler![
+            adb::adb_status,
+            adb::adb_download,
+            adb::adb_devices,
+            adb::adb_backup,
+            adb::adb_install,
+            adb::adb_collect_logs,
+            adb::adb_save_logs,
             card::card_list,
             card::card_select,
             card::card_current,

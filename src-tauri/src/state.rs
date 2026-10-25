@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
+use compas_core::adb::LogBundle;
 use compas_core::card::Card;
 use compas_core::catalog::Catalog;
 use compas_core::releases::Release;
@@ -17,6 +18,8 @@ pub struct AppState {
     card: Mutex<Option<Card>>,
     catalog: Mutex<Option<Arc<Catalog>>>,
     release: Mutex<Option<(Instant, Arc<Release>)>>,
+    /// The last collected logs, exactly as the user saw them.
+    logs: Mutex<Option<Arc<LogBundle>>>,
     /// Held while a command changes the card, so two never overlap.
     busy: AsyncMutex<()>,
 }
@@ -70,6 +73,14 @@ impl AppState {
 
     pub fn set_release(&self, release: Arc<Release>) {
         *lock(&self.release) = Some((Instant::now(), release));
+    }
+
+    pub fn logs(&self) -> Option<Arc<LogBundle>> {
+        lock(&self.logs).clone()
+    }
+
+    pub fn set_logs(&self, logs: Arc<LogBundle>) {
+        *lock(&self.logs) = Some(logs);
     }
 
     pub fn try_busy(&self) -> CommandResult<tokio::sync::MutexGuard<'_, ()>> {
