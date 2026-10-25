@@ -17,15 +17,15 @@ use crate::progress::{OnProgress, Phase, Progress};
 
 /// What a backup may contain, from the player's own sources
 /// (`storage_paths.h`, `assets.c`, `main.c`): settings, EQ, library ratings, theme
-/// overrides, and the player's logs. Paths are relative to `/usr/data`.
-const ALLOWED: [&str; 15] = [
+/// overrides, and the player's logs. Paths are relative to `/usr/data`. The hostname
+/// override is left out: a name like "Maria's player" identifies its owner.
+const ALLOWED: [&str; 14] = [
     ".compas/settings.txt",
     ".compas/peq.txt",
     ".compas/remote_state.tsv",
     ".compas/charge_baseline.txt",
     ".compas/usb_dac_session.txt",
     "theme_overrides",
-    "hostname_override.txt",
     "player_crash.log",
     "player_crash.log.1",
     "player_exit.log",
@@ -46,6 +46,9 @@ const NEVER: [&str; 4] = [
     "pin.conf",
 ];
 
+/// What the device prints for a file it cannot read.
+const UNREADABLE: &str = "__COMPAS_UNREADABLE__";
+
 /// Larger files are not settings.
 const MAX_BYTES: usize = 1 << 20;
 
@@ -58,6 +61,8 @@ pub enum SkipReason {
     /// Cannot be masked, so it is not copied.
     Binary,
     Unreadable,
+    /// The name has a character that cannot be quoted for the device, so it is not fetched.
+    UnsupportedName,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -147,14 +152,26 @@ pub async fn backup_user_data(
             path: rel.clone(),
             reason,
         };
-        if !is_safe_relative(rel) || is_left_out(rel) {
+        if is_left_out(rel) {
             skipped.push(skip(SkipReason::Private));
             continue;
         }
-        let command = format!("head -c {} '{USER_DATA}/{rel}'", MAX_BYTES + 1);
-        let Ok(bytes) = adb.exec_out(serial, &command).await else {
-            skipped.push(skip(SkipReason::Unreadable));
+        if !is_safe_relative(rel) {
+            skipped.push(skip(SkipReason::UnsupportedName));
             continue;
+        }
+        // adb's exit status is not reliable, so the shell says it in-band.
+        let path = format!("'{USER_DATA}/{rel}'");
+        let command = format!(
+            "[ -r {path} ] && head -c {} {path} || echo {UNREADABLE}",
+            MAX_BYTES + 1
+        );
+        let bytes = match adb.exec_out(serial, &command).await {
+            Ok(bytes) if bytes.trim_ascii_end() != UNREADABLE.as_bytes() => bytes,
+            _ => {
+                skipped.push(skip(SkipReason::Unreadable));
+                continue;
+            }
         };
         if bytes.len() > MAX_BYTES {
             skipped.push(skip(SkipReason::TooLarge));
@@ -357,7 +374,7 @@ mod tests {
             .unwrap();
             std::os::unix::fs::symlink(
                 fake.remote("/usr/data/mnt/sd_0/secret.txt"),
-                fake.remote("/usr/data/hostname_override.txt"),
+                fake.remote("/usr/data/player_exit.log"),
             )
             .unwrap();
 
@@ -367,7 +384,50 @@ mod tests {
                 .unwrap();
             assert_eq!(report.files, 1);
             assert!(!report.path.join("theme_overrides").exists());
-            assert!(!report.path.join("hostname_override.txt").exists());
+            assert!(!report.path.join("player_exit.log").exists());
+        }
+
+        #[tokio::test]
+        async fn unreadable_files_empty_files_and_odd_names_get_their_own_reasons() {
+            use std::os::unix::fs::PermissionsExt;
+
+            let dir = tempfile::tempdir().unwrap();
+            let fake = FakeAdb::new(dir.path(), "s1", "480,800", PS_STOCK);
+            fake.write_remote("/usr/data/player_crash.log", "locked\n");
+            fake.write_remote("/usr/data/player_exit.log", "");
+            fake.write_remote("/usr/data/theme_overrides/it's.txt", "quote in the name\n");
+            fake.write_remote("/usr/data/boot_debug.log", "fine\n");
+            let locked = fake.remote("/usr/data/player_crash.log");
+            std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
+
+            let out = tempfile::tempdir().unwrap();
+            let report = backup_user_data(&fake.adb(), "s1", out.path(), &|_| {})
+                .await
+                .unwrap();
+            std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+            let reason = |path: &str| {
+                report
+                    .skipped
+                    .iter()
+                    .find(|s| s.path == path)
+                    .map(|s| s.reason)
+            };
+            if std::fs::read(&locked).is_ok() && reason("player_crash.log").is_none() {
+                return; // running as root: permissions do not apply
+            }
+            assert_eq!(reason("player_crash.log"), Some(SkipReason::Unreadable));
+            assert_eq!(
+                reason("theme_overrides/it's.txt"),
+                Some(SkipReason::UnsupportedName)
+            );
+            assert!(report.path.join("boot_debug.log").exists());
+            assert_eq!(
+                std::fs::read(report.path.join("player_exit.log")).unwrap(),
+                b"",
+                "a real empty file is copied"
+            );
+            assert!(reason("player_exit.log").is_none());
         }
     }
 }

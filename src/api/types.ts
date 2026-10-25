@@ -210,7 +210,10 @@ export interface ToolsStatus {
 export interface BackupReport {
   path: string;
   files: number;
-  skipped: { path: string; reason: 'private' | 'too_large' | 'binary' | 'unreadable' }[];
+  skipped: {
+    path: string;
+    reason: 'private' | 'too_large' | 'binary' | 'unreadable' | 'unsupported_name';
+  }[];
   redacted: number;
 }
 

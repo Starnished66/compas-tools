@@ -15,18 +15,44 @@ fn pattern(text: String) -> Regex {
     Regex::new(&text).expect("valid pattern")
 }
 
-/// `key = value` and `"key": "value"` where the key names a secret. A key word
-/// counts only between separators, so `remote_pin` matches and `mapping` does not.
-static SECRET_VALUE: LazyLock<Regex> = LazyLock::new(|| {
+/// Key names that mark a secret. A word counts only between separators, so `remote_pin`
+/// matches and `mapping` does not.
+const KEY_LOWER: &str = r"(?:[a-z0-9]+[_.-])*(?:pin|passw(?:or)?d|passwd|pass|pwd|passcode|passphrase|passkey|psk|sk|token|secret|api[_-]?key|apikey|authorization|auth|credentials?|session|cookie|email|user[_-]?name|username|login)(?:[_.-][a-z0-9]+)*";
+/// camelCase keys such as `AccessToken`, `apiKey` or `clientSecret`.
+const KEY_CAMEL: &str = r"[A-Za-z0-9_.]*[a-z0-9](?:Token|Key|Secret|Password|Passwd|Pass|Pwd|Pin|Session)[A-Za-z0-9_.]*";
+
+/// `"key": "value"` (quoted, with escapes) or `"key": 1234` (a bare JSON value stops at the comma).
+static JSON_LOWER: LazyLock<Regex> = LazyLock::new(|| {
     pattern(format!(
-        r#"(?i)(^|[^a-z0-9])((?:[a-z0-9]+[_.-])*(?:pin|passw(?:or)?d|passwd|pass|pwd|passcode|psk|sk|token|secret|api[_-]?key|apikey|authorization|auth|credentials?|session|cookie|email|user[_-]?name|username|login)(?:[_.-][a-z0-9]+)*)("?\s*[:=]\s*)({DOUBLE}|{SINGLE}|(?:Bearer\s+)?[^\s,;}}\]"']+)"#
+        r#"(?i)("{KEY_LOWER}"\s*:\s*)({DOUBLE}|{SINGLE}|[^\s,}}\]]+)"#
+    ))
+});
+static JSON_CAMEL: LazyLock<Regex> = LazyLock::new(|| {
+    pattern(format!(
+        r#"("{KEY_CAMEL}"\s*:\s*)({DOUBLE}|{SINGLE}|[^\s,}}\]]+)"#
     ))
 });
 
-/// camelCase keys such as `AccessToken`, `apiKey` or `clientSecret`.
-static CAMEL_SECRET: LazyLock<Regex> = LazyLock::new(|| {
+/// `key = "value"` with a quoted value: only the quoted part is secret.
+static QUOTED_LOWER: LazyLock<Regex> = LazyLock::new(|| {
     pattern(format!(
-        r#"(^|[^A-Za-z0-9_.])([A-Za-z0-9_.]*[a-z0-9](?:Token|Key|Secret|Password|Passwd|Pass|Pwd|Pin|Session)[A-Za-z0-9_.]*)("?\s*[:=]\s*)({DOUBLE}|{SINGLE}|[^\s,;}}\]"']+)"#
+        r"(?i)(^|[^a-z0-9])({KEY_LOWER}\s*[:=]\s*)({DOUBLE}|{SINGLE})"
+    ))
+});
+static QUOTED_CAMEL: LazyLock<Regex> = LazyLock::new(|| {
+    pattern(format!(
+        r"(^|[^A-Za-z0-9_.])({KEY_CAMEL}\s*[:=]\s*)({DOUBLE}|{SINGLE})"
+    ))
+});
+
+/// `key=value` lines (settings files, log lines): the secret may hold spaces and
+/// punctuation, so everything to the end of the line is masked. Query strings are left to
+/// `URL_QUERY`, which stops at `&`.
+static LINE_LOWER: LazyLock<Regex> =
+    LazyLock::new(|| pattern(format!(r"(?i)(^|[^a-z0-9])({KEY_LOWER}\s*[:=]\s*)([^\n]*)")));
+static LINE_CAMEL: LazyLock<Regex> = LazyLock::new(|| {
+    pattern(format!(
+        r"(^|[^A-Za-z0-9_.])({KEY_CAMEL}\s*[:=]\s*)([^\n]*)"
     ))
 });
 
@@ -74,8 +100,15 @@ static LOOSE_TOKEN: LazyLock<Regex> = LazyLock::new(|| {
 /// "remote control code 482913", "PIN is 123456".
 static LOOSE_PIN: LazyLock<Regex> = LazyLock::new(|| {
     pattern(
-        r"(?i)((?:\bremote[ _-]?control\s+(?:pin|code|passcode)|\bpin)\b\D{0,20}?)\d{4,8}\b".into(),
+        r"(?i)((?:\bremote[ _-]?control\s+(?:pin|code|passcode)|\bpairing\s+(?:pin|code|passkey)|\b(?:pin|passkey|passcode))\b\D{0,20}?)\d{4,8}\b".into(),
     )
+});
+
+/// `nmcli dev wifi connect "Casa Garita"`: the network name follows the verb.
+static NMCLI: LazyLock<Regex> = LazyLock::new(|| {
+    pattern(format!(
+        r#"(?i)(\bnmcli\b[^\n]*?\b(?:connect|up|add)\s+)({DOUBLE}|{SINGLE}|[^\s"']+)"#
+    ))
 });
 
 static BEARER: LazyLock<Regex> =
@@ -117,16 +150,27 @@ pub fn redact(input: &str) -> Redacted {
             .into_owned();
     };
 
-    apply(&SECRET_VALUE, &|c| {
-        format!("{}{}{}{MASK}", &c[1], &c[2], &c[3])
-    });
-    apply(&CAMEL_SECRET, &|c| {
-        format!("{}{}{}{MASK}", &c[1], &c[2], &c[3])
-    });
+    for json in [&JSON_LOWER, &JSON_CAMEL] {
+        apply(json, &|c| format!("{}{MASK}", &c[1]));
+    }
+    for quoted in [&QUOTED_LOWER, &QUOTED_CAMEL] {
+        apply(quoted, &|c| format!("{}{}{MASK}", &c[1], &c[2]));
+    }
+    for line in [&LINE_LOWER, &LINE_CAMEL] {
+        apply(line, &|c| {
+            let in_query = matches!(&c[1], "?" | "&");
+            if in_query || c[3].trim().is_empty() || c[3].starts_with(MASK) {
+                c[0].to_string()
+            } else {
+                format!("{}{}{MASK}", &c[1], &c[2])
+            }
+        });
+    }
     apply(&WIFI_NAME, &|c| format!("{}{MASK}", &c[1]));
     apply(&WPA_QUOTED, &|c| format!("{}{}{MASK}", &c[1], &c[2]));
     apply(&WPA_HEX_PSK, &|c| format!("{}{MASK}", &c[1]));
     apply(&NETWORK_NAME, &|c| format!("{}{MASK}", &c[1]));
+    apply(&NMCLI, &|c| format!("{}{MASK}", &c[1]));
     apply(&URL_QUERY, &|c| format!("{}{MASK}", &c[1]));
     apply(&LOOSE_TOKEN, &|c| format!("{}{}{MASK}", &c[1], &c[2]));
     apply(&LOOSE_PIN, &|c| format!("{}{MASK}", &c[1]));
@@ -306,8 +350,86 @@ mod tests {
         assert_eq!(masked(r#""apiKey": "k-123""#), r#""apiKey": <redacted>"#);
         assert_eq!(masked("clientSecret: s3cr3t"), "clientSecret: <redacted>");
         assert_eq!(
-            masked("sk=1234 pass=abc pwd=xyz"),
-            "sk=<redacted> pass=<redacted> pwd=<redacted>"
+            masked("sk=1234\npass=abc\npwd=xyz"),
+            "sk=<redacted>\npass=<redacted>\npwd=<redacted>"
+        );
+    }
+
+    #[test]
+    fn line_based_values_are_masked_to_the_end_of_the_line() {
+        assert_eq!(
+            masked("subsonic_password=pa ss word\nvolume=3"),
+            "subsonic_password=<redacted>\nvolume=3"
+        );
+        assert_eq!(
+            masked("subsonic_username=Maria Lopez"),
+            "subsonic_username=<redacted>"
+        );
+        assert_eq!(
+            masked("subsonic_password=p;a,s}s"),
+            "subsonic_password=<redacted>"
+        );
+        assert_eq!(
+            masked("wpa_passphrase=Hunter Two"),
+            "wpa_passphrase=<redacted>"
+        );
+        // Quoted and JSON values keep the shorter cut.
+        assert_eq!(
+            masked(r#"password="p a;ss" name=x"#),
+            r#"password=<redacted> name=x"#
+        );
+        assert_eq!(
+            masked(r#"{"password": 12345, "name": "x"}"#),
+            r#"{"password": <redacted>, "name": "x"}"#
+        );
+        // A query string stops at the next parameter.
+        assert_eq!(
+            masked("GET /x?token=abc123&v=1"),
+            "GET /x?token=<redacted>&v=1"
+        );
+    }
+
+    #[test]
+    fn authorization_headers_are_masked_whatever_the_scheme() {
+        for header in [
+            "Authorization: Basic YW5hOmh1bnRlcjI=",
+            "Authorization: Bearer abcdefgh12345",
+            "Authorization: Digest username=\"ana\", realm=\"x\", response=\"abc\"",
+            "authorization=Negotiate YIIB",
+        ] {
+            let out = masked(header);
+            assert!(out.ends_with("<redacted>"), "{out}");
+            assert!(
+                !out.contains("YW5h")
+                    && !out.contains("abcdefgh")
+                    && !out.contains("YIIB")
+                    && !out.contains("response="),
+                "{out}"
+            );
+        }
+        assert_eq!(
+            masked("Authorization: Basic YW5hOmh1bnRlcjI="),
+            "Authorization: <redacted>"
+        );
+    }
+
+    #[test]
+    fn bluetooth_passkeys_and_nmcli_networks_are_masked() {
+        assert_eq!(
+            masked("Bluetooth pairing passkey 123456"),
+            "Bluetooth pairing passkey <redacted>"
+        );
+        assert_eq!(
+            masked("pairing code 654321 shown"),
+            "pairing code <redacted> shown"
+        );
+        assert_eq!(
+            masked(r#"nmcli dev wifi connect "Casa Garita" password "x y""#),
+            "nmcli dev wifi connect <redacted> password <redacted>"
+        );
+        assert_eq!(
+            masked("nmcli connection up CasaGarita"),
+            "nmcli connection up <redacted>"
         );
     }
 

@@ -43,7 +43,7 @@ case "$cmd" in
         if [ -e "$D/df_output" ]; then cat "$D/df_output"; else
           printf 'Filesystem 1K-blocks Used Available Use%% Mounted on\n/dev/mmcblk0p1 7000000 100 6999900 1%% /data/mnt/sd_0\n'
         fi ;;
-      head\ *) eval "$(map "$c")" ;;
+      *head\ -c*) eval "$(map "$c")" ;;
       *) eval "$(map "$c")" | sed "s#$R##g" ;;
     esac ;;
   *) echo "fake adb: unknown command $cmd" >&2; exit 1 ;;

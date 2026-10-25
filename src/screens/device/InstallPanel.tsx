@@ -27,6 +27,7 @@ const SKIP_TEXT = {
   too_large: 'too large',
   binary: 'not text, so it cannot be masked',
   unreadable: 'could not be read',
+  unsupported_name: 'its name cannot be copied safely',
 } as const;
 
 export function InstallPanel({ device, onFinished, onChoose }: Props) {
@@ -37,6 +38,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
   const [failed, setFailed] = useState(false);
   const [asking, setAsking] = useState<ReleaseKind | null>(null);
   const [removed, setRemoved] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const model = device.board ?? chosen;
   // The first install replaces the vendor's system; take the user's settings along first.
@@ -60,6 +62,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
   };
 
   const removeImage = async (path: string) => {
+    setDeleting(null);
     const done = await operation.run(() => removeUpdateFile(device.serial, path));
     if (done !== undefined) setRemoved(true);
   };
@@ -146,10 +149,26 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
           removed={removed}
           busy={operation.busy}
           onChoose={onChoose}
-          onRemove={(path) => void removeImage(path)}
+          onRemove={setDeleting}
         />
       )}
 
+      {deleting && (
+        <ConfirmDialog
+          open
+          title={t('Delete the update file?')}
+          message={t(
+            '{path} will be deleted from the SD card of {serial}. The installed player is not affected.',
+            { path: deleting, serial: device.serial },
+          )}
+          confirmLabel={t('Delete')}
+          destructive
+          onConfirm={() => void removeImage(deleting)}
+          onCancel={() => {
+            setDeleting(null);
+          }}
+        />
+      )}
       {asking && model && (
         <ConfirmDialog
           open

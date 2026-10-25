@@ -98,7 +98,7 @@ describe('DeviceScreen', () => {
     const asking = await screen.findByRole('dialog', { name: 'Download adb?' });
     expect(asking).toBeVisible();
     expect(asking).toHaveTextContent(/platform-tools 37\.0\.1/);
-    expect(asking).toHaveTextContent(/SHA-256/);
+    expect(asking).toHaveTextContent(/pinned SHA-256/);
     expect(downloadAdb).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByRole('button', { name: 'Download' }));
@@ -308,6 +308,13 @@ describe('DeviceScreen', () => {
     await userEvent.click(
       await screen.findByRole('button', { name: 'Delete the update file from the card' }),
     );
+    expect(removeUpdateFile).not.toHaveBeenCalled();
+    const confirm = await screen.findByRole('dialog', { name: 'Delete the update file?' });
+    expect(confirm).toHaveTextContent('/data/mnt/sd_0/r1.upt');
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => {
+      expect(removeUpdateFile).toHaveBeenCalled();
+    });
     expect(removeUpdateFile).toHaveBeenCalledWith('ingenic_1', '/data/mnt/sd_0/r1.upt');
     expect(await screen.findByText(/The update file was deleted/)).toBeInTheDocument();
     expect(vi.mocked(listDevices).mock.calls.length).toBeGreaterThanOrEqual(2);

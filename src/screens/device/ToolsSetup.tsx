@@ -64,7 +64,7 @@ export function ToolsSetup({ status, onInstalled, onCheckAgain }: Props) {
         open={asking}
         title={t('Download adb?')}
         message={t(
-          'This downloads Google’s platform-tools {version} (about 9 MB) over HTTPS, checks it against its published SHA-256 checksum, and keeps it in this app’s data folder. Nothing else is installed.',
+          'This downloads Google’s platform-tools {version} (about 9 MB) over HTTPS, checks it against a pinned SHA-256, and keeps it in this app’s data folder. Nothing else is installed.',
           { version: status.download_version },
         )}
         confirmLabel={t('Download')}
