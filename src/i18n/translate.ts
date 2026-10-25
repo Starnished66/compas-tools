@@ -5,10 +5,19 @@ export type TranslationVariables = Record<string, string | number> & { count?: n
 
 export function normalizeLanguageTag(tag?: string | null): Language {
   const language = tag?.trim().replace('_', '-').split('-')[0]?.toLowerCase();
-  return language === 'es' || language === 'de' || language === 'fr' || language === 'it' || language === 'ru' ? language : 'en';
+  return language === 'es' ||
+    language === 'de' ||
+    language === 'fr' ||
+    language === 'it' ||
+    language === 'ru'
+    ? language
+    : 'en';
 }
 
-export function resolveLanguage(preference: Language | 'system', systemLocale?: string | null): Language {
+export function resolveLanguage(
+  preference: Language | 'system',
+  systemLocale?: string | null,
+): Language {
   return preference === 'system' ? normalizeLanguageTag(systemLocale) : preference;
 }
 
@@ -21,8 +30,12 @@ function pluralCategory(language: Language, count: number): 'one' | 'few' | 'man
   if (!Number.isFinite(count)) return 'other';
   const absolute = Math.abs(count);
 
-  if ((language === 'es' || language === 'fr' || language === 'it')
-      && absolute !== 0 && Number.isInteger(absolute) && absolute % 1_000_000 === 0) {
+  if (
+    (language === 'es' || language === 'fr' || language === 'it') &&
+    absolute !== 0 &&
+    Number.isInteger(absolute) &&
+    absolute % 1_000_000 === 0
+  ) {
     return 'many';
   }
   if (language === 'fr') return Math.floor(absolute) <= 1 ? 'one' : 'other';
@@ -40,16 +53,30 @@ function pluralCategory(language: Language, count: number): 'one' | 'few' | 'man
   return absolute === 1 ? 'one' : 'other';
 }
 
-function selectPlural(value: TranslationValue, language: Language, count?: number): string | undefined {
+function selectPlural(
+  value: TranslationValue,
+  language: Language,
+  count?: number,
+): string | undefined {
   if (typeof value === 'string') return value;
   if (count == null) return value.other;
   const rule = pluralCategory(language, count);
-  return value[rule] ?? value.other ?? value.one ?? Object.values(value).find((text): text is string => Boolean(text));
+  return (
+    value[rule] ??
+    value.other ??
+    value.one ??
+    Object.values(value).find((text): text is string => Boolean(text))
+  );
 }
 
 /** Translate an explicit static UI source string. Unknown source strings stay readable in English. */
-export function translate(source: string, language: Language = 'en', variables: TranslationVariables = {}): string {
-  const template = selectPlural(catalogs[language][source] ?? source, language, variables.count) ?? source;
+export function translate(
+  source: string,
+  language: Language = 'en',
+  variables: TranslationVariables = {},
+): string {
+  const template =
+    selectPlural(catalogs[language][source] ?? source, language, variables.count) ?? source;
   return template.replace(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g, (match, name: string) => {
     const replacement = variables[name];
     return replacement == null ? match : String(replacement);

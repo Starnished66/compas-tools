@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { Sidebar, type ScreenId } from './components/Sidebar';
 import { CardScreen } from './screens/card/CardScreen';
+import { ActionDialog } from './screens/catalog/ActionDialog';
 import { CatalogView } from './screens/catalog/CatalogView';
 import { UpdatesScreen } from './screens/updates/UpdatesScreen';
 import { CardProvider, useCard } from './state/CardContext';
@@ -24,6 +25,7 @@ function Shell() {
         )}
         {screen === 'updates' && <UpdatesScreen onChooseCard={toCard} />}
       </main>
+      <ActionDialog />
     </div>
   );
 }

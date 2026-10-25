@@ -6,16 +6,18 @@ import {
   uninstallPlugin,
   updateAllPlugins,
   updatePlugin,
-} from '../../api/catalog';
-import type { PluginEntry, Progress, UpdateAllReport } from '../../api/types';
-import { useOperation } from '../../hooks/useOperation';
+} from '../api/catalog';
+import type { PluginEntry, Progress, UpdateAllReport } from '../api/types';
+import { useOperation } from './useOperation';
 
 type ChangeKind = 'install' | 'update';
 
-type Dialog =
+export type Dialog =
   { type: 'replace'; id: string; kind: ChangeKind } | { type: 'remove'; id: string } | null;
 
 /** Every way the user changes the card from a catalog view. */
+export type PluginActions = ReturnType<typeof usePluginActions>;
+
 export function usePluginActions(reload: () => Promise<void>) {
   const operation = useOperation();
   const { run } = operation;

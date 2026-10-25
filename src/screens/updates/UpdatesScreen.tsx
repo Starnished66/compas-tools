@@ -28,17 +28,17 @@ export function UpdatesScreen({ onChooseCard }: Props) {
   const operation = useOperation();
   const cardRoot = card?.root ?? null;
 
-  const check = useCallback(async () => {
+  const check = useCallback(async (refresh: boolean) => {
     setLoadError(null);
     try {
-      setLatest(await latestRelease());
+      setLatest(await latestRelease(refresh));
     } catch (failure) {
       setLoadError(errorMessage(failure));
     }
   }, []);
 
   useEffect(() => {
-    if (cardRoot) void check();
+    if (cardRoot) void check(false);
   }, [cardRoot, check]);
 
   // Stray .upt files matter before and after copying, so look whenever the plan changes.
@@ -78,7 +78,7 @@ export function UpdatesScreen({ onChooseCard }: Props) {
     <section className="screen">
       <div className="screen__header">
         <h1>{t('Updates')}</h1>
-        <Button onClick={() => void check()} disabled={operation.busy}>
+        <Button onClick={() => void check(true)} disabled={operation.busy}>
           {t('Check again')}
         </Button>
       </div>
@@ -89,9 +89,13 @@ export function UpdatesScreen({ onChooseCard }: Props) {
       {latest && (
         <ReleaseSummary latest={latest} installedVersion={card.device?.player_version ?? null} />
       )}
-      {!model && (
+      {!card.device && (
         <Notice tone="warning">
-          <p>{t('Choose the player model to pick the right update file.')}</p>
+          <p>
+            {model
+              ? t('The model comes from your choice, because the card has no device information.')
+              : t('Choose the player model to pick the right update file.')}
+          </p>
           <ModelPicker value={model} onChange={chooseModel} />
         </Notice>
       )}
@@ -105,6 +109,7 @@ export function UpdatesScreen({ onChooseCard }: Props) {
       <div className="action-grid">
         <PlaceAction
           kind="player_only"
+          model={model}
           title={t('Player only')}
           description={t(
             'Replaces just the player program. Quick, and keeps the rest of the system as it is.',
@@ -117,6 +122,7 @@ export function UpdatesScreen({ onChooseCard }: Props) {
         />
         <PlaceAction
           kind="full_image"
+          model={model}
           title={t('Full firmware image')}
           description={t(
             'The complete system image. Use it when a release says the system itself changed.',

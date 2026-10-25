@@ -1,4 +1,4 @@
-import type { PlacedFile, Progress, ReleaseKind } from '../../api/types';
+import type { Model, PlacedFile, Progress, ReleaseKind } from '../../api/types';
 import { Button } from '../../components/Button';
 import { Notice } from '../../components/Notice';
 import { ProgressBar } from '../../components/ProgressBar';
@@ -7,6 +7,7 @@ import { finishingSteps } from './instructions';
 
 interface Props {
   kind: ReleaseKind;
+  model: Model | null;
   title: string;
   description: string;
   disabled: boolean;
@@ -19,6 +20,7 @@ interface Props {
 /** One way of putting a release on the card, with what to do next. */
 export function PlaceAction({
   kind,
+  model,
   title,
   description,
   disabled,
@@ -41,7 +43,7 @@ export function PlaceAction({
         <Notice tone="success">
           <p>{t('Saved to {path}', { path: placed.path })}</p>
           <ol className="steps">
-            {finishingSteps(kind).map((step) => (
+            {finishingSteps(kind, model).map((step) => (
               <li key={step}>{step}</li>
             ))}
           </ol>

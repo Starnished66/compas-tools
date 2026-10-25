@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 
-import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { EmptyState } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
+import { Notice } from '../../components/Notice';
 import { t } from '../../i18n';
 import { useCard } from '../../state/CardContext';
 import { useCatalog } from '../../state/CatalogContext';
@@ -11,7 +11,6 @@ import { PluginCard } from './PluginCard';
 import { PluginDetails } from './PluginDetails';
 import { Toolbar } from './Toolbar';
 import { UpdateAllReport } from './UpdateAllReport';
-import { usePluginActions } from './usePluginActions';
 
 interface Props {
   view: View;
@@ -20,8 +19,7 @@ interface Props {
 
 export function CatalogView({ view, onChooseCard }: Props) {
   const { card } = useCard();
-  const { entries, loading, error, load } = useCatalog();
-  const actions = usePluginActions(() => load(false));
+  const { entries, loading, error, load, actions } = useCatalog();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -32,7 +30,6 @@ export function CatalogView({ view, onChooseCard }: Props) {
     [inThisView, query, category],
   );
   const selected = entries.find((e) => e.id === selectedId) ?? null;
-  const dialogEntry = actions.dialog && entries.find((e) => e.id === actions.dialog?.id);
   const title = { plugins: t('Plugins'), layouts: t('Layouts'), themes: t('Themes') }[view];
 
   if (!card) {
@@ -66,6 +63,15 @@ export function CatalogView({ view, onChooseCard }: Props) {
         onUpdateAll={() => void actions.updateAll()}
         onRefresh={() => void load(true)}
       />
+      {!card.device && (
+        <Notice tone="info">
+          <p>
+            {t(
+              'Compatibility cannot be checked until the player has written device.json. Update the player on this card, then scan it again.',
+            )}
+          </p>
+        </Notice>
+      )}
       {error && <ErrorBanner message={error} />}
       {actions.error && <ErrorBanner message={actions.error} onDismiss={actions.clearError} />}
       {actions.report && (
@@ -116,25 +122,6 @@ export function CatalogView({ view, onChooseCard }: Props) {
           />
         )}
       </div>
-      <ConfirmDialog
-        open={actions.dialog !== null}
-        title={
-          actions.dialog?.type === 'remove' ? t('Remove this plugin?') : t('Replace a local file?')
-        }
-        message={
-          actions.dialog?.type === 'remove'
-            ? t('{name} and its files will be removed from the card.', {
-                name: dialogEntry?.name ?? '',
-              })
-            : t('{name} would replace a file on the card that the store did not install.', {
-                name: dialogEntry?.name ?? '',
-              })
-        }
-        confirmLabel={actions.dialog?.type === 'remove' ? t('Remove') : t('Replace')}
-        destructive
-        onConfirm={() => void actions.confirm()}
-        onCancel={actions.cancelDialog}
-      />
     </section>
   );
 }

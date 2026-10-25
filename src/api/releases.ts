@@ -1,7 +1,9 @@
 import { call, callWithProgress } from './invoke';
 import type { LatestRelease, Model, PlacedFile, Progress, ReleaseKind } from './types';
 
-export const latestRelease = () => call<LatestRelease>('releases_latest');
+/** `refresh` skips the short-lived cache of the release. */
+export const latestRelease = (refresh: boolean) =>
+  call<LatestRelease>('releases_latest', { refresh });
 
 export const placeRelease = (
   kind: ReleaseKind,
