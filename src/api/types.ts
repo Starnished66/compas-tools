@@ -60,7 +60,13 @@ export type Phase =
   | 'saving'
   | 'building_art'
   | 'copying'
-  | 'cleaning';
+  | 'cleaning'
+  | 'backing_up'
+  | 'pushing'
+  | 'verifying'
+  | 'rebooting'
+  | 'waiting'
+  | 'collecting';
 
 export interface Progress {
   phase: Phase;
@@ -167,4 +173,57 @@ export interface ArtDone {
   mtime_offset: number;
   /** The tool finished but some covers could not be written. */
   warning?: string | null;
+}
+
+export type Firmware = 'stock' | 'compas' | 'unknown';
+
+export interface DeviceInfo {
+  serial: string;
+  /** From the screen size; the product name over ADB does not identify the board. */
+  board: Model | null;
+  firmware: Firmware;
+  player_version: string | null;
+  plugin_api: number | null;
+}
+
+export interface DeviceView {
+  serial: string;
+  /** `device`, `unauthorized`, `offline`, ... */
+  state: string;
+  info: DeviceInfo | null;
+}
+
+export interface ToolsStatus {
+  found: boolean;
+  source: 'override' | 'system' | 'downloaded' | null;
+  version: string | null;
+  /** `linux`, `macos` or `windows`. */
+  platform: string;
+}
+
+export interface BackupReport {
+  path: string;
+  files: number;
+  skipped: string[];
+  redacted: number;
+}
+
+export interface InstallReport {
+  remote_path: string;
+  device: DeviceInfo | null;
+  freshness: Freshness;
+}
+
+export interface LogFile {
+  name: string;
+  source: string;
+  content: string;
+  bytes: number;
+  redactions: number;
+  missing: boolean;
+}
+
+export interface LogBundle {
+  files: LogFile[];
+  summary: string;
 }

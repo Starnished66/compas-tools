@@ -3,5 +3,11 @@
   "identifier": "default",
   "description": "Window permissions: folder picker and opening links.",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:allow-open", "dialog:allow-save", "opener:allow-open-url", "opener:allow-reveal-item-in-dir"]
+  "permissions": [
+    "core:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "opener:allow-open-url",
+    "opener:allow-reveal-item-in-dir"
+  ]
 }

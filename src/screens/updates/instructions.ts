@@ -2,7 +2,7 @@ import type { Model, ReleaseKind } from '../../api/types';
 import { t } from '../../i18n';
 
 /** Recovery key combination of each board (`firmware_update.c`). */
-function recoveryKeys(model: Model): string {
+export function recoveryKeys(model: Model): string {
   return model === 'r3ii_2025' ? t('Power + Play/Pause') : t('Power + Volume Up');
 }
 

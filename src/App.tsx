@@ -4,6 +4,7 @@ import { Sidebar, type ScreenId } from './components/Sidebar';
 import { CardScreen } from './screens/card/CardScreen';
 import { ActionDialog } from './screens/catalog/ActionDialog';
 import { CatalogView } from './screens/catalog/CatalogView';
+import { DeviceScreen } from './screens/device/DeviceScreen';
 import { LibraryScreen } from './screens/library/LibraryScreen';
 import { MusicScreen } from './screens/music/MusicScreen';
 import { UpdatesScreen } from './screens/updates/UpdatesScreen';
@@ -27,6 +28,7 @@ function Shell() {
         {(screen === 'plugins' || screen === 'layouts' || screen === 'themes') && (
           <CatalogView key={screen} view={screen} onChooseCard={toCard} />
         )}
+        {screen === 'device' && <DeviceScreen />}
         {screen === 'music' && <MusicScreen onChooseCard={toCard} />}
         {screen === 'library' && <LibraryScreen onChooseCard={toCard} />}
         {screen === 'updates' && <UpdatesScreen onChooseCard={toCard} />}

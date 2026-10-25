@@ -46,6 +46,16 @@ The sources default to `~/.cache/compas-tools/player-sdtool` (compas-player, bra
 `feature/compas-sdtool`; the CLI is described in its `docs/SDTOOL.md`). On macOS the script
 builds natively. Output names follow Tauri's target-triple convention.
 
+## ADB (Device screen)
+
+The Device screen installs and updates the player over USB and collects logs, using `adb`:
+a system `adb` when there is one, otherwise Google's platform-tools downloaded on first use
+(after asking) into the app's data folder. Every adb call goes through `crates/compas-core/src/adb`.
+
+Set `COMPAS_ADB` to the path of any program that behaves like `adb` to use it instead. The
+tests do this with a fake adb (`adb/fake.rs`): a shell script serving a pretend player with
+recorded outputs for stock and Compás firmware on each board. No test touches a real device.
+
 ## Run
 
 ```sh

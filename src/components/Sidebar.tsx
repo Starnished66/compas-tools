@@ -1,6 +1,7 @@
 import { t } from '../i18n';
 
-export type ScreenId = 'card' | 'music' | 'library' | 'plugins' | 'layouts' | 'themes' | 'updates';
+export type ScreenId =
+  'card' | 'device' | 'music' | 'library' | 'plugins' | 'layouts' | 'themes' | 'updates';
 
 interface Props {
   current: ScreenId;
@@ -11,6 +12,7 @@ interface Props {
 export function Sidebar({ current, cardLabel, onNavigate }: Props) {
   const items: { id: ScreenId; label: string }[] = [
     { id: 'card', label: t('Card') },
+    { id: 'device', label: t('Device') },
     { id: 'music', label: t('Music') },
     { id: 'library', label: t('Library') },
     { id: 'plugins', label: t('Plugins') },

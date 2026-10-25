@@ -65,6 +65,14 @@ export const catalogs: Record<Language, Record<string, TranslationValue>> = {
       other: '{count} files on the card are not in the folder and will be removed:',
     },
     '{count} files failed:': { one: '{count} file failed:', other: '{count} files failed:' },
+    '{count} files were not on this player and are left out.': {
+      one: '{count} file was not on this player and is left out.',
+      other: '{count} files were not on this player and are left out.',
+    },
+    '{count} files copied, {skipped} left out on purpose.': {
+      one: '{count} file copied, {skipped} left out on purpose.',
+      other: '{count} files copied, {skipped} left out on purpose.',
+    },
     '{count} other .upt file on the card': {
       one: '{count} other .upt file on the card',
       other: '{count} other .upt files on the card',

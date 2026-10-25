@@ -42,6 +42,18 @@ export function progressLabel({ phase, done, total }: Progress): string {
       return t('Copying… {percent}%', { percent });
     case 'cleaning':
       return t('Tidying up…');
+    case 'backing_up':
+      return t('Backing up… {percent}%', { percent });
+    case 'pushing':
+      return t('Copying to the player…');
+    case 'verifying':
+      return t('Checking the copy…');
+    case 'rebooting':
+      return t('Restarting the player…');
+    case 'waiting':
+      return t('Waiting for the player to come back…');
+    case 'collecting':
+      return t('Collecting logs… {percent}%', { percent });
     case 'updating':
       return t('Updating plugins… {percent}%', { percent });
   }
