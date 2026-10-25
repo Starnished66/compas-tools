@@ -39,6 +39,7 @@ export function ToolsSetup({ status, onInstalled }: Props) {
       <div>
         <Button
           variant="primary"
+          icon="install"
           disabled={operation.busy}
           onClick={() => {
             setAsking(true);

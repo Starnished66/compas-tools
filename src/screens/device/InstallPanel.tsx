@@ -95,13 +95,18 @@ export function InstallPanel({ device }: Props) {
         <div className="row">
           <Button
             variant="primary"
+            icon="install"
             disabled={operation.busy || needsBackup || !model}
             onClick={() => void install('full_image')}
           >
             {t('Install the latest firmware')}
           </Button>
           {device.firmware === 'compas' && (
-            <Button disabled={operation.busy || !model} onClick={() => void install('player_only')}>
+            <Button
+              icon="update"
+              disabled={operation.busy || !model}
+              onClick={() => void install('player_only')}
+            >
               {t('Update only the player')}
             </Button>
           )}

@@ -4,6 +4,7 @@
  */
 export const ICONS = {
   card: 'devices/22/media-flash-sd-mmc',
+  device: 'devices/22/smartphone',
   music: 'places/22/folder-music',
   library: 'places/22/server-database',
   plugins: 'actions/22/plugins',
