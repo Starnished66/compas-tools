@@ -38,6 +38,8 @@ pub enum Error {
     RecordDamaged { limit: usize },
     #[error("{}", crate::sdtool::friendly_message(code, message))]
     Sdtool { code: String, message: String },
+    #[error("adb: {0}")]
+    Adb(String),
     #[error("{0}")]
     Rejected(String),
 }
@@ -55,6 +57,7 @@ impl Error {
             Error::InvalidCard(_) => "invalid_card",
             Error::NoSpace { .. } => "no_space",
             Error::Sdtool { .. } => "sdtool",
+            Error::Adb(_) => "adb",
             Error::RecordDamaged { .. } => "record_damaged",
             Error::NotFound(_) => "not_found",
             Error::Rejected(_) => "rejected",

@@ -93,27 +93,6 @@ impl SdTool {
         })
     }
 
-    /// Starts the tool. A file that was only just written can be briefly busy
-    /// on Linux (`ETXTBSY`) while another thread's `fork` still holds it open.
-    async fn spawn(&self, command: &mut Command) -> Result<tokio::process::Child> {
-        let mut attempts = 0;
-        loop {
-            match command.spawn() {
-                Ok(child) => return Ok(child),
-                Err(e) if e.kind() == std::io::ErrorKind::ExecutableFileBusy && attempts < 20 => {
-                    attempts += 1;
-                    tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-                }
-                Err(e) => {
-                    return Err(Error::Sdtool {
-                        code: "missing_tool".into(),
-                        message: format!("{}: {e}", self.exe.display()),
-                    })
-                }
-            }
-        }
-    }
-
     /// Runs the tool, forwarding progress lines, and returns its final object.
     async fn run<T: DeserializeOwned>(
         &self,
@@ -130,7 +109,12 @@ impl SdTool {
         #[cfg(windows)]
         command.creation_flags(0x0800_0000); // no console window
 
-        let mut child = self.spawn(&mut command).await?;
+        let mut child = crate::process::spawn(&mut command)
+            .await
+            .map_err(|e| Error::Sdtool {
+                code: "missing_tool".into(),
+                message: format!("{}: {e}", self.exe.display()),
+            })?;
         let stderr = child.stderr.take().map(BufReader::new);
         let tail = tokio::spawn(async move {
             let mut lines = Vec::new();

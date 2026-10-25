@@ -14,6 +14,13 @@ pub enum Phase {
     BuildingArt,
     Copying,
     Cleaning,
+    BackingUp,
+    Pushing,
+    Verifying,
+    Rebooting,
+    /// Waiting for the device to come back after a reboot.
+    Waiting,
+    Collecting,
 }
 
 /// `done` and `total` are bytes while downloading and items otherwise.

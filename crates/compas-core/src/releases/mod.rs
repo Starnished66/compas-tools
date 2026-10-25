@@ -110,7 +110,7 @@ impl Release {
 }
 
 #[cfg(test)]
-mod test_fixtures;
+pub(crate) mod test_fixtures;
 
 #[cfg(test)]
 mod tests {

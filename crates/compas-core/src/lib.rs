@@ -2,12 +2,14 @@
 //!
 //! No Tauri dependency; the desktop app only adapts these functions into commands.
 
+pub mod adb;
 pub mod card;
 pub mod catalog;
 pub mod error;
 pub mod fs;
 pub mod music;
 pub mod net;
+mod process;
 pub mod progress;
 pub mod releases;
 pub mod sdtool;
