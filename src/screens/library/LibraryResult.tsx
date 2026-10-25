@@ -16,8 +16,8 @@ export function ScanResult({ done }: { done: ScanDone }) {
     <Notice tone={done.failed > 0 ? 'warning' : 'success'}>
       <p>
         {done.written
-          ? t('Library updated: {songs} songs, generation {generation}.', {
-              songs: done.songs,
+          ? t('Library updated: {count} songs, generation {generation}.', {
+              count: done.songs,
               generation: done.generation,
             })
           : t('The library was already up to date; the card was not changed.')}
@@ -45,7 +45,7 @@ export function ScanResult({ done }: { done: ScanDone }) {
 export function ArtResult({ done }: { done: ArtDone }) {
   return (
     <Notice tone={done.warning ? 'warning' : 'success'}>
-      <p>{t('Album art checked for {albums} albums.', { albums: done.albums })}</p>
+      <p>{t('Album art checked for {count} albums.', { count: done.albums })}</p>
       <dl className="details-list">
         <dt>{t('Written')}</dt>
         <dd>{done.written}</dd>
@@ -53,6 +53,12 @@ export function ArtResult({ done }: { done: ArtDone }) {
         <dd>{done.unchanged}</dd>
         <dt>{t('No art found')}</dt>
         <dd>{done.no_art}</dd>
+        {(done.failed ?? 0) > 0 && (
+          <>
+            <dt>{t('Failed')}</dt>
+            <dd>{done.failed}</dd>
+          </>
+        )}
       </dl>
       {done.warning && <p>{done.warning}</p>}
       <OffsetNote seconds={done.mtime_offset} />

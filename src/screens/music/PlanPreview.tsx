@@ -28,8 +28,8 @@ export function PlanPreview({ plan }: { plan: PlanView }) {
     <section className="panel stack" aria-label={t('What will be copied')}>
       <h2>{t('What will be copied')}</h2>
       <p>
-        {t('{files} files, {size}; {free} free on the card.', {
-          files: plan.files,
+        {t('{count} files, {size}; {free} free on the card.', {
+          count: plan.files,
           size: formatBytes(plan.total_bytes),
           free: formatBytes(plan.free_bytes),
         })}

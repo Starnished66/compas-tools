@@ -124,7 +124,9 @@ export interface CopyView {
 
 export interface LibraryUpdate {
   scan: ScanDone;
-  art: ArtDone;
+  /** `null` when the covers failed completely; the library itself is fine. */
+  art: ArtDone | null;
+  art_error: string | null;
 }
 
 /** What happened to the library after a copy. `failed` leaves the copied files in place. */
@@ -160,6 +162,8 @@ export interface ArtDone {
   written: number;
   unchanged: number;
   no_art: number;
+  /** Albums whose cover could not be written. */
+  failed?: number;
   mtime_offset: number;
   /** The tool finished but some covers could not be written. */
   warning?: string | null;

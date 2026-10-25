@@ -44,8 +44,8 @@ export function LibraryStatus({ version = 0 }: Props) {
         <p>
           {status.generation === 0
             ? t('No library on this card yet.')
-            : t('{songs} songs, library generation {generation}.', {
-                songs: status.songs,
+            : t('{count} songs, library generation {generation}.', {
+                count: status.songs,
                 generation: status.generation,
               })}
         </p>

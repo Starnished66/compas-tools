@@ -10,6 +10,7 @@ import { UpdatesScreen } from './screens/updates/UpdatesScreen';
 import { OperationProvider } from './hooks/useOperation';
 import { CardProvider, useCard } from './state/CardContext';
 import { CatalogProvider } from './state/CatalogContext';
+import { MusicProvider } from './state/MusicContext';
 
 function Shell() {
   const { card } = useCard();
@@ -40,7 +41,9 @@ export function App() {
     <CardProvider>
       <OperationProvider>
         <CatalogProvider>
-          <Shell />
+          <MusicProvider>
+            <Shell />
+          </MusicProvider>
         </CatalogProvider>
       </OperationProvider>
     </CardProvider>

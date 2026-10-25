@@ -19,8 +19,8 @@ export function CopyResult({ result, busy, onRetryLibrary }: Props) {
     <section className="stack" aria-label={t('Result')}>
       <Notice tone={result.failed.length > 0 ? 'warning' : 'success'}>
         <p>
-          {t('Copied {copied} files ({replaced} replaced), skipped {skipped} identical.', {
-            copied: result.copied,
+          {t('Copied {count} files ({replaced} replaced), skipped {skipped} identical.', {
+            count: result.copied,
             replaced: result.replaced,
             skipped: result.skipped_identical,
           })}
@@ -52,7 +52,17 @@ export function CopyResult({ result, busy, onRetryLibrary }: Props) {
       {library.status === 'updated' && (
         <>
           <ScanResult done={library.scan} />
-          <ArtResult done={library.art} />
+          {library.art && <ArtResult done={library.art} />}
+          {library.art_error && (
+            <Notice tone="warning">
+              <p>{t('Album art could not be built: {problem}', { problem: library.art_error })}</p>
+              <p>
+                {t(
+                  'The library itself is up to date. Build the covers again on the Library screen.',
+                )}
+              </p>
+            </Notice>
+          )}
         </>
       )}
       {library.status === 'failed' && (

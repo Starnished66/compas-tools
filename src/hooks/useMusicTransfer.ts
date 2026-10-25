@@ -6,7 +6,7 @@ import type { CopyView, PlanView } from '../api/types';
 import { useOperation } from './useOperation';
 
 /** The sources, destination and options of a transfer, with its plan and result. */
-export function useMusicTransfer(enabled: boolean) {
+export function useMusicTransfer(cardRoot: string | null) {
   const [sources, setSources] = useState<string[]>([]);
   const [destDir, setDestDir] = useState('');
   const [mirror, setMirror] = useState(false);
@@ -18,7 +18,7 @@ export function useMusicTransfer(enabled: boolean) {
 
   const refreshPlan = useCallback(async () => {
     const request = ++latest.current;
-    if (!enabled || sources.length === 0) {
+    if (!cardRoot || sources.length === 0) {
       setPlan(null);
       setPlanError(null);
       return;
@@ -35,11 +35,16 @@ export function useMusicTransfer(enabled: boolean) {
         setPlanError(errorMessage(failure));
       }
     }
-  }, [enabled, sources, destDir, mirror]);
+  }, [cardRoot, sources, destDir, mirror]);
 
   useEffect(() => {
     void refreshPlan();
   }, [refreshPlan]);
+
+  // A result belongs to the card it was copied to.
+  useEffect(() => {
+    setResult(null);
+  }, [cardRoot]);
 
   const add = useCallback((paths: string[]) => {
     setResult(null);

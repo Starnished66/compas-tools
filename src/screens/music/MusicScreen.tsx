@@ -6,9 +6,9 @@ import { EmptyState } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ProgressBar } from '../../components/ProgressBar';
 import { useFileDrop } from '../../hooks/useFileDrop';
-import { useMusicTransfer } from '../../hooks/useMusicTransfer';
 import { t } from '../../i18n';
 import { useCard } from '../../state/CardContext';
+import { useMusic } from '../../state/MusicContext';
 import { CopyResult } from './CopyResult';
 import { PlanPreview } from './PlanPreview';
 import { SourcePicker } from './SourcePicker';
@@ -19,7 +19,7 @@ interface Props {
 
 export function MusicScreen({ onChooseCard }: Props) {
   const { card } = useCard();
-  const transfer = useMusicTransfer(card !== null);
+  const transfer = useMusic();
   const [pickError, setPickError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const hovering = useFileDrop(transfer.add);

@@ -5,7 +5,16 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { copyTransfer, planTransfer, updateLibrary } from '../../api/music';
 import type { CopyView, LibraryUpdate, PlanView } from '../../api/types';
 import { card } from '../../test/fixtures';
+import { MusicProvider } from '../../state/MusicContext';
 import { MusicScreen } from './MusicScreen';
+
+function renderScreen() {
+  return render(
+    <MusicProvider>
+      <MusicScreen onChooseCard={vi.fn()} />
+    </MusicProvider>,
+  );
+}
 
 vi.mock('../../api/music');
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn() }));
@@ -38,6 +47,7 @@ const update: LibraryUpdate = {
     mtime_offset: 3600,
   },
   art: { board: 'r1', albums: 2, written: 2, unchanged: 0, no_art: 0, mtime_offset: 3600 },
+  art_error: null,
 };
 
 const result: CopyView = {
@@ -59,12 +69,29 @@ describe('MusicScreen', () => {
     vi.mocked(open).mockResolvedValue(['/music/Album']);
   });
 
+  it('keeps the sources and options when the screen is left and opened again', async () => {
+    const { rerender } = renderScreen();
+    await userEvent.click(screen.getByRole('button', { name: 'Add folders…' }));
+    await userEvent.type(screen.getByPlaceholderText('For example: Music'), 'Rock');
+    await userEvent.click(screen.getByRole('checkbox'));
+
+    rerender(<MusicProvider>{null}</MusicProvider>);
+    rerender(
+      <MusicProvider>
+        <MusicScreen onChooseCard={vi.fn()} />
+      </MusicProvider>,
+    );
+    expect(screen.getByTitle('/music/Album')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('For example: Music')).toHaveValue('Rock');
+    expect(screen.getByRole('checkbox')).toBeChecked();
+  });
+
   it('previews the plan for the chosen folder and shows what is left out', async () => {
-    render(<MusicScreen onChooseCard={vi.fn()} />);
+    renderScreen();
     expect(screen.getByRole('button', { name: 'Copy to card' })).toBeDisabled();
 
     await userEvent.click(screen.getByRole('button', { name: 'Add folders…' }));
-    expect(await screen.findByText('/music/Album')).toBeInTheDocument();
+    expect(await screen.findByTitle('/music/Album')).toBeInTheDocument();
     expect(await screen.findByText(/3 files, 3\.0 MB/)).toBeInTheDocument();
     expect(screen.getByText(/Too big for a FAT32 card/)).toBeInTheDocument();
     expect(screen.getByText(/AC:DC.flac → AC_DC.flac/)).toBeInTheDocument();
@@ -73,13 +100,13 @@ describe('MusicScreen', () => {
 
   it('explains why a mirror removes nothing when a source could not be read', async () => {
     vi.mocked(planTransfer).mockResolvedValue({ ...plan, deletions_blocked: true });
-    render(<MusicScreen onChooseCard={vi.fn()} />);
+    renderScreen();
     await userEvent.click(screen.getByRole('button', { name: 'Add folders…' }));
     expect(await screen.findByText(/Nothing will be removed from the card/)).toBeInTheDocument();
   });
 
   it('copies and reports the result with eject advice', async () => {
-    render(<MusicScreen onChooseCard={vi.fn()} />);
+    renderScreen();
     await userEvent.click(screen.getByRole('button', { name: 'Add folders…' }));
     const copy = screen.getByRole('button', { name: 'Copy to card' });
     await waitFor(() => {
@@ -98,7 +125,7 @@ describe('MusicScreen', () => {
   });
 
   async function copyOnce() {
-    render(<MusicScreen onChooseCard={vi.fn()} />);
+    renderScreen();
     await userEvent.click(screen.getByRole('button', { name: 'Add folders…' }));
     const copy = screen.getByRole('button', { name: 'Copy to card' });
     await waitFor(() => {
@@ -151,7 +178,7 @@ describe('MusicScreen', () => {
 
   it('asks before a mirror removes files from the card', async () => {
     vi.mocked(planTransfer).mockResolvedValue({ ...plan, deletions: ['Album/old.flac'] });
-    render(<MusicScreen onChooseCard={vi.fn()} />);
+    renderScreen();
     await userEvent.click(screen.getByRole('button', { name: 'Add folders…' }));
     await userEvent.click(screen.getByRole('checkbox'));
     const copy = screen.getByRole('button', { name: 'Copy to card' });
