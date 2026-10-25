@@ -33,10 +33,27 @@ pub(super) fn parse_devices(output: &str) -> Vec<AdbDevice> {
         .lines()
         .filter(|l| !l.starts_with("List of devices") && !l.starts_with('*'))
         .filter_map(|line| {
-            let (serial, state) = line.trim().split_once(char::is_whitespace)?;
+            let (serial, rest) = line.trim().split_once(char::is_whitespace)?;
+            // `adb devices -l`: `<serial> <state> product:mako model:Nexus_4 device:mako ...`
+            let rest = rest.trim();
+            let head = rest.split_once(" product:").map_or(rest, |(head, _)| head);
+            let state = if head.starts_with("no permissions") {
+                "no permissions"
+            } else {
+                head.split_whitespace().next().unwrap_or(head)
+            };
+            let extras = rest.to_string();
+            let field = |name: &str| {
+                extras
+                    .split_whitespace()
+                    .find_map(|w| w.strip_prefix(name))
+                    .map(str::to_string)
+            };
             Some(AdbDevice {
                 serial: serial.to_string(),
-                state: state.trim().to_string(),
+                state: state.to_string(),
+                product: field("product:"),
+                model: field("model:"),
             })
         })
         .collect()
@@ -106,20 +123,35 @@ mod tests {
 
     #[test]
     fn parses_the_device_list_with_odd_serials_and_states() {
-        let out = "List of devices attached\ningenic_1234abcd\tdevice\n0123456789ABCDEF\tunauthorized\nemulator-5554\toffline\n\n";
+        let out = "List of devices attached\ningenic_1234abcd        device usb:1-1 product:mako model:Nexus_4 device:mako transport_id:1\n0123456789ABCDEF       unauthorized usb:1-2 transport_id:2\nemulator-5554\toffline\nabc no permissions (user is not in the plugdev group); see [http://developer.android.com/tools/device.html] usb:1-3 transport_id:3\n\n";
         let devices = parse_devices(out);
-        assert_eq!(devices.len(), 3);
-        assert_eq!(
-            devices[0],
-            AdbDevice {
-                serial: "ingenic_1234abcd".into(),
-                state: "device".into()
-            }
-        );
+        assert_eq!(devices.len(), 4);
+        assert_eq!(devices[0].serial, "ingenic_1234abcd");
+        assert_eq!(devices[0].state, "device");
+        assert_eq!(devices[0].product.as_deref(), Some("mako"));
+        assert_eq!(devices[0].model.as_deref(), Some("Nexus_4"));
         assert_eq!(devices[1].state, "unauthorized");
+        assert_eq!(devices[1].product, None);
+        assert_eq!(devices[2].state, "offline");
+        assert_eq!(devices[3].state, "no permissions");
         assert!(parse_devices("List of devices attached\n\n").is_empty());
         let daemon = "* daemon not running; starting now at tcp:5037\n* daemon started successfully\nList of devices attached\nabc\tdevice\n";
         assert_eq!(parse_devices(daemon).len(), 1);
+    }
+
+    #[test]
+    fn only_devices_that_look_like_the_player_are_probed() {
+        let device = |serial: &str, product: Option<&str>, model: Option<&str>| AdbDevice {
+            serial: serial.into(),
+            state: "device".into(),
+            product: product.map(str::to_string),
+            model: model.map(str::to_string),
+        };
+        assert!(device("ingenic_9f3a", None, None).looks_like_player());
+        assert!(device("0123456789", Some("mako"), None).looks_like_player());
+        assert!(device("0123456789", None, Some("Nexus_4")).looks_like_player());
+        assert!(!device("R58M12345AB", Some("beyond1lte"), Some("SM_G973F")).looks_like_player());
+        assert!(!device("emulator-5554", None, None).looks_like_player());
     }
 
     #[test]

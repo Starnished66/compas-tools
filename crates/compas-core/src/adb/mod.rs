@@ -18,12 +18,16 @@ use tokio::process::Command;
 
 use crate::error::{Error, Result};
 
-pub use backup::{backup_user_data, BackupReport};
+pub use backup::{backup_user_data, BackupReport, SkipReason, Skipped};
 pub use identify::{identify, DeviceInfo, Firmware};
 pub use install::{
-    install_full_image, install_player_only, InstallReport, InstallRequest, WaitOptions,
+    install_full_image, install_player_only, remove_staged_image, InstallReport, InstallRequest,
+    WaitOptions,
 };
-pub use locate::{download_platform_tools, locate, tools_url, Located, ToolsSource};
+pub use locate::{
+    download_platform_tools, locate, tools_archive, Located, ToolsArchive, ToolsSource,
+    PLATFORM_TOOLS_VERSION,
+};
 pub use logs::{collect_logs, write_zip, LogBundle, LogFile};
 pub use redact::{is_secret_name, redact, Redacted};
 
@@ -41,6 +45,25 @@ pub struct AdbDevice {
     pub serial: String,
     /// `device`, `unauthorized`, `offline`, `no permissions`, ...
     pub state: String,
+    /// From `adb devices -l`; the player reports `mako` and `Nexus_4`.
+    pub product: Option<String>,
+    pub model: Option<String>,
+}
+
+impl AdbDevice {
+    /// Whether this looks like a Compás-capable player rather than somebody's phone:
+    /// an Ingenic serial, or the product the player's Android-style USB gadget reports.
+    /// Other devices are not touched unless the user asks.
+    pub fn looks_like_player(&self) -> bool {
+        let is = |value: &Option<String>, names: &[&str]| {
+            value
+                .as_deref()
+                .is_some_and(|v| names.iter().any(|n| v.eq_ignore_ascii_case(n)))
+        };
+        self.serial.to_ascii_lowercase().starts_with("ingenic")
+            || is(&self.product, &["mako"])
+            || is(&self.model, &["Nexus_4"])
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +81,11 @@ impl Adb {
     }
 
     async fn run(&self, args: &[&str], limit: Duration) -> Result<String> {
+        let bytes = self.run_bytes(args, limit).await?;
+        Ok(String::from_utf8_lossy(&bytes).into_owned())
+    }
+
+    async fn run_bytes(&self, args: &[&str], limit: Duration) -> Result<Vec<u8>> {
         let mut command = Command::new(&self.exe);
         command
             .args(args)
@@ -72,13 +100,13 @@ impl Adb {
             .await
             .map_err(|_| Error::Adb(format!("adb {} timed out", args.first().unwrap_or(&""))))?
             .map_err(|e| Error::Adb(format!("{}: {e}", self.exe.display())))?;
-        let text = String::from_utf8_lossy(&output.stdout).into_owned();
         if output.status.success() {
-            return Ok(text);
+            return Ok(output.stdout);
         }
+        let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
         let detail = if stderr.trim().is_empty() {
-            text.trim()
+            stdout.trim()
         } else {
             stderr.trim()
         };
@@ -91,13 +119,19 @@ impl Adb {
 
     pub async fn devices(&self) -> Result<Vec<AdbDevice>> {
         Ok(identify::parse_devices(
-            &self.run(&["devices"], SHORT).await?,
+            &self.run(&["devices", "-l"], SHORT).await?,
         ))
     }
 
     /// Runs a command on the device and returns what it printed.
     pub async fn shell(&self, serial: &str, command: &str) -> Result<String> {
         self.run(&["-s", serial, "shell", command], SHORT).await
+    }
+
+    /// A command's raw output, safe for binary data (`exec-out` does not translate line ends).
+    pub async fn exec_out(&self, serial: &str, command: &str) -> Result<Vec<u8>> {
+        self.run_bytes(&["-s", serial, "exec-out", command], SHORT)
+            .await
     }
 
     pub async fn pull(&self, serial: &str, remote: &str, local: &Path) -> Result<()> {

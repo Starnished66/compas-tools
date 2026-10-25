@@ -5,6 +5,7 @@ use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 
 use super::Adb;
 use crate::error::{Error, IoContext, Result};
@@ -77,20 +78,53 @@ fn locate_in(
     })
 }
 
-/// Google's platform-tools archive for an operating system (`std::env::consts::OS`).
-pub fn tools_url(os: &str) -> String {
-    let name = match os {
-        "windows" => "windows",
-        "macos" => "darwin",
-        _ => "linux",
-    };
-    format!("https://dl.google.com/android/repository/platform-tools-latest-{name}.zip")
+/// The platform-tools release this app downloads. Pinned, so what is installed is always
+/// a build somebody has looked at, not whatever "latest" is today.
+pub const PLATFORM_TOOLS_VERSION: &str = "37.0.1";
+
+/// A pinned platform-tools archive. The size and SHA-256 are those of the file served by
+/// `dl.google.com`; the size and SHA-1 also match Google's published repository manifest
+/// (`repository2-3.xml`), which is how the hashes were checked.
+#[derive(Debug, Clone)]
+pub struct ToolsArchive {
+    pub url: String,
+    pub size: u64,
+    pub sha256: String,
 }
 
-/// Downloads platform-tools over HTTPS into `tools_dir`, unpacks them, and
-/// runs `adb version` to make sure what came out is really adb.
+/// The pinned archive for an operating system (`std::env::consts::OS`).
+pub fn tools_archive(os: &str) -> ToolsArchive {
+    let (name, size, sha256) = match os {
+        "windows" => (
+            "win",
+            8_044_989,
+            "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99",
+        ),
+        "macos" => (
+            "darwin",
+            16_110_554,
+            "ee39ad5967e95c2a07f04dbcbde96b1a0c916ba376096db5d2f498b7727a5d1d",
+        ),
+        _ => (
+            "linux",
+            9_054_187,
+            "d230f13842f60f782a8645f9c813f8f845bf36089ea7289f28c48f17979313f1",
+        ),
+    };
+    ToolsArchive {
+        url: format!(
+            "https://dl.google.com/android/repository/platform-tools_r{PLATFORM_TOOLS_VERSION}-{name}.zip"
+        ),
+        size,
+        sha256: sha256.to_string(),
+    }
+}
+
+/// Downloads the pinned platform-tools over HTTPS and checks their size and SHA-256 before
+/// anything is unpacked. They are unpacked beside the old copy and tested with `adb version`;
+/// only then does the new copy replace it, so a failed update leaves the old one working.
 pub async fn download_platform_tools(
-    url: &str,
+    archive: &ToolsArchive,
     tools_dir: &Path,
     on_progress: OnProgress<'_>,
 ) -> Result<Adb> {
@@ -99,31 +133,54 @@ pub async fn download_platform_tools(
         done: 0,
         total: 1,
     });
-    let archive = net::get_bytes(url, DOWNLOAD_LIMIT).await?;
+    let bytes = net::get_bytes(&archive.url, DOWNLOAD_LIMIT).await?;
     on_progress(Progress {
         phase: Phase::Downloading,
         done: 1,
         total: 1,
     });
 
-    let target = tools_dir.join("platform-tools");
-    // A half-unpacked earlier attempt must not be mistaken for a working install.
-    let _ = fs::remove_dir_all(&target);
-    let unpacked = unpack(&archive, tools_dir);
-    let adb = Adb::new(target.join(exe_name()));
-    let verified = match unpacked {
-        Ok(()) => adb.version().await.and_then(|v| {
-            v.contains("Android Debug Bridge")
-                .then_some(())
-                .ok_or_else(|| Error::Verification("the download is not adb".into()))
-        }),
-        Err(error) => Err(error),
-    };
-    if let Err(error) = verified {
-        let _ = fs::remove_dir_all(&target);
-        return Err(error);
+    let hash = format!("{:x}", Sha256::digest(&bytes));
+    if bytes.len() as u64 != archive.size || hash != archive.sha256 {
+        return Err(Error::Verification(
+            "the platform-tools download does not match its published checksum".into(),
+        ));
     }
-    Ok(adb)
+
+    let staging = tools_dir.join(".platform-tools-new");
+    let _ = fs::remove_dir_all(&staging);
+    let installed = install_staged(&bytes, &staging, tools_dir).await;
+    let _ = fs::remove_dir_all(&staging);
+    installed
+}
+
+async fn install_staged(bytes: &[u8], staging: &Path, tools_dir: &Path) -> Result<Adb> {
+    unpack(bytes, staging)?;
+    let fresh = staging.join("platform-tools");
+    let probe = Adb::new(fresh.join(exe_name()));
+    let version = probe.version().await?;
+    if !version.contains("Android Debug Bridge") {
+        return Err(Error::Verification("the download is not adb".into()));
+    }
+
+    let target = tools_dir.join("platform-tools");
+    let old = tools_dir.join(".platform-tools-old");
+    let _ = fs::remove_dir_all(&old);
+    let had_old = target.exists();
+    if had_old {
+        fs::rename(&target, &old).at(&target)?;
+    }
+    if let Err(error) = fs::rename(&fresh, &target) {
+        if had_old {
+            let _ = fs::rename(&old, &target);
+        }
+        return Err(Error::IoAt {
+            path: target,
+            source: error,
+        });
+    }
+    let _ = fs::remove_dir_all(&old);
+    Ok(Adb::new(target.join(exe_name())))
 }
 
 /// Extracts the archive below `dir`, refusing entries that would leave it.
@@ -180,24 +237,38 @@ mod tests {
 
     const FAKE_ADB: &str = "#!/bin/sh\necho 'Android Debug Bridge version 1.0.41'\n";
 
+    fn archive(server: &TestServer, bytes: &[u8]) -> ToolsArchive {
+        ToolsArchive {
+            url: server.url("/tools.zip"),
+            size: bytes.len() as u64,
+            sha256: format!("{:x}", Sha256::digest(bytes)),
+        }
+    }
+
     #[test]
-    fn the_download_url_matches_the_system() {
-        assert!(tools_url("linux").ends_with("platform-tools-latest-linux.zip"));
-        assert!(tools_url("macos").ends_with("platform-tools-latest-darwin.zip"));
-        assert!(tools_url("windows").ends_with("platform-tools-latest-windows.zip"));
-        assert!(tools_url("linux").starts_with("https://dl.google.com/"));
+    fn the_pinned_archives_are_versioned_https_downloads_with_checksums() {
+        for (os, name) in [("linux", "linux"), ("macos", "darwin"), ("windows", "win")] {
+            let archive = tools_archive(os);
+            assert_eq!(
+                archive.url,
+                format!("https://dl.google.com/android/repository/platform-tools_r{PLATFORM_TOOLS_VERSION}-{name}.zip")
+            );
+            assert_eq!(archive.sha256.len(), 64);
+            assert!(archive.sha256.bytes().all(|b| b.is_ascii_hexdigit()));
+            assert!(archive.size > 1_000_000);
+        }
     }
 
     #[tokio::test]
-    async fn downloads_unpacks_and_checks_the_version() {
-        let archive = zip_with(&[
+    async fn downloads_verifies_unpacks_and_checks_the_version() {
+        let bytes = zip_with(&[
             ("platform-tools/adb", FAKE_ADB, 0o755),
             ("platform-tools/NOTICE.txt", "notice", 0o644),
         ]);
-        let server = TestServer::start([("/tools.zip", archive)]).await;
+        let server = TestServer::start([("/tools.zip", bytes.clone())]).await;
         let dir = tempfile::tempdir().unwrap();
 
-        let adb = download_platform_tools(&server.url("/tools.zip"), dir.path(), &|_| {})
+        let adb = download_platform_tools(&archive(&server, &bytes), dir.path(), &|_| {})
             .await
             .unwrap();
         assert!(adb
@@ -207,32 +278,74 @@ mod tests {
             .contains("Android Debug Bridge"));
         assert_eq!(adb.exe(), dir.path().join("platform-tools/adb"));
         assert!(dir.path().join("platform-tools/NOTICE.txt").exists());
+        assert!(!dir.path().join(".platform-tools-new").exists());
     }
 
     #[tokio::test]
-    async fn something_that_is_not_adb_is_removed_again() {
-        let archive = zip_with(&[("platform-tools/adb", "#!/bin/sh\necho hello\n", 0o755)]);
-        let server = TestServer::start([("/tools.zip", archive)]).await;
+    async fn a_wrong_checksum_or_size_is_refused_before_anything_is_unpacked() {
+        let bytes = zip_with(&[("platform-tools/adb", FAKE_ADB, 0o755)]);
+        let server = TestServer::start([("/tools.zip", bytes.clone())]).await;
         let dir = tempfile::tempdir().unwrap();
 
-        let error = download_platform_tools(&server.url("/tools.zip"), dir.path(), &|_| {})
+        let mut wrong_hash = archive(&server, &bytes);
+        wrong_hash.sha256 = "0".repeat(64);
+        let mut wrong_size = archive(&server, &bytes);
+        wrong_size.size += 1;
+        for bad in [wrong_hash, wrong_size] {
+            let error = download_platform_tools(&bad, dir.path(), &|_| {})
+                .await
+                .unwrap_err();
+            assert!(matches!(error, Error::Verification(_)));
+        }
+        assert_eq!(
+            std::fs::read_dir(dir.path()).unwrap().count(),
+            0,
+            "nothing unpacked"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_existing_copy_is_replaced_only_by_a_verified_one() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("platform-tools")).unwrap();
+        std::fs::write(dir.path().join("platform-tools/marker.txt"), "old copy").unwrap();
+
+        // Something that is not adb: the old copy stays.
+        let junk = zip_with(&[("platform-tools/adb", "#!/bin/sh\necho hello\n", 0o755)]);
+        let server = TestServer::start([("/tools.zip", junk.clone())]).await;
+        let error = download_platform_tools(&archive(&server, &junk), dir.path(), &|_| {})
             .await
             .unwrap_err();
         assert!(matches!(error, Error::Verification(_)));
-        assert!(!dir.path().join("platform-tools").exists());
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("platform-tools/marker.txt")).unwrap(),
+            "old copy"
+        );
+
+        // A good one replaces it.
+        let good = zip_with(&[("platform-tools/adb", FAKE_ADB, 0o755)]);
+        let server = TestServer::start([("/tools.zip", good.clone())]).await;
+        download_platform_tools(&archive(&server, &good), dir.path(), &|_| {})
+            .await
+            .unwrap();
+        assert!(!dir.path().join("platform-tools/marker.txt").exists());
+        assert!(dir.path().join("platform-tools/adb").exists());
+        assert!(!dir.path().join(".platform-tools-old").exists());
     }
 
     #[tokio::test]
-    async fn paths_that_leave_the_folder_and_non_zips_are_refused() {
+    async fn paths_that_leave_the_folder_and_non_zips_are_refused_even_with_a_matching_hash() {
         let evil = zip_with(&[("../evil.txt", "x", 0o644)]);
-        let server =
-            TestServer::start([("/evil.zip", evil), ("/junk.zip", b"not a zip".to_vec())]).await;
+        let junk = b"not a zip".to_vec();
         let dir = tempfile::tempdir().unwrap();
-        for path in ["/evil.zip", "/junk.zip"] {
-            let result = download_platform_tools(&server.url(path), dir.path(), &|_| {}).await;
-            assert!(result.is_err(), "{path}");
+        for bytes in [evil, junk] {
+            let server = TestServer::start([("/tools.zip", bytes.clone())]).await;
+            let result =
+                download_platform_tools(&archive(&server, &bytes), dir.path(), &|_| {}).await;
+            assert!(result.is_err());
         }
         assert!(!dir.path().parent().unwrap().join("evil.txt").exists());
+        assert!(!dir.path().join("platform-tools").exists());
     }
 
     #[test]

@@ -24,6 +24,8 @@ pub struct ToolsStatus {
     version: Option<String>,
     /// `linux`, `macos` or `windows`.
     platform: &'static str,
+    /// The platform-tools release the download button installs.
+    download_version: &'static str,
 }
 
 #[derive(Serialize)]
@@ -31,7 +33,11 @@ pub struct DeviceView {
     serial: String,
     /// `device`, `unauthorized`, `offline`, ...
     state: String,
-    /// Only for devices that answer.
+    product: Option<String>,
+    model: Option<String>,
+    /// An Ingenic serial or the player's USB product; others are only probed when asked.
+    likely_player: bool,
+    /// Only for devices that answered.
     info: Option<DeviceInfo>,
 }
 
@@ -65,6 +71,7 @@ async fn status(app: &AppHandle) -> CommandResult<ToolsStatus> {
         source: located.map(|l| l.source),
         version,
         platform: std::env::consts::OS,
+        download_version: adb::PLATFORM_TOOLS_VERSION,
     })
 }
 
@@ -81,17 +88,20 @@ pub async fn adb_download(
     on_progress: Channel<Progress>,
 ) -> CommandResult<ToolsStatus> {
     let _busy = state.try_busy()?;
-    let url = adb::tools_url(std::env::consts::OS);
-    adb::download_platform_tools(&url, &dir(&app, "data")?, &reporter(on_progress)).await?;
+    let archive = adb::tools_archive(std::env::consts::OS);
+    adb::download_platform_tools(&archive, &dir(&app, "data")?, &reporter(on_progress)).await?;
     status(&app).await
 }
 
+/// Lists connected devices. Only those that look like the player are queried; anything
+/// else (somebody's phone) is left alone until the user asks.
 #[tauri::command]
 pub async fn adb_devices(app: AppHandle) -> CommandResult<Vec<DeviceView>> {
     let adb = adb(&app)?;
     let mut views = Vec::new();
     for device in adb.devices().await? {
-        let info = if device.state == "device" {
+        let likely_player = device.looks_like_player();
+        let info = if device.state == "device" && likely_player {
             adb::identify(&adb, &device.serial).await.ok()
         } else {
             None
@@ -99,10 +109,31 @@ pub async fn adb_devices(app: AppHandle) -> CommandResult<Vec<DeviceView>> {
         views.push(DeviceView {
             serial: device.serial,
             state: device.state,
+            product: device.product,
+            model: device.model,
+            likely_player,
             info,
         });
     }
     Ok(views)
+}
+
+/// Looks at a device that did not look like the player, because the user said to.
+#[tauri::command]
+pub async fn adb_probe(app: AppHandle, serial: String) -> CommandResult<DeviceInfo> {
+    Ok(adb::identify(&adb(&app)?, &serial).await?)
+}
+
+/// Deletes the update image an install left at the root of the card.
+#[tauri::command]
+pub async fn adb_remove_update_file(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    serial: String,
+    remote_path: String,
+) -> CommandResult<()> {
+    let _busy = state.try_busy()?;
+    Ok(adb::remove_staged_image(&adb(&app)?, &serial, &remote_path).await?)
 }
 
 #[tauri::command]

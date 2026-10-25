@@ -29,7 +29,7 @@ case "$cmd" in
   push)
     dst="$R$2"; mkdir -p "$(dirname "$dst")"
     if [ -e "$D/corrupt_push" ]; then echo junk > "$dst"; else cp "$1" "$dst"; fi ;;
-  shell)
+  shell|exec-out)
     c="$1"
     case "$c" in
       /usr/bin/bootmode.sh*)
@@ -39,6 +39,11 @@ case "$cmd" in
       "cat /sys/class/graphics/fb0/virtual_size"*) cat "$D/fb" 2>/dev/null ;;
       ps) cat "$D/ps" 2>/dev/null ;;
       dmesg*) cat "$D/dmesg" 2>/dev/null ;;
+      df*)
+        if [ -e "$D/df_output" ]; then cat "$D/df_output"; else
+          printf 'Filesystem 1K-blocks Used Available Use%% Mounted on\n/dev/mmcblk0p1 7000000 100 6999900 1%% /data/mnt/sd_0\n'
+        fi ;;
+      head\ *) eval "$(map "$c")" ;;
       *) eval "$(map "$c")" | sed "s#$R##g" ;;
     esac ;;
   *) echo "fake adb: unknown command $cmd" >&2; exit 1 ;;

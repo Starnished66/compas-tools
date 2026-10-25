@@ -25,6 +25,8 @@ fn main() {
             adb::adb_status,
             adb::adb_download,
             adb::adb_devices,
+            adb::adb_probe,
+            adb::adb_remove_update_file,
             adb::adb_backup,
             adb::adb_install,
             adb::adb_collect_logs,

@@ -1,6 +1,9 @@
-//! A copy of the player's `/usr/data` before the first install, without anything secret.
+//! A copy of the player's own settings before the first install, with nothing secret in it.
+//!
+//! Only an allowlist of `/usr/data` entries is read, file by file, and every file is masked
+//! in memory before it is written, so nothing sensitive ever reaches the computer's disk.
+//! The SD card is mounted below `/usr/data/mnt` and is never part of this.
 
-use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -12,93 +15,79 @@ use super::{Adb, USER_DATA};
 use crate::error::{Error, IoContext, Result};
 use crate::progress::{OnProgress, Phase, Progress};
 
-/// Left out of every backup: it holds account tokens.
-const EXCLUDED: [&str; 1] = [".compas/plugins"];
-/// Larger files are not text settings.
-const REDACT_LIMIT: u64 = 1 << 20;
+/// What a backup may contain, from the player's own sources
+/// (`storage_paths.h`, `assets.c`, `main.c`): settings, EQ, library ratings, theme
+/// overrides, and the player's logs. Paths are relative to `/usr/data`.
+const ALLOWED: [&str; 15] = [
+    ".compas/settings.txt",
+    ".compas/peq.txt",
+    ".compas/remote_state.tsv",
+    ".compas/charge_baseline.txt",
+    ".compas/usb_dac_session.txt",
+    "theme_overrides",
+    "hostname_override.txt",
+    "player_crash.log",
+    "player_crash.log.1",
+    "player_exit.log",
+    "player_exit.log.1",
+    "bootloader_boot.log",
+    "boot_debug.log",
+    "sd_fsck.log",
+    "selector-script.log",
+];
+
+/// Never copied, whatever the allowlist says. `.compas/plugins` holds plugin account
+/// tokens (`plugin.secrets`), `subsonic_servers.tsv` has server passwords, `pin.conf`
+/// the Bluetooth PIN, and `mnt` is the SD card.
+const NEVER: [&str; 4] = [
+    "mnt",
+    ".compas/plugins",
+    ".compas/subsonic_servers.tsv",
+    "pin.conf",
+];
+
+/// Larger files are not settings.
+const MAX_BYTES: usize = 1 << 20;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SkipReason {
+    /// Credentials or private data.
+    Private,
+    TooLarge,
+    /// Cannot be masked, so it is not copied.
+    Binary,
+    Unreadable,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Skipped {
+    pub path: String,
+    pub reason: SkipReason,
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BackupReport {
     pub path: PathBuf,
     pub files: u64,
-    /// Paths (relative to `/usr/data`) that were not copied, and why they matter.
-    pub skipped: Vec<String>,
-    /// Places in copied text files where a secret was masked.
+    pub skipped: Vec<Skipped>,
+    /// Places in the copied files where a secret was masked.
     pub redacted: usize,
-}
-
-#[derive(Debug)]
-pub(super) struct PullStep {
-    pub rel: String,
-    pub files: u64,
-}
-
-#[derive(Default)]
-struct Node {
-    children: BTreeMap<String, Node>,
-    is_file: bool,
-    blocked: bool,
-}
-
-impl Node {
-    fn files(&self) -> (u64, u64) {
-        if self.is_file {
-            return (1, u64::from(self.blocked));
-        }
-        self.children
-            .values()
-            .fold((0, 0), |(all, blocked), child| {
-                let (a, b) = child.files();
-                (all + a, blocked + b)
-            })
-    }
 }
 
 /// Whether a path (relative to `/usr/data`) must not be copied.
 pub(super) fn is_left_out(rel: &str) -> bool {
-    let excluded = EXCLUDED
+    let never = NEVER
         .iter()
-        .any(|e| rel == *e || rel.starts_with(&format!("{e}/")));
-    excluded || rel.split('/').any(is_secret_name)
+        .any(|n| rel == *n || rel.starts_with(&format!("{n}/")));
+    never || rel.split('/').any(is_secret_name)
 }
 
-/// Turns the device's file list into the fewest `adb pull`s that copy
-/// everything allowed: a whole folder when nothing inside it is left out,
-/// else its entries one by one.
-pub(super) fn plan_pulls(files: &[String]) -> (Vec<PullStep>, Vec<String>) {
-    let mut root = Node::default();
-    for file in files {
-        let mut node = &mut root;
-        for part in file.split('/') {
-            node = node.children.entry(part.to_string()).or_default();
-        }
-        node.is_file = true;
-        node.blocked = is_left_out(file);
-    }
-    let (mut steps, mut skipped) = (Vec::new(), Vec::new());
-    walk(&root, "", &mut steps, &mut skipped);
-    (steps, skipped)
-}
-
-fn walk(node: &Node, rel: &str, steps: &mut Vec<PullStep>, skipped: &mut Vec<String>) {
-    for (name, child) in &node.children {
-        let path = if rel.is_empty() {
-            name.clone()
-        } else {
-            format!("{rel}/{name}")
-        };
-        let (all, blocked) = child.files();
-        if blocked == 0 {
-            steps.push(PullStep {
-                rel: path,
-                files: all,
-            });
-        } else if blocked == all {
-            skipped.push(path);
-        } else {
-            walk(child, &path, steps, skipped);
-        }
-    }
+/// A device-supplied path that stays below the backup folder and can be quoted safely.
+fn is_safe_relative(rel: &str) -> bool {
+    !rel.is_empty()
+        && !rel.contains(['\\', '\'', '\n', '\0'])
+        && rel.split('/').all(|part| !matches!(part, "" | "." | ".."))
 }
 
 fn label(serial: &str) -> String {
@@ -120,20 +109,25 @@ pub async fn backup_user_data(
     backups_dir: &Path,
     on_progress: OnProgress<'_>,
 ) -> Result<BackupReport> {
+    // `find` without `-L`: links are never followed, and `-type f` skips them.
+    let roots: Vec<String> = ALLOWED
+        .iter()
+        .map(|e| format!("'{USER_DATA}/{e}'"))
+        .collect();
     let listing = adb
-        .shell(serial, &format!("find {USER_DATA} -type f 2>/dev/null"))
+        .shell(
+            serial,
+            &format!("find {} -type f 2>/dev/null", roots.join(" ")),
+        )
         .await?;
     let prefix = format!("{USER_DATA}/");
-    let files: Vec<String> = listing
+    let mut files: Vec<String> = listing
         .lines()
         .filter_map(|l| l.trim().strip_prefix(&prefix))
         .map(str::to_string)
         .collect();
-    if files.is_empty() {
-        return Err(Error::Adb(format!(
-            "{USER_DATA} is empty or cannot be read"
-        )));
-    }
+    files.sort();
+    files.dedup();
 
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -141,22 +135,46 @@ pub async fn backup_user_data(
     let dir = backups_dir.join(format!("{}-{secs}", label(serial)));
     fs::create_dir_all(&dir).at(&dir)?;
 
-    let (steps, skipped) = plan_pulls(&files);
-    let total = steps.len() as u64;
-    let mut copied = 0;
-    for (i, step) in steps.iter().enumerate() {
+    let (mut copied, mut redacted, mut skipped) = (0, 0, Vec::new());
+    let total = files.len() as u64;
+    for (i, rel) in files.iter().enumerate() {
         on_progress(Progress {
             phase: Phase::BackingUp,
             done: i as u64,
             total,
         });
-        let local = dir.join(&step.rel);
-        if let Some(parent) = local.parent() {
+        let skip = |reason| Skipped {
+            path: rel.clone(),
+            reason,
+        };
+        if !is_safe_relative(rel) || is_left_out(rel) {
+            skipped.push(skip(SkipReason::Private));
+            continue;
+        }
+        let command = format!("head -c {} '{USER_DATA}/{rel}'", MAX_BYTES + 1);
+        let Ok(bytes) = adb.exec_out(serial, &command).await else {
+            skipped.push(skip(SkipReason::Unreadable));
+            continue;
+        };
+        if bytes.len() > MAX_BYTES {
+            skipped.push(skip(SkipReason::TooLarge));
+            continue;
+        }
+        let Some(text) = std::str::from_utf8(&bytes)
+            .ok()
+            .filter(|t| !t.contains('\0'))
+        else {
+            skipped.push(skip(SkipReason::Binary));
+            continue;
+        };
+        let masked = redact(text);
+        let target = dir.join(rel);
+        if let Some(parent) = target.parent() {
             fs::create_dir_all(parent).at(parent)?;
         }
-        adb.pull(serial, &format!("{prefix}{}", step.rel), &local)
-            .await?;
-        copied += step.files;
+        fs::write(&target, masked.text).at(&target)?;
+        copied += 1;
+        redacted += masked.count;
     }
     on_progress(Progress {
         phase: Phase::BackingUp,
@@ -164,54 +182,32 @@ pub async fn backup_user_data(
         total,
     });
 
+    if files.is_empty() {
+        return Err(Error::Adb(format!(
+            "none of the expected files were found in {USER_DATA}"
+        )));
+    }
     Ok(BackupReport {
-        redacted: redact_text_files(&dir),
         path: dir,
         files: copied,
         skipped,
+        redacted,
     })
-}
-
-/// Settings files may hold a PIN or Wi-Fi details even when their names do not
-/// say so, so every small text file is passed through the redactor.
-fn redact_text_files(dir: &Path) -> usize {
-    let Ok(entries) = fs::read_dir(dir) else {
-        return 0;
-    };
-    let mut total = 0;
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let Ok(kind) = entry.file_type() else {
-            continue;
-        };
-        if kind.is_dir() {
-            total += redact_text_files(&path);
-        } else if kind.is_file() && entry.metadata().is_ok_and(|m| m.len() <= REDACT_LIMIT) {
-            let Ok(text) = fs::read_to_string(&path) else {
-                continue;
-            };
-            let masked = redact(&text);
-            if masked.count > 0 && fs::write(&path, masked.text).is_ok() {
-                total += masked.count;
-            }
-        }
-    }
-    total
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn list(paths: &[&str]) -> Vec<String> {
-        paths.iter().map(|p| (*p).to_string()).collect()
-    }
-
     #[test]
-    fn plugins_and_secret_names_are_left_out() {
+    fn credentials_the_sd_card_and_plugins_are_always_left_out() {
         for path in [
             ".compas/plugins/lastfm.json",
             ".compas/plugins",
+            ".compas/subsonic_servers.tsv",
+            "mnt/sd_0/Music/a.flac",
+            "mnt",
+            "pin.conf",
             "wpa_supplicant.conf",
             "a/b/remote_pin",
             "wifi/known.cfg",
@@ -219,102 +215,159 @@ mod tests {
             assert!(is_left_out(path), "{path}");
         }
         for path in [
-            ".compas/settings.ini",
+            ".compas/settings.txt",
             ".compas/pluginsx/a",
             "player_crash.log",
-            "a/mapping.json",
+            "theme_overrides/a.png",
         ] {
             assert!(!is_left_out(path), "{path}");
         }
     }
 
     #[test]
-    fn clean_folders_go_in_one_pull_and_mixed_ones_entry_by_entry() {
-        let files = list(&[
-            "player_crash.log",
-            ".compas/settings.ini",
-            ".compas/plugins/token.json",
-            ".compas/plugins/other.json",
-            "wpa_supplicant.conf",
-            "music/db/a.bin",
-            "music/db/b.bin",
-            "mixed/keep.txt",
-            "mixed/inner/remote_pin",
-        ]);
-        let (steps, skipped) = plan_pulls(&files);
-        let pulled: Vec<&str> = steps.iter().map(|s| s.rel.as_str()).collect();
-        assert_eq!(
-            pulled,
-            [
-                ".compas/settings.ini",
-                "mixed/keep.txt",
-                "music",
-                "player_crash.log"
-            ]
-        );
-        assert_eq!(
-            skipped,
-            [".compas/plugins", "mixed/inner", "wpa_supplicant.conf"]
-        );
-        assert_eq!(steps.iter().find(|s| s.rel == "music").unwrap().files, 2);
+    fn device_supplied_paths_cannot_escape_or_break_quoting() {
+        for bad in ["../x", "a/../b", "/abs", "a//b", "it's", "a\\b", "a\nb", ""] {
+            assert!(!is_safe_relative(bad), "{bad:?}");
+        }
+        assert!(is_safe_relative("theme_overrides/icons/play.png"));
+    }
+
+    #[test]
+    fn the_allowlist_never_names_anything_that_is_always_excluded() {
+        for entry in ALLOWED {
+            assert!(!is_left_out(entry), "{entry}");
+        }
     }
 
     #[cfg(unix)]
-    #[tokio::test]
-    async fn a_backup_leaves_out_plugins_and_secrets_and_masks_settings() {
-        use super::super::fake::{FakeAdb, PS_STOCK};
+    mod with_fake_adb {
+        use super::super::super::fake::{FakeAdb, PS_STOCK};
+        use super::super::*;
 
-        let dir = tempfile::tempdir().unwrap();
-        let fake = FakeAdb::new(dir.path(), "ingenic_1", "480,800", PS_STOCK);
-        fake.write_remote("/usr/data/player_crash.log", "crash\n");
-        fake.write_remote(
-            "/usr/data/.compas/settings.ini",
-            "volume=12\nremote_control_pin=424242\nname=My Player\n",
-        );
-        fake.write_remote(
-            "/usr/data/.compas/plugins/lastfm.json",
-            "{\"session_key\": \"SECRET-ACCOUNT-TOKEN\"}",
-        );
-        fake.write_remote(
-            "/usr/data/wpa_supplicant.conf",
-            "network={ ssid=\"Home\" psk=\"hunter2\" }",
-        );
-        fake.write_remote("/usr/data/db/index.bin", "binary-ish");
+        fn fixture(dir: &Path) -> FakeAdb {
+            let fake = FakeAdb::new(dir, "ingenic_1", "480,800", PS_STOCK);
+            fake.write_remote(
+                "/usr/data/player_crash.log",
+                "crash\nremote_control_pin=424242\n",
+            );
+            fake.write_remote(
+                "/usr/data/.compas/settings.txt",
+                "volume=12\nremote_control_pin=424242\nsubsonic_password=hunter2\nsubsonic_saved_0_password=hunter3\nwifi_last=Casa Garita 5G\nname=My Player\n",
+            );
+            fake.write_remote(
+                "/usr/data/.compas/subsonic_servers.tsv",
+                "https://x\tana\tPASSWORD-IN-TSV\t1\n",
+            );
+            fake.write_remote(
+                "/usr/data/.compas/plugins/lastfm.json",
+                "{\"session_key\": \"ACCOUNT-TOKEN\"}",
+            );
+            fake.write_remote("/usr/data/.compas/queue.bin", "text");
+            fake.write_remote("/usr/data/mnt/sd_0/Music/song.flac", "SD-CARD-AUDIO");
+            fake.write_remote("/usr/data/mnt/sd_0/.compas/device.json", "{}");
+            fake.write_remote("/usr/data/pin.conf", "* 0000");
+            fake.write_remote("/usr/data/wpa_supplicant.conf", "psk=\"WIFI-SECRET\"");
+            fake.write_remote("/usr/data/theme_overrides/colors.txt", "accent=blue\n");
+            fake.write_remote("/usr/data/theme_overrides/icon.bin", "x");
+            std::fs::write(
+                fake.remote("/usr/data/theme_overrides/icon.bin"),
+                [0u8, 159, 146, 150],
+            )
+            .unwrap();
+            std::fs::write(fake.remote("/usr/data/big.log"), vec![b'a'; 3 << 20]).unwrap();
+            std::fs::write(
+                fake.remote("/usr/data/player_exit.log"),
+                vec![b'a'; 2 << 20],
+            )
+            .unwrap();
+            fake
+        }
 
-        let out = tempfile::tempdir().unwrap();
-        let report = backup_user_data(&fake.adb(), "ingenic_1", out.path(), &|_| {})
-            .await
+        #[tokio::test]
+        async fn only_the_allowlist_is_read_and_everything_is_masked_before_it_is_written() {
+            let dir = tempfile::tempdir().unwrap();
+            let fake = fixture(dir.path());
+            let out = tempfile::tempdir().unwrap();
+            let report = backup_user_data(&fake.adb(), "ingenic_1", out.path(), &|_| {})
+                .await
+                .unwrap();
+            let root = &report.path;
+
+            // What is in the backup, and nothing else.
+            let settings = std::fs::read_to_string(root.join(".compas/settings.txt")).unwrap();
+            assert!(settings.contains("volume=12") && settings.contains("name=My Player"));
+            for secret in ["424242", "hunter2", "hunter3", "Casa Garita"] {
+                assert!(!settings.contains(secret), "{secret} reached the disk");
+            }
+            assert!(std::fs::read_to_string(root.join("player_crash.log"))
+                .unwrap()
+                .contains("<redacted>"));
+            assert!(root.join("theme_overrides/colors.txt").exists());
+
+            // What is not: the SD card, credentials, plugins, binaries and big files.
+            for path in [
+                ".compas/subsonic_servers.tsv",
+                ".compas/plugins",
+                "mnt",
+                "pin.conf",
+                "wpa_supplicant.conf",
+                "big.log",
+                "theme_overrides/icon.bin",
+                "player_exit.log",
+            ] {
+                assert!(!root.join(path).exists(), "{path} was copied");
+            }
+            let reason = |path: &str| {
+                report
+                    .skipped
+                    .iter()
+                    .find(|s| s.path == path)
+                    .map(|s| s.reason)
+            };
+            assert_eq!(reason("theme_overrides/icon.bin"), Some(SkipReason::Binary));
+            assert_eq!(reason("player_exit.log"), Some(SkipReason::TooLarge));
+            assert_eq!(report.files, 3);
+            assert_eq!(report.redacted, 5);
+
+            // The device was never asked for anything outside the allowlist.
+            let calls = fake.calls().join("\n");
+            for forbidden in [
+                "mnt/sd_0",
+                "subsonic_servers",
+                "plugins",
+                "pin.conf",
+                "wpa_supplicant",
+                " pull ",
+            ] {
+                assert!(!calls.contains(forbidden), "{forbidden} in\n{calls}");
+            }
+        }
+
+        #[tokio::test]
+        async fn a_linked_entry_is_not_followed_off_the_allowlist() {
+            let dir = tempfile::tempdir().unwrap();
+            let fake = FakeAdb::new(dir.path(), "s1", "480,800", PS_STOCK);
+            fake.write_remote("/usr/data/mnt/sd_0/secret.txt", "SD-ONLY");
+            fake.write_remote("/usr/data/player_crash.log", "ok\n");
+            std::fs::create_dir_all(fake.remote("/usr/data")).unwrap();
+            std::os::unix::fs::symlink(
+                fake.remote("/usr/data/mnt/sd_0"),
+                fake.remote("/usr/data/theme_overrides"),
+            )
+            .unwrap();
+            std::os::unix::fs::symlink(
+                fake.remote("/usr/data/mnt/sd_0/secret.txt"),
+                fake.remote("/usr/data/hostname_override.txt"),
+            )
             .unwrap();
 
-        let root = &report.path;
-        assert!(root.starts_with(out.path()));
-        assert!(root.join("player_crash.log").exists());
-        assert!(root.join("db/index.bin").exists());
-        assert!(
-            !root.join(".compas/plugins").exists(),
-            "account tokens stay on the device"
-        );
-        assert!(
-            !root.join("wpa_supplicant.conf").exists(),
-            "Wi-Fi details stay on the device"
-        );
-        assert_eq!(report.skipped, [".compas/plugins", "wpa_supplicant.conf"]);
-
-        let settings = std::fs::read_to_string(root.join(".compas/settings.ini")).unwrap();
-        assert!(settings.contains("volume=12") && settings.contains("name=My Player"));
-        assert!(
-            !settings.contains("424242"),
-            "the remote-control PIN is not copied"
-        );
-        assert_eq!(report.redacted, 1);
-        assert_eq!(report.files, 3);
-
-        // Nothing the user must not share is anywhere in the backup, in any file.
-        let calls = fake.calls().join("\n");
-        assert!(
-            !calls.contains("lastfm")
-                && !calls.contains("wpa_supplicant")
-                && !calls.contains("424242")
-        );
+            let out = tempfile::tempdir().unwrap();
+            let report = backup_user_data(&fake.adb(), "s1", out.path(), &|_| {})
+                .await
+                .unwrap();
+            assert_eq!(report.files, 1);
+            assert!(!report.path.join("theme_overrides").exists());
+            assert!(!report.path.join("hostname_override.txt").exists());
+        }
     }
 }

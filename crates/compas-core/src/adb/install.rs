@@ -41,8 +41,11 @@ impl Default for WaitOptions {
 pub struct InstallReport {
     /// Where the file was put on the device.
     pub remote_path: String,
-    /// The device after it came back; `None` if it did not within the time allowed.
+    /// The player after it came back; `None` if it did not within the time allowed, or if
+    /// several players answered (see `candidates`).
     pub device: Option<DeviceInfo>,
+    /// Several devices of the same board answered under new serials; the user picks.
+    pub candidates: Vec<DeviceInfo>,
     /// How the version on the card compares with the release just installed.
     pub freshness: Freshness,
 }
@@ -57,9 +60,15 @@ fn ensure_on_card(remote: &str) -> Result<()> {
     }
 }
 
-/// Free kilobytes on the card, from `df -k`.
+/// Free kilobytes on the card, from `df -k`. BusyBox wraps a long device name onto its own
+/// line, so the figures are found by the `Use%` column rather than by line position.
 fn parse_free_kb(df: &str) -> Option<u64> {
-    df.lines().last()?.split_whitespace().nth(3)?.parse().ok()
+    let tokens: Vec<&str> = df.split_whitespace().collect();
+    let percent = tokens.iter().position(|t| {
+        t.strip_suffix('%')
+            .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+    })?;
+    tokens.get(percent.checked_sub(1)?)?.parse().ok()
 }
 
 /// Everything one install needs, so the steps below share it.
@@ -92,14 +101,18 @@ impl Job<'_> {
 
         let (adb, serial) = (self.adb, self.serial);
         let df = adb.shell(serial, &format!("df -k {SD_ROOT}")).await?;
-        if let Some(free_kb) = parse_free_kb(&df) {
-            let needed_kb = file.size / 1024 + MARGIN_KB;
-            if free_kb < needed_kb {
-                return Err(Error::NoSpace {
-                    needed: needed_kb * 1024,
-                    available: free_kb * 1024,
-                });
-            }
+        let free_kb = parse_free_kb(&df).ok_or_else(|| {
+            Error::Adb(format!(
+                "could not read the free space on the player's card, so nothing was copied (df said: {})",
+                df.trim()
+            ))
+        })?;
+        let needed_kb = file.size / 1024 + MARGIN_KB;
+        if free_kb < needed_kb {
+            return Err(Error::NoSpace {
+                needed: needed_kb * 1024,
+                available: free_kb * 1024,
+            });
         }
 
         self.report(Phase::Pushing, 0, 1);
@@ -137,48 +150,90 @@ impl Job<'_> {
         // The connection drops as the device goes down, so an error here is expected.
         let _ = self.adb.shell(self.serial, "reboot").await;
         self.report(Phase::Waiting, 0, 1);
-        let device = wait_for_return(self.adb, self.serial, self.wait).await;
+        let returned = wait_for_return(self.adb, self.serial, self.model, self.wait).await;
+        let (device, candidates) = match returned {
+            Returned::Back(device) => (Some(device), Vec::new()),
+            Returned::Candidates(found) => (None, found),
+            Returned::TimedOut => (None, Vec::new()),
+        };
         let freshness = self
             .release
             .freshness(device.as_ref().and_then(|d| d.player_version.as_deref()));
         Ok(InstallReport {
             remote_path: remote,
             device,
+            candidates,
             freshness,
         })
     }
 }
 
+enum Returned {
+    /// The same serial, or the only device of the same board under a new one.
+    Back(DeviceInfo),
+    /// Several look like the same board; the user must say which is theirs.
+    Candidates(Vec<DeviceInfo>),
+    TimedOut,
+}
+
 /// Waits for the device to disappear (it is rebooting) and to come back, then looks at it again.
-async fn wait_for_return(adb: &Adb, serial: &str, wait: &WaitOptions) -> Option<DeviceInfo> {
+/// Other connected devices are ignored: only the same serial counts, or, if the serial changed
+/// after recovery, a player-looking device that identifies as the same board.
+async fn wait_for_return(adb: &Adb, serial: &str, board: Model, wait: &WaitOptions) -> Returned {
     let online = || async {
         adb.devices()
             .await
-            .ok()
-            .and_then(|d| d.into_iter().find(|d| d.state == "device"))
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|d| d.state == "device")
+            .collect::<Vec<_>>()
     };
     let gone_by = Instant::now() + wait.going_down;
-    while online().await.is_some() && Instant::now() < gone_by {
+    while online().await.iter().any(|d| d.serial == serial) && Instant::now() < gone_by {
         tokio::time::sleep(wait.poll).await;
     }
     let give_up = Instant::now() + wait.coming_back;
     loop {
-        if let Some(device) = online().await {
-            // The serial can differ after recovery; the first device that answers is it.
-            let which = if device.serial.is_empty() {
-                serial
-            } else {
-                &device.serial
-            };
-            if let Ok(info) = identify(adb, which).await {
-                return Some(info);
+        let devices = online().await;
+        if devices.iter().any(|d| d.serial == serial) {
+            if let Ok(info) = identify(adb, serial).await {
+                return Returned::Back(info);
+            }
+        } else {
+            let mut same_board = Vec::new();
+            for device in devices.iter().filter(|d| d.looks_like_player()) {
+                if let Ok(info) = identify(adb, &device.serial).await {
+                    if info.board == Some(board) {
+                        same_board.push(info);
+                    }
+                }
+            }
+            match same_board.len() {
+                0 => {}
+                1 => return Returned::Back(same_board.remove(0)),
+                _ => return Returned::Candidates(same_board),
             }
         }
         if Instant::now() >= give_up {
-            return None;
+            return Returned::TimedOut;
         }
         tokio::time::sleep(wait.poll).await;
     }
+}
+
+/// Deletes an update image the install left on the card. Only a `.upt` at the card's
+/// root is accepted, and the player does not remove it by itself.
+pub async fn remove_staged_image(adb: &Adb, serial: &str, remote: &str) -> Result<()> {
+    ensure_on_card(remote)?;
+    let name = remote.trim_start_matches(SD_ROOT).trim_start_matches('/');
+    if !name.to_ascii_lowercase().ends_with(".upt") || name.contains(['/', '\'', ' ', '"', '\\']) {
+        return Err(Error::Rejected(format!(
+            "{remote} is not an update image at the card's root"
+        )));
+    }
+    adb.shell(serial, &format!("rm -f '{remote}'"))
+        .await
+        .map(drop)
 }
 
 /// What the install functions take besides the device.
@@ -274,6 +329,9 @@ mod tests {
         }
         assert_eq!(parse_free_kb("Filesystem 1K-blocks Used Available Use% Mounted on\n/dev/mmcblk0p1 7000000 100 6999900 1% /data/mnt/sd_0"), Some(6999900));
         assert_eq!(parse_free_kb("garbage"), None);
+        // BusyBox puts a long device name on its own line.
+        let wrapped = "Filesystem           1K-blocks      Used Available Use% Mounted on\n/dev/block/mmcblk0p1\n                       7000000       100   6999900   1% /data/mnt/sd_0\n";
+        assert_eq!(parse_free_kb(wrapped), Some(6999900));
     }
 
     #[tokio::test]
@@ -439,5 +497,160 @@ mod tests {
         .unwrap();
         assert!(report.device.is_none());
         assert_eq!(report.freshness, Freshness::Unknown);
+    }
+
+    fn devices_file(lines: &[&str]) -> String {
+        let mut text = String::from("List of devices attached\n");
+        for line in lines {
+            text.push_str(line);
+            text.push('\n');
+        }
+        text
+    }
+
+    const MAKO: &str = "product:mako model:Nexus_4 device:mako";
+
+    #[tokio::test]
+    async fn other_connected_devices_are_never_touched_or_mistaken_for_the_player() {
+        let (_server, release) = release("v1.2.0").await;
+        let dir = tempfile::tempdir().unwrap();
+        let cache = tempfile::tempdir().unwrap();
+        let fake = FakeAdb::new(dir.path(), "ingenic_1", "480,800", PS_STOCK);
+        fake.set(
+            "devices.txt",
+            &devices_file(&[
+                &format!("ingenic_1 device usb:1-1 {MAKO}"),
+                "R58M12345AB device usb:1-2 product:beyond1lte model:SM_G973F device:beyond1lte",
+            ]),
+        );
+        let report = install_full_image(
+            &fake.adb(),
+            "ingenic_1",
+            &request(&release, cache.path(), Model::R1),
+            &|_| {},
+        )
+        .await
+        .unwrap();
+        assert_eq!(report.device.unwrap().serial, "ingenic_1");
+        assert!(
+            fake.calls()
+                .iter()
+                .all(|c| !c.contains("R58M12345AB") || c.contains("devices")),
+            "the phone was probed"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_changed_serial_is_accepted_only_for_the_same_board() {
+        let (_server, release) = release("v1.2.0").await;
+        let dir = tempfile::tempdir().unwrap();
+        let cache = tempfile::tempdir().unwrap();
+        let fake = FakeAdb::new(dir.path(), "ingenic_1", "480,800", PS_STOCK);
+        fake.set(
+            "devices.txt",
+            &devices_file(&[&format!("ingenic_after_recovery device usb:1-1 {MAKO}")]),
+        );
+
+        let report = install_full_image(
+            &fake.adb(),
+            "ingenic_1",
+            &request(&release, cache.path(), Model::R1),
+            &|_| {},
+        )
+        .await
+        .unwrap();
+        assert_eq!(report.device.unwrap().serial, "ingenic_after_recovery");
+
+        // The same cable showing a different board is not the player we installed on.
+        let other = tempfile::tempdir().unwrap();
+        let fake = FakeAdb::new(other.path(), "ingenic_1", "480,720", PS_STOCK);
+        fake.set(
+            "devices.txt",
+            &devices_file(&[&format!("ingenic_after_recovery device usb:1-1 {MAKO}")]),
+        );
+        let report = install_full_image(
+            &fake.adb(),
+            "ingenic_1",
+            &request(&release, cache.path(), Model::R1),
+            &|_| {},
+        )
+        .await
+        .unwrap();
+        assert!(report.device.is_none() && report.candidates.is_empty());
+    }
+
+    #[tokio::test]
+    async fn several_matching_players_are_left_for_the_user_to_choose() {
+        let (_server, release) = release("v1.2.0").await;
+        let dir = tempfile::tempdir().unwrap();
+        let cache = tempfile::tempdir().unwrap();
+        let fake = FakeAdb::new(dir.path(), "ingenic_1", "480,800", PS_STOCK);
+        fake.set(
+            "devices.txt",
+            &devices_file(&[
+                &format!("ingenic_a device {MAKO}"),
+                &format!("ingenic_b device {MAKO}"),
+            ]),
+        );
+        let report = install_full_image(
+            &fake.adb(),
+            "ingenic_1",
+            &request(&release, cache.path(), Model::R1),
+            &|_| {},
+        )
+        .await
+        .unwrap();
+        assert!(report.device.is_none());
+        let serials: Vec<_> = report
+            .candidates
+            .iter()
+            .map(|c| c.serial.as_str())
+            .collect();
+        assert_eq!(serials, ["ingenic_a", "ingenic_b"]);
+    }
+
+    #[tokio::test]
+    async fn an_unreadable_free_space_stops_before_anything_is_copied() {
+        let (_server, release) = release("v1.2.0").await;
+        let dir = tempfile::tempdir().unwrap();
+        let cache = tempfile::tempdir().unwrap();
+        let fake = FakeAdb::new(dir.path(), "s1", "480,800", PS_STOCK);
+        fake.set("df_output", "df: can't stat\n");
+        let error = install_full_image(
+            &fake.adb(),
+            "s1",
+            &request(&release, cache.path(), Model::R1),
+            &|_| {},
+        )
+        .await
+        .unwrap_err();
+        assert!(error.to_string().contains("free space"), "{error}");
+        assert!(pushes(&fake).is_empty());
+    }
+
+    #[tokio::test]
+    async fn the_update_file_can_be_removed_from_the_card_root_only() {
+        let dir = tempfile::tempdir().unwrap();
+        let fake = FakeAdb::new(dir.path(), "s1", "480,800", PS_STOCK);
+        fake.write_remote("/data/mnt/sd_0/r1.upt", "image");
+        fake.write_remote("/data/mnt/sd_0/Music/a.upt", "not at the root");
+        fake.write_remote("/data/mnt/sd_0/.compas/compas_player", "player");
+
+        remove_staged_image(&fake.adb(), "s1", "/data/mnt/sd_0/r1.upt")
+            .await
+            .unwrap();
+        assert!(!fake.remote("/data/mnt/sd_0/r1.upt").exists());
+        for bad in [
+            "/data/mnt/sd_0/Music/a.upt",
+            "/data/mnt/sd_0/.compas/compas_player",
+            "/tmp/r1.upt",
+            "/data/mnt/sd_0/r1.upt; reboot",
+        ] {
+            assert!(
+                remove_staged_image(&fake.adb(), "s1", bad).await.is_err(),
+                "{bad}"
+            );
+        }
+        assert!(fake.remote("/data/mnt/sd_0/Music/a.upt").exists());
     }
 }
