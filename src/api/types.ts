@@ -190,6 +190,10 @@ export interface DeviceView {
   serial: string;
   /** `device`, `unauthorized`, `offline`, ... */
   state: string;
+  product: string | null;
+  model: string | null;
+  /** An Ingenic serial or the player's USB product. Others are probed only on request. */
+  likely_player: boolean;
   info: DeviceInfo | null;
 }
 
@@ -199,18 +203,22 @@ export interface ToolsStatus {
   version: string | null;
   /** `linux`, `macos` or `windows`. */
   platform: string;
+  /** The platform-tools release the download button installs. */
+  download_version: string;
 }
 
 export interface BackupReport {
   path: string;
   files: number;
-  skipped: string[];
+  skipped: { path: string; reason: 'private' | 'too_large' | 'binary' | 'unreadable' }[];
   redacted: number;
 }
 
 export interface InstallReport {
   remote_path: string;
   device: DeviceInfo | null;
+  /** Several players of the same board answered; the user says which is theirs. */
+  candidates: DeviceInfo[];
   freshness: Freshness;
 }
 

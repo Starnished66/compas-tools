@@ -1,9 +1,10 @@
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import { useState } from 'react';
 
-import { backupDevice, installOnDevice } from '../../api/adb';
+import { backupDevice, installOnDevice, removeUpdateFile } from '../../api/adb';
 import type { BackupReport, DeviceInfo, InstallReport, Model, ReleaseKind } from '../../api/types';
 import { Button } from '../../components/Button';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ModelPicker } from '../../components/ModelPicker';
 import { Notice } from '../../components/Notice';
@@ -11,21 +12,34 @@ import { ProgressBar } from '../../components/ProgressBar';
 import { useOperation } from '../../hooks/useOperation';
 import { t } from '../../i18n';
 import { recoveryKeys } from '../updates/instructions';
-import { BOARD_NAMES, firmwareLabel } from './labels';
+import { BOARD_NAMES, firmwareLabel, releaseFileName } from './labels';
 
 interface Props {
   device: DeviceInfo;
+  /** Called when an install ended, so the player list can be read again. */
+  onFinished: () => void;
+  /** Several players answered after the install; the user picks theirs. */
+  onChoose: (serial: string) => void;
 }
 
-export function InstallPanel({ device }: Props) {
+const SKIP_TEXT = {
+  private: 'credentials or private data',
+  too_large: 'too large',
+  binary: 'not text, so it cannot be masked',
+  unreadable: 'could not be read',
+} as const;
+
+export function InstallPanel({ device, onFinished, onChoose }: Props) {
   const operation = useOperation();
   const [chosen, setChosen] = useState<Model | null>(null);
   const [backup, setBackup] = useState<BackupReport | null>(null);
   const [report, setReport] = useState<InstallReport | null>(null);
   const [failed, setFailed] = useState(false);
+  const [asking, setAsking] = useState<ReleaseKind | null>(null);
+  const [removed, setRemoved] = useState(false);
 
   const model = device.board ?? chosen;
-  // The first install replaces the vendor's system; take the user's data along first.
+  // The first install replaces the vendor's system; take the user's settings along first.
   const needsBackup = device.firmware !== 'compas' && backup === null;
 
   const runBackup = async () => {
@@ -35,18 +49,27 @@ export function InstallPanel({ device }: Props) {
   };
 
   const install = async (kind: ReleaseKind) => {
+    setAsking(null);
     if (!model) return;
     setReport(null);
+    setRemoved(false);
     const result = await operation.run((p) => installOnDevice(device.serial, kind, model, p));
     setFailed(result === undefined);
     if (result) setReport(result);
+    onFinished();
+  };
+
+  const removeImage = async (path: string) => {
+    const done = await operation.run(() => removeUpdateFile(device.serial, path));
+    if (done !== undefined) setRemoved(true);
   };
 
   return (
     <section className="panel stack" aria-label={t('Install and update')}>
       <h2>{t('Install and update')}</h2>
       <p className="muted">
-        {board(device)} · {firmwareLabel(device.firmware)}
+        {device.board ? BOARD_NAMES[device.board] : t('Unknown model')} ·{' '}
+        {firmwareLabel(device.firmware)}
         {device.player_version ? ` · ${device.player_version}` : ''}
       </p>
       {!device.board && <ModelPicker value={chosen} onChange={setChosen} />}
@@ -55,7 +78,7 @@ export function InstallPanel({ device }: Props) {
         <h3>{t('1. Back up the player')}</h3>
         <p>
           {t(
-            'Copies the player’s user data to this computer. Account tokens, Wi-Fi details and the remote-control PIN are never copied.',
+            'Copies the player’s own settings and logs to this computer. The SD card, account tokens, server passwords, Wi-Fi details and the remote-control PIN are never copied, and anything that looks secret is masked before it is saved.',
           )}
         </p>
         <div>
@@ -63,26 +86,7 @@ export function InstallPanel({ device }: Props) {
             {t('Back up now')}
           </Button>
         </div>
-        {backup && (
-          <Notice tone="success">
-            <p>{t('Backup saved to {path}', { path: backup.path })}</p>
-            <p className="muted">
-              {t('{count} files copied, {skipped} left out on purpose.', {
-                count: backup.files,
-                skipped: backup.skipped.length,
-              })}
-            </p>
-            <div>
-              <Button
-                onClick={() => {
-                  void revealItemInDir(backup.path);
-                }}
-              >
-                {t('Show in folder')}
-              </Button>
-            </div>
-          </Notice>
-        )}
+        {backup && <BackupResult backup={backup} />}
       </div>
 
       <div className="stack">
@@ -95,17 +99,19 @@ export function InstallPanel({ device }: Props) {
         <div className="row">
           <Button
             variant="primary"
-            icon="install"
             disabled={operation.busy || needsBackup || !model}
-            onClick={() => void install('full_image')}
+            onClick={() => {
+              setAsking('full_image');
+            }}
           >
             {t('Install the latest firmware')}
           </Button>
           {device.firmware === 'compas' && (
             <Button
-              icon="update"
               disabled={operation.busy || !model}
-              onClick={() => void install('player_only')}
+              onClick={() => {
+                setAsking('player_only');
+              }}
             >
               {t('Update only the player')}
             </Button>
@@ -113,7 +119,7 @@ export function InstallPanel({ device }: Props) {
         </div>
         <p className="muted">
           {t(
-            'The file goes to the SD card, the player restarts into recovery and installs it, and this app checks the version afterwards. Keep the cable connected and do not turn the player off.',
+            'Firmware: the image goes to the SD card, the player restarts into recovery and installs it, and this app checks the version afterwards. Player only: just the player program on the card is replaced and the player restarts. Keep the cable connected and do not switch the player off.',
           )}
         </p>
       </div>
@@ -134,16 +140,113 @@ export function InstallPanel({ device }: Props) {
           </p>
         </Notice>
       )}
-      {report && <InstallResult report={report} />}
+      {report && (
+        <InstallResult
+          report={report}
+          removed={removed}
+          busy={operation.busy}
+          onChoose={onChoose}
+          onRemove={(path) => void removeImage(path)}
+        />
+      )}
+
+      {asking && model && (
+        <ConfirmDialog
+          open
+          title={t('Install on {serial}?', { serial: device.serial })}
+          message={
+            asking === 'full_image'
+              ? t(
+                  '{file} will be copied to the SD card of {board} ({serial}). The player will then reboot into recovery and install it. Do not disconnect it or switch it off.',
+                  {
+                    file: releaseFileName(asking, model),
+                    board: BOARD_NAMES[model],
+                    serial: device.serial,
+                  },
+                )
+              : t(
+                  '{file} will replace the player program on the SD card of {board} ({serial}). The player will then restart.',
+                  {
+                    file: releaseFileName(asking, model),
+                    board: BOARD_NAMES[model],
+                    serial: device.serial,
+                  },
+                )
+          }
+          confirmLabel={asking === 'full_image' ? t('Install and reboot') : t('Update and restart')}
+          onConfirm={() => void install(asking)}
+          onCancel={() => {
+            setAsking(null);
+          }}
+        />
+      )}
     </section>
   );
 }
 
-function board(device: DeviceInfo): string {
-  return device.board ? BOARD_NAMES[device.board] : t('Unknown model');
+function BackupResult({ backup }: { backup: BackupReport }) {
+  return (
+    <Notice tone="success">
+      <p>{t('Backup saved to {path}', { path: backup.path })}</p>
+      <p className="muted">
+        {t('{count} files copied, {skipped} left out on purpose.', {
+          count: backup.files,
+          skipped: backup.skipped.length,
+        })}
+      </p>
+      {backup.skipped.length > 0 && (
+        <details>
+          <summary>{t('What was left out')}</summary>
+          <ul>
+            {backup.skipped.map((s) => (
+              <li key={s.path}>
+                {s.path}: {t(SKIP_TEXT[s.reason])}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      <div>
+        <Button
+          onClick={() => {
+            void revealItemInDir(backup.path);
+          }}
+        >
+          {t('Show in folder')}
+        </Button>
+      </div>
+    </Notice>
+  );
 }
 
-function InstallResult({ report }: { report: InstallReport }) {
+interface ResultProps {
+  report: InstallReport;
+  removed: boolean;
+  busy: boolean;
+  onChoose: (serial: string) => void;
+  onRemove: (path: string) => void;
+}
+
+function InstallResult({ report, removed, busy, onChoose, onRemove }: ResultProps) {
+  if (report.candidates.length > 0) {
+    return (
+      <Notice tone="warning">
+        <p>{t('Several players answered after the restart. Which one is yours?')}</p>
+        <div className="row">
+          {report.candidates.map((c) => (
+            <Button
+              key={c.serial}
+              onClick={() => {
+                onChoose(c.serial);
+              }}
+            >
+              {c.serial}
+            </Button>
+          ))}
+        </div>
+      </Notice>
+    );
+  }
   if (!report.device) {
     return (
       <Notice tone="warning">
@@ -156,10 +259,11 @@ function InstallResult({ report }: { report: InstallReport }) {
     );
   }
   const version = report.device.player_version ?? t('unknown');
+  const confirmed = report.freshness === 'up_to_date';
   return (
-    <Notice tone={report.freshness === 'up_to_date' ? 'success' : 'warning'}>
+    <Notice tone={confirmed ? 'success' : 'warning'}>
       <p>
-        {report.freshness === 'up_to_date'
+        {confirmed
           ? t('Installed. The player now runs {version}.', { version })
           : t(
               'The player is back and reports version {version}, which is not the new release yet.',
@@ -169,6 +273,22 @@ function InstallResult({ report }: { report: InstallReport }) {
             )}
       </p>
       <p className="muted">{t('Copied to {path} on the card.', { path: report.remote_path })}</p>
+      {confirmed && report.remote_path.toLowerCase().endsWith('.upt') && !removed && (
+        <div className="stack">
+          <p>{t('The update file is still on the card. It is not needed any more.')}</p>
+          <div>
+            <Button
+              disabled={busy}
+              onClick={() => {
+                onRemove(report.remote_path);
+              }}
+            >
+              {t('Delete the update file from the card')}
+            </Button>
+          </div>
+        </div>
+      )}
+      {removed && <p>{t('The update file was deleted from the card.')}</p>}
     </Notice>
   );
 }

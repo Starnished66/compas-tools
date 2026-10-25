@@ -13,10 +13,12 @@ import { t } from '../../i18n';
 interface Props {
   status: ToolsStatus;
   onInstalled: (status: ToolsStatus) => void;
+  /** Look for adb again, e.g. after the user installed it themselves. */
+  onCheckAgain: () => void;
 }
 
 /** adb is needed to talk to the player; a system one is used, else Google's is downloaded once. */
-export function ToolsSetup({ status, onInstalled }: Props) {
+export function ToolsSetup({ status, onInstalled, onCheckAgain }: Props) {
   const operation = useOperation();
   const [asking, setAsking] = useState(false);
 
@@ -36,7 +38,7 @@ export function ToolsSetup({ status, onInstalled }: Props) {
           'Compás Tools talks to the player through adb, Google’s Android Debug Bridge. No adb was found on this computer.',
         )}
       </p>
-      <div>
+      <div className="row">
         <Button
           variant="primary"
           icon="install"
@@ -46,6 +48,9 @@ export function ToolsSetup({ status, onInstalled }: Props) {
           }}
         >
           {t('Download adb…')}
+        </Button>
+        <Button disabled={operation.busy} onClick={onCheckAgain}>
+          {t('Scan again')}
         </Button>
       </div>
       {operation.busy && <ProgressBar progress={operation.progress} label={t('Downloading adb')} />}
@@ -59,7 +64,8 @@ export function ToolsSetup({ status, onInstalled }: Props) {
         open={asking}
         title={t('Download adb?')}
         message={t(
-          'This downloads Google’s platform-tools (about 15 MB) over HTTPS and keeps them in this app’s data folder. Nothing else is installed.',
+          'This downloads Google’s platform-tools {version} (about 9 MB) over HTTPS, checks it against its published SHA-256 checksum, and keeps it in this app’s data folder. Nothing else is installed.',
+          { version: status.download_version },
         )}
         confirmLabel={t('Download')}
         onConfirm={() => void download()}

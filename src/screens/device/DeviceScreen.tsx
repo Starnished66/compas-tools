@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { adbStatus, listDevices } from '../../api/adb';
+import { adbStatus, listDevices, probeDevice } from '../../api/adb';
 import { errorMessage } from '../../api/invoke';
 import type { DeviceView, ToolsStatus } from '../../api/types';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -37,7 +37,17 @@ export function DeviceScreen() {
     }
   }, []);
 
-  useEffect(() => {
+  const probe = async (serial: string) => {
+    try {
+      const info = await probeDevice(serial);
+      setDevices((current) => current.map((d) => (d.serial === serial ? { ...d, info } : d)));
+      setSelected(serial);
+    } catch (failure) {
+      setError(errorMessage(failure));
+    }
+  };
+
+  const checkTools = useCallback(() => {
     adbStatus().then(
       (status) => {
         setTools(status);
@@ -48,6 +58,10 @@ export function DeviceScreen() {
       },
     );
   }, [scan]);
+
+  useEffect(() => {
+    checkTools();
+  }, [checkTools]);
 
   const installed = (status: ToolsStatus) => {
     setTools(status);
@@ -69,7 +83,7 @@ export function DeviceScreen() {
           }}
         />
       )}
-      {tools && <ToolsSetup status={tools} onInstalled={installed} />}
+      {tools && <ToolsSetup status={tools} onInstalled={installed} onCheckAgain={checkTools} />}
       {tools?.found && (
         <DeviceList
           devices={devices}
@@ -77,10 +91,18 @@ export function DeviceScreen() {
           scanning={scanning}
           onSelect={setSelected}
           onScan={() => void scan()}
+          onProbe={(serial) => void probe(serial)}
         />
       )}
       {tools && <SetupGuide platform={tools.platform} />}
-      {device && <InstallPanel key={device.serial} device={device} />}
+      {device && (
+        <InstallPanel
+          key={device.serial}
+          device={device}
+          onFinished={() => void scan()}
+          onChoose={setSelected}
+        />
+      )}
       {device && <LogsPanel serial={device.serial} />}
     </section>
   );
