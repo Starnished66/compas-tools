@@ -85,6 +85,27 @@ impl SdTool {
         Ok(LibraryUpdate { scan, art })
     }
 
+    /// Starts the tool. A file that was only just written can be briefly busy
+    /// on Linux (`ETXTBSY`) while another thread's `fork` still holds it open.
+    async fn spawn(&self, command: &mut Command) -> Result<tokio::process::Child> {
+        let mut attempts = 0;
+        loop {
+            match command.spawn() {
+                Ok(child) => return Ok(child),
+                Err(e) if e.kind() == std::io::ErrorKind::ExecutableFileBusy && attempts < 20 => {
+                    attempts += 1;
+                    tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+                }
+                Err(e) => {
+                    return Err(Error::Sdtool {
+                        code: "missing_tool".into(),
+                        message: format!("{}: {e}", self.exe.display()),
+                    })
+                }
+            }
+        }
+    }
+
     /// Runs the tool, forwarding progress lines, and returns its final object.
     async fn run<T: DeserializeOwned>(
         &self,
@@ -101,10 +122,7 @@ impl SdTool {
         #[cfg(windows)]
         command.creation_flags(0x0800_0000); // no console window
 
-        let mut child = command.spawn().map_err(|e| Error::Sdtool {
-            code: "missing_tool".into(),
-            message: format!("{}: {e}", self.exe.display()),
-        })?;
+        let mut child = self.spawn(&mut command).await?;
         let stderr = child.stderr.take().map(BufReader::new);
         let tail = tokio::spawn(async move {
             let mut lines = Vec::new();
@@ -138,7 +156,14 @@ impl SdTool {
         let stderr_tail = tail.await.unwrap_or_default();
 
         if let Some(error) = failure {
-            return Err(error);
+            // `art_failed` means the rest of the covers were written: keep the counts.
+            return match (&error, final_object) {
+                (Error::Sdtool { code, message }, Some(mut done)) if code == "art_failed" => {
+                    done["warning"] = friendly_message(code, message).into();
+                    serde_json::from_value(done).map_err(|_| error)
+                }
+                _ => Err(error),
+            };
         }
         match final_object.map(serde_json::from_value) {
             Some(Ok(done)) if status.success() => Ok(done),

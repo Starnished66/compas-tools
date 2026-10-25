@@ -150,3 +150,25 @@ fn every_documented_error_code_has_its_own_text() {
         "raw tool text"
     );
 }
+
+#[tokio::test]
+async fn partly_failed_art_keeps_its_counts_and_carries_the_warning() {
+    let (_dir, card) = fake_card();
+    let tool_dir = tempfile::tempdir().unwrap();
+    let done = r#"{"event":"done","command":"art","board":"r1","albums":10,"written":8,"unchanged":1,"no_art":1,"mtime_offset":0}"#;
+    let error = r#"{"event":"error","code":"art_failed","message":"cache write failed"}"#;
+    // Either order, as the tool may print the error first.
+    for output in [format!("{done}\n{error}"), format!("{error}\n{done}")] {
+        let tool = fake_tool(tool_dir.path(), &output, 1);
+        let art = tool.art(&card, None, None, &|_| {}).await.unwrap();
+        assert_eq!((art.albums, art.written), (10, 8));
+        assert_eq!(
+            art.warning.as_deref(),
+            Some("Some album covers could not be written; the others were.")
+        );
+    }
+
+    // Without counts it is still a plain error.
+    let tool = fake_tool(tool_dir.path(), error, 1);
+    assert!(tool.art(&card, None, None, &|_| {}).await.is_err());
+}

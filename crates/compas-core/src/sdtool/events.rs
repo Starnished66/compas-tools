@@ -38,6 +38,9 @@ pub struct ArtDone {
     pub unchanged: u64,
     pub no_art: u64,
     pub mtime_offset: i64,
+    /// Set when the tool finished but some covers could not be written (`art_failed`).
+    #[serde(default)]
+    pub warning: Option<String>,
 }
 
 /// Both steps of a library update.
