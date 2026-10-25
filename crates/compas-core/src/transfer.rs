@@ -48,12 +48,19 @@ mod tests {
     use crate::progress::Phase;
     use crate::test_support::{calls, fake_card, script_tool, write_file};
 
-    const WORKING_TOOL: &str = r#"case "$1" in
-scan) echo '{"event":"progress","phase":"tags","done":1,"total":2}'
-  echo '{"event":"done","command":"scan","files":2,"parsed":1,"unchanged":0,"failed":1,"skipped":0,"songs":1,"generation":3,"written":true,"mtime_offset":3600}' ;;
-art) echo '{"event":"progress","phase":"art","done":1,"total":1}'
-  echo '{"event":"done","command":"art","board":"r1","albums":1,"written":1,"unchanged":0,"no_art":0,"mtime_offset":3600}' ;;
-esac"#;
+    const SCAN_STEP: &str = r#"echo '{"event":"progress","phase":"tags","done":1,"total":2}'
+echo '{"event":"done","command":"scan","files":2,"parsed":1,"unchanged":0,"failed":1,"skipped":0,"songs":1,"generation":3,"written":true,"mtime_offset":3600}'"#;
+    const ART_STEP: &str = r#"echo '{"event":"progress","phase":"art","done":1,"total":1}'
+echo '{"event":"done","command":"art","board":"r1","albums":1,"written":1,"unchanged":0,"no_art":0,"failed":0,"mtime_offset":3600}'"#;
+
+    /// A fake tool whose `scan` and `art` commands run the given shell snippets.
+    fn script(scan: &str, art: &str) -> String {
+        format!("case \"$1\" in\nscan) {scan} ;;\nart) {art} ;;\nesac")
+    }
+
+    fn working() -> String {
+        script(SCAN_STEP, ART_STEP)
+    }
 
     fn copied(count: u64, deleted: u64) -> CopyReport {
         CopyReport {
@@ -67,7 +74,7 @@ esac"#;
     async fn a_copy_that_changed_files_runs_scan_then_art_as_one_operation() {
         let (_dir, card) = fake_card();
         let tools = tempfile::tempdir().unwrap();
-        let tool = script_tool(tools.path(), WORKING_TOOL);
+        let tool = script_tool(tools.path(), &working());
         let seen = Mutex::new(Vec::new());
 
         let outcome = update_after_copy(&tool, &card, &copied(2, 0), &|p| {
@@ -80,7 +87,7 @@ esac"#;
         };
         assert_eq!(calls(tools.path()), ["scan", "art"]);
         assert_eq!((update.scan.failed, update.scan.mtime_offset), (1, 3600));
-        assert_eq!(update.art.written, 1);
+        assert_eq!(update.art.unwrap().written, 1);
         assert_eq!(
             *seen.lock().unwrap(),
             [Phase::ReadingTags, Phase::BuildingArt]
@@ -91,7 +98,7 @@ esac"#;
     async fn removals_alone_also_update_the_library() {
         let (_dir, card) = fake_card();
         let tools = tempfile::tempdir().unwrap();
-        let tool = script_tool(tools.path(), WORKING_TOOL);
+        let tool = script_tool(tools.path(), &working());
         let outcome = update_after_copy(&tool, &card, &copied(0, 3), &|_| {}).await;
         assert!(matches!(outcome, LibraryOutcome::Updated(_)));
     }
@@ -100,7 +107,7 @@ esac"#;
     async fn nothing_changed_means_the_tool_is_not_even_started() {
         let (_dir, card) = fake_card();
         let tools = tempfile::tempdir().unwrap();
-        let tool = script_tool(tools.path(), WORKING_TOOL);
+        let tool = script_tool(tools.path(), &working());
         let identical_only = CopyReport {
             skipped_identical: 5,
             ..CopyReport::default()
@@ -115,7 +122,7 @@ esac"#;
     async fn a_partly_failed_copy_still_updates_the_library() {
         let (_dir, card) = fake_card();
         let tools = tempfile::tempdir().unwrap();
-        let tool = script_tool(tools.path(), WORKING_TOOL);
+        let tool = script_tool(tools.path(), &working());
         let mut report = copied(1, 0);
         report.failed.push(music::Failure {
             path: "x.flac".into(),
@@ -155,10 +162,63 @@ esac"#;
         );
 
         // Try again: only the library update runs, and the copy is not repeated.
-        let fixed = script_tool(tools.path(), WORKING_TOOL);
+        let fixed = script_tool(tools.path(), &working());
         let update = fixed.update_library(&card, &|_| {}).await.unwrap();
         assert_eq!(update.scan.songs, 1);
         assert_eq!(calls(tools.path()), ["scan", "scan", "art"]);
+    }
+
+    #[tokio::test]
+    async fn a_partial_art_failure_still_counts_as_an_updated_library() {
+        let (_dir, card) = fake_card();
+        let tools = tempfile::tempdir().unwrap();
+        // The order sdtool 1.1 prints: `done` with a `failed` count, then `art_failed`.
+        let art = r#"echo '{"event":"done","command":"art","board":"r1","albums":10,"written":8,"unchanged":1,"no_art":0,"failed":1,"mtime_offset":0}'
+echo '{"event":"error","code":"art_failed","message":"one cover"}'; exit 1"#;
+        let tool = script_tool(tools.path(), &script(SCAN_STEP, art));
+
+        let outcome = update_after_copy(&tool, &card, &copied(1, 0), &|_| {}).await;
+        let LibraryOutcome::Updated(update) = outcome else {
+            panic!("{outcome:?}")
+        };
+        let art = update.art.unwrap();
+        assert_eq!((art.written, art.failed), (8, 1));
+        assert!(art.warning.is_some());
+        assert!(update.art_error.is_none());
+    }
+
+    #[tokio::test]
+    async fn covers_failing_completely_do_not_make_the_library_update_fail() {
+        let (_dir, card) = fake_card();
+        let tools = tempfile::tempdir().unwrap();
+        let art = r#"echo '{"event":"error","code":"out_of_memory","message":"x"}'; exit 1"#;
+        let tool = script_tool(tools.path(), &script(SCAN_STEP, art));
+
+        let outcome = update_after_copy(&tool, &card, &copied(1, 0), &|_| {}).await;
+        let LibraryOutcome::Updated(update) = outcome else {
+            panic!("{outcome:?}")
+        };
+        assert_eq!(update.scan.songs, 1);
+        assert!(update.art.is_none());
+        assert_eq!(
+            update.art_error.as_deref(),
+            Some("The computer ran out of memory.")
+        );
+    }
+
+    #[tokio::test]
+    async fn a_failed_scan_is_the_only_failure_that_offers_a_retry() {
+        let (_dir, card) = fake_card();
+        let tools = tempfile::tempdir().unwrap();
+        let scan = r#"echo '{"event":"error","code":"write_failed","message":"x"}'; exit 1"#;
+        let tool = script_tool(tools.path(), &script(scan, ART_STEP));
+        let outcome = update_after_copy(&tool, &card, &copied(1, 0), &|_| {}).await;
+        assert!(matches!(outcome, LibraryOutcome::Failed { .. }));
+        assert_eq!(
+            calls(tools.path()),
+            ["scan"],
+            "no art step after a failed scan"
+        );
     }
 
     #[tokio::test]

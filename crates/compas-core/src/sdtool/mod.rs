@@ -81,8 +81,16 @@ impl SdTool {
         on_progress: OnProgress<'_>,
     ) -> Result<LibraryUpdate> {
         let scan = self.scan(card, ScanOptions::default(), on_progress).await?;
-        let art = self.art(card, None, None, on_progress).await?;
-        Ok(LibraryUpdate { scan, art })
+        // The library is usable without covers, so a failed art step is a warning.
+        let (art, art_error) = match self.art(card, None, None, on_progress).await {
+            Ok(art) => (Some(art), None),
+            Err(error) => (None, Some(error.to_string())),
+        };
+        Ok(LibraryUpdate {
+            scan,
+            art,
+            art_error,
+        })
     }
 
     /// Starts the tool. A file that was only just written can be briefly busy

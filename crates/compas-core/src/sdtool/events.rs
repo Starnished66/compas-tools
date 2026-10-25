@@ -37,17 +37,22 @@ pub struct ArtDone {
     pub written: u64,
     pub unchanged: u64,
     pub no_art: u64,
+    /// Albums whose cover could not be written.
+    #[serde(default)]
+    pub failed: u64,
     pub mtime_offset: i64,
     /// Set when the tool finished but some covers could not be written (`art_failed`).
     #[serde(default)]
     pub warning: Option<String>,
 }
 
-/// Both steps of a library update.
+/// Both steps of a library update. Only a failed scan is a failed update.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LibraryUpdate {
     pub scan: ScanDone,
-    pub art: ArtDone,
+    /// `None` when the covers failed completely; the library itself is fine.
+    pub art: Option<ArtDone>,
+    pub art_error: Option<String>,
 }
 
 /// The tool's `progress` phase name, as one of our phases.
