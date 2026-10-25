@@ -8,7 +8,7 @@ Xvfb :99 -screen 0 1280x860x24 >/dev/null 2>&1 &
 sleep 2
 
 for scheme in light dark; do
-  if [ "$scheme" = dark ]; then export GTK_THEME=Adwaita:dark; else unset GTK_THEME; fi
+  if [ "$scheme" = dark ]; then export GTK_THEME=Adwaita:dark; else export GTK_THEME=Adwaita; fi
   /cache/target/debug/compas-tools >/dev/null 2>&1 &
   app=$!
   sleep 10

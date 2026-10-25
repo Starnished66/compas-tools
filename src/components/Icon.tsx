@@ -10,14 +10,14 @@ function url(theme: string, path: string): string {
   return files[`../assets/icons/${theme}/${path}.svg`] ?? '';
 }
 
-/** A Breeze icon, in its light or dark variant to match the colour scheme. */
+/** A Breeze icon, in its dark variant, or the light one when the system asks for light. */
 export function Icon({ name }: { name: IconName }) {
   const path = ICONS[name];
   const size = Number(path.split('/')[1]);
   return (
     <picture className="icon">
-      <source media="(prefers-color-scheme: dark)" srcSet={url('breeze-dark', path)} />
-      <img src={url('breeze', path)} width={size} height={size} alt="" />
+      <source media="(prefers-color-scheme: light)" srcSet={url('breeze', path)} />
+      <img src={url('breeze-dark', path)} width={size} height={size} alt="" />
     </picture>
   );
 }

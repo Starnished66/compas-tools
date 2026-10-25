@@ -11,28 +11,28 @@
 }
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark light;
 
-  /* Breeze Light */
-  --window: #eff0f1; /* [Colors:Window] BackgroundNormal */
-  --window-alt: #e3e5e7; /* [Colors:Window] BackgroundAlternate */
-  --view: #ffffff; /* [Colors:View] BackgroundNormal */
-  --view-alt: #f7f7f7; /* [Colors:View] BackgroundAlternate */
-  --button: #fcfcfc; /* [Colors:Button] BackgroundNormal */
-  --header: #dee0e2; /* [Colors:Header] BackgroundNormal */
-  --text: #232629; /* [Colors:Window] ForegroundNormal */
-  --text-muted: #707d8a; /* [Colors:Window] ForegroundInactive */
-  --link: #2980b9; /* [Colors:Window] ForegroundLink */
-  --highlight: #3daee9; /* [Colors:Selection] BackgroundNormal, DecorationFocus */
-  --on-highlight: #ffffff; /* [Colors:Selection] ForegroundNormal */
-  --negative: #da4453; /* [Colors:Window] ForegroundNegative */
-  --neutral: #f67400; /* [Colors:Window] ForegroundNeutral */
-  --positive: #27ae60; /* [Colors:Window] ForegroundPositive */
+  /* Breeze Dark: the default, used when the system states no preference */
+  --window: #202326; /* [Colors:Window] BackgroundNormal */
+  --window-alt: #292c30; /* [Colors:Window] BackgroundAlternate */
+  --view: #141618; /* [Colors:View] BackgroundNormal */
+  --view-alt: #1d1f22; /* [Colors:View] BackgroundAlternate */
+  --button: #292c30; /* [Colors:Button] BackgroundNormal */
+  --header: #292c30; /* [Colors:Header] BackgroundNormal */
+  --text: #fcfcfc; /* [Colors:Window] ForegroundNormal */
+  --text-muted: #a1a9b1; /* [Colors:Window] ForegroundInactive */
+  --link: #1d99f3; /* [Colors:Window] ForegroundLink */
+  --on-highlight: #fcfcfc; /* [Colors:Selection] ForegroundNormal */
+  --shadow: 0 2px 8px rgb(0 0 0 / 0.6);
+  --highlight: #3daee9; /* [Colors:Selection] BackgroundNormal, DecorationFocus (both schemes) */
+  --negative: #da4453; /* [Colors:Window] ForegroundNegative (both schemes) */
+  --neutral: #f67400; /* [Colors:Window] ForegroundNeutral (both schemes) */
+  --positive: #27ae60; /* [Colors:Window] ForegroundPositive (both schemes) */
 
   /* Breeze draws frames as a mix of text and background, not as a colour of its own. */
   --frame: color-mix(in srgb, var(--text) 30%, var(--window));
   --hover: color-mix(in srgb, var(--highlight) 12%, transparent);
-  --shadow: 0 2px 8px rgb(0 0 0 / 0.25);
 
   /* Metrics: Kirigami.Units spacing (4, 8, 16) and Breeze's 5px corner radius. */
   --space-1: 4px;
@@ -46,19 +46,19 @@
   --font-mono: ui-monospace, 'Noto Sans Mono', Menlo, Consolas, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
   :root {
-    /* Breeze Dark */
-    --window: #202326; /* [Colors:Window] BackgroundNormal */
-    --window-alt: #292c30; /* [Colors:Window] BackgroundAlternate */
-    --view: #141618; /* [Colors:View] BackgroundNormal */
-    --view-alt: #1d1f22; /* [Colors:View] BackgroundAlternate */
-    --button: #292c30; /* [Colors:Button] BackgroundNormal */
-    --header: #292c30; /* [Colors:Header] BackgroundNormal */
-    --text: #fcfcfc; /* [Colors:Window] ForegroundNormal */
-    --text-muted: #a1a9b1; /* [Colors:Window] ForegroundInactive */
-    --link: #1d99f3; /* [Colors:Window] ForegroundLink */
-    --on-highlight: #fcfcfc; /* [Colors:Selection] ForegroundNormal */
-    --shadow: 0 2px 8px rgb(0 0 0 / 0.6);
+    /* Breeze Light */
+    --window: #eff0f1; /* [Colors:Window] BackgroundNormal */
+    --window-alt: #e3e5e7; /* [Colors:Window] BackgroundAlternate */
+    --view: #ffffff; /* [Colors:View] BackgroundNormal */
+    --view-alt: #f7f7f7; /* [Colors:View] BackgroundAlternate */
+    --button: #fcfcfc; /* [Colors:Button] BackgroundNormal */
+    --header: #dee0e2; /* [Colors:Header] BackgroundNormal */
+    --text: #232629; /* [Colors:Window] ForegroundNormal */
+    --text-muted: #707d8a; /* [Colors:Window] ForegroundInactive */
+    --link: #2980b9; /* [Colors:Window] ForegroundLink */
+    --on-highlight: #ffffff; /* [Colors:Selection] ForegroundNormal */
+    --shadow: 0 2px 8px rgb(0 0 0 / 0.25);
   }
 }
