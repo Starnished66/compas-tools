@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use super::{dest, validate};
 use crate::error::{Error, Result};
@@ -18,10 +18,12 @@ pub struct Plugin {
     pub id: String,
     pub name: String,
     pub version: String,
+    #[serde(deserialize_with = "uint")]
     pub api_min: u32,
     pub description: String,
     pub category: String,
     pub author: String,
+    #[serde(deserialize_with = "uint")]
     pub size: u64,
     #[serde(default)]
     pub preview: Option<Preview>,
@@ -33,6 +35,7 @@ pub struct PluginFile {
     pub asset: String,
     pub dest: String,
     pub sha256: String,
+    #[serde(deserialize_with = "uint")]
     pub size: u64,
     #[serde(default)]
     pub keep: bool,
@@ -43,8 +46,11 @@ pub struct PluginFile {
 pub struct Preview {
     pub asset: String,
     pub sha256: String,
+    #[serde(deserialize_with = "uint")]
     pub size: u64,
+    #[serde(deserialize_with = "uint")]
     pub width: u32,
+    #[serde(deserialize_with = "uint")]
     pub height: u32,
     #[serde(default)]
     pub(super) variants: Vec<Preview>,
@@ -52,6 +58,7 @@ pub struct Preview {
 
 #[derive(Deserialize)]
 pub(super) struct RawIndex {
+    #[serde(deserialize_with = "uint")]
     schema: u32,
     pub(super) tag: String,
     pub(super) plugins: Vec<Plugin>,
@@ -69,7 +76,10 @@ impl Plugin {
 }
 
 pub(super) fn parse(bytes: &[u8]) -> Result<RawIndex> {
-    let index: RawIndex = serde_json::from_slice(bytes).map_err(invalid)?;
+    // Going through `Value` tolerates repeated keys (the last one wins; the
+    // player's cJSON takes the first).
+    let value: serde_json::Value = serde_json::from_slice(bytes).map_err(invalid)?;
+    let index: RawIndex = serde_json::from_value(value).map_err(invalid)?;
     if index.schema != 1 {
         return Err(invalid("unsupported schema"));
     }
@@ -95,6 +105,22 @@ pub(super) fn parse(bytes: &[u8]) -> Result<RawIndex> {
         }
     }
     Ok(index)
+}
+
+/// Unsigned 32-bit integers, also written as `15.0` (`store_json_uint`).
+fn uint<'de, D, T>(deserializer: D) -> std::result::Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: TryFrom<u64>,
+{
+    let number = f64::deserialize(deserializer)?;
+    let integral = number.fract() == 0.0 && (0.0..=f64::from(u32::MAX)).contains(&number);
+    let value = if integral {
+        T::try_from(number as u64).ok()
+    } else {
+        None
+    };
+    value.ok_or_else(|| serde::de::Error::custom("expected an unsigned 32-bit integer"))
 }
 
 fn invalid(why: impl ToString) -> Error {
@@ -245,6 +271,26 @@ pub(super) mod tests {
         for (name, bytes) in cases {
             assert!(parse(&bytes).is_err(), "{name} should be rejected");
         }
+    }
+
+    #[test]
+    fn accepts_integral_floats_and_repeated_keys() {
+        let mut p = plugin_json("a", ".plugins/A.lua", 10);
+        p["api_min"] = json!(15.0);
+        let text = index(vec![p]);
+        let text = String::from_utf8(text)
+            .unwrap()
+            .replace("\"name\":", "\"name\":\"first\",\"name\":");
+        let parsed = parse(text.as_bytes()).unwrap();
+        assert_eq!(parsed.plugins[0].api_min, 15);
+        assert_eq!(parsed.plugins[0].name, "Name");
+
+        let mut bad = plugin_json("a", ".plugins/A.lua", 10);
+        bad["api_min"] = json!(15.5);
+        assert!(parse(&index(vec![bad])).is_err());
+        let mut bad = plugin_json("a", ".plugins/A.lua", 10);
+        bad["api_min"] = json!(-1);
+        assert!(parse(&index(vec![bad])).is_err());
     }
 
     #[test]

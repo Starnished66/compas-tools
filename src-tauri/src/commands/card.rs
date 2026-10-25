@@ -16,6 +16,10 @@ pub async fn card_list() -> CommandResult<Vec<CardInfo>> {
 pub fn card_select(state: State<'_, AppState>, path: String) -> CommandResult<CardInfo> {
     let card = Card::open(path)?;
     let info = card.info()?;
+    // Leftovers of crashed runs; skipped while an operation is writing.
+    if let Ok(_busy) = state.try_busy() {
+        card.clean_leftovers();
+    }
     state.set_card(Some(card));
     Ok(info)
 }

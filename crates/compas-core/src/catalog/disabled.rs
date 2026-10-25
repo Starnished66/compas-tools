@@ -11,18 +11,24 @@ use crate::fs::write_atomic;
 const MAX_NAMES: usize = 64;
 const FILE_NAME: &str = ".disabled";
 
-pub(super) fn read(card: &Card) -> Result<Vec<String>> {
+/// Lines of the file as raw bytes, as the player compares them. Anything we
+/// do not understand is kept so a rewrite never drops it.
+pub(super) fn read(card: &Card) -> Result<Vec<Vec<u8>>> {
     let path = card.plugins_dir().join(FILE_NAME);
-    match fs::read_to_string(&path) {
-        Ok(text) => Ok(text
-            .lines()
-            .filter(|l| !l.is_empty())
-            .take(MAX_NAMES)
-            .map(str::to_string)
+    match fs::read(&path) {
+        Ok(bytes) => Ok(bytes
+            .split(|&b| b == b'\n')
+            .map(|line| line.strip_suffix(b"\r").unwrap_or(line))
+            .filter(|line| !line.is_empty())
+            .map(<[u8]>::to_vec)
             .collect()),
         Err(e) if e.kind() == ErrorKind::NotFound => Ok(Vec::new()),
         Err(e) => Err(e).at(&path),
     }
+}
+
+pub(super) fn contains(names: &[Vec<u8>], script: &str) -> bool {
+    names.iter().any(|n| n == script.as_bytes())
 }
 
 /// Enables or disables the plugin whose script is `script` (a file name).
@@ -33,19 +39,21 @@ pub fn set_enabled(card: &Card, script: &str, enabled: bool) -> Result<()> {
         )));
     }
     let mut names = read(card)?;
-    let listed = names.iter().any(|n| n == script);
-    if enabled == !listed {
+    if enabled == !contains(&names, script) {
         return Ok(());
     }
     if enabled {
-        names.retain(|n| n != script);
+        names.retain(|n| n != script.as_bytes());
     } else if names.len() >= MAX_NAMES {
         return Err(Error::Rejected("too many disabled plugins".into()));
     } else {
-        names.push(script.to_string());
+        names.push(script.as_bytes().to_vec());
     }
-    let body: String = names.iter().map(|n| format!("{n}\n")).collect();
-    write_atomic(&card.ensure_plugins_dir()?.join(FILE_NAME), body.as_bytes())
+    let body: Vec<u8> = names
+        .iter()
+        .flat_map(|n| [n.as_slice(), b"\n"].concat())
+        .collect();
+    write_atomic(&card.ensure_plugins_dir()?.join(FILE_NAME), &body)
 }
 
 #[cfg(test)]
@@ -69,14 +77,14 @@ mod tests {
         assert_eq!(text, "A.lua\nB.lua\n");
 
         set_enabled(&card, "A.lua", true).unwrap();
-        assert_eq!(read(&card).unwrap(), ["B.lua"]);
+        assert_eq!(read(&card).unwrap(), [b"B.lua".to_vec()]);
     }
 
     #[test]
     fn reads_crlf_and_blank_lines_and_rejects_paths() {
         let (dir, card) = fake_card();
         write_file(dir.path(), ".plugins/.disabled", b"A.lua\r\n\r\nB.lua\n");
-        assert_eq!(read(&card).unwrap(), ["A.lua", "B.lua"]);
+        assert_eq!(read(&card).unwrap(), [b"A.lua".to_vec(), b"B.lua".to_vec()]);
         assert!(set_enabled(&card, ".plugins/A.lua", false).is_err());
     }
 
@@ -87,5 +95,15 @@ mod tests {
             set_enabled(&card, &format!("p{i}.lua"), false).unwrap();
         }
         assert!(set_enabled(&card, "extra.lua", false).is_err());
+    }
+
+    #[test]
+    fn keeps_lines_that_are_not_utf8_when_rewriting() {
+        let (dir, card) = fake_card();
+        write_file(dir.path(), ".plugins/.disabled", b"caf\xe9.lua\nA.lua\n");
+        assert!(contains(&read(&card).unwrap(), "A.lua"));
+        set_enabled(&card, "B.lua", false).unwrap();
+        let bytes = fs::read(dir.path().join(".plugins/.disabled")).unwrap();
+        assert_eq!(bytes, b"caf\xe9.lua\nA.lua\nB.lua\n");
     }
 }

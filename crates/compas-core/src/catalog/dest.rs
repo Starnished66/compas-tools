@@ -9,13 +9,18 @@ pub fn is_valid(dest: &str) -> bool {
         && dest
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b" ._-/".contains(&b))
-        && dest
-            .split('/')
-            .all(|s| !s.is_empty() && s != "." && s != "..")
+        && dest.split('/').all(is_plain_segment)
         && lower != ".compas"
         && !lower.starts_with(".compas/")
         && !lower.starts_with(".plugins/.")
         && !lower.ends_with(".upt")
+}
+
+/// Not empty, `.` or `..`, and not ending in a dot or space: vfat and Windows
+/// drop those, so `.compas./x` would reach the player's `.compas/x`. This is
+/// deliberately stricter than the player.
+fn is_plain_segment(segment: &str) -> bool {
+    !matches!(segment, "" | "." | "..") && !segment.ends_with(['.', ' '])
 }
 
 /// `script_dest`: a `.lua` file directly inside `.plugins/`.
@@ -62,6 +67,12 @@ mod tests {
             "r1.UPT",
             "a\\b",
             "é.lua",
+            ".compas./compas_player",
+            ".plugins./.store_installed",
+            ".plugins./.disabled",
+            "r1.upt.",
+            "r1.upt ",
+            "dir /f.lua",
             &"a".repeat(256),
         ] {
             assert!(!is_valid(bad), "{bad}");

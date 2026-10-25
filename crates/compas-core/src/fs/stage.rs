@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::{IoContext, Result};
+use crate::fs::ensure_real_dir;
 
 static COUNTER: AtomicU32 = AtomicU32::new(0);
 
@@ -22,7 +23,9 @@ impl StageDir {
             .map_or(0, |d| d.as_secs());
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
         let path = parent.join(format!("{label}.{secs}.{n}"));
-        fs::create_dir_all(&path).at(&path)?;
+        for dir in [parent, path.as_path()] {
+            ensure_real_dir(dir).at(dir)?;
+        }
         Ok(Self { path, keep: false })
     }
 
@@ -67,5 +70,16 @@ mod tests {
         let path = stage.path().to_path_buf();
         stage.keep();
         assert!(path.is_dir());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn refuses_a_symlinked_store_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        let elsewhere = tempfile::tempdir().unwrap();
+        let parent = dir.path().join("store");
+        std::os::unix::fs::symlink(elsewhere.path(), &parent).unwrap();
+        assert!(StageDir::create(&parent, "x").is_err());
+        assert_eq!(fs::read_dir(elsewhere.path()).unwrap().count(), 0);
     }
 }

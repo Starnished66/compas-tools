@@ -62,7 +62,7 @@ async fn apply(
             "this plugin needs a newer player version".into(),
         ));
     }
-    let record = Record::read(card);
+    let record = Record::read(card)?;
     let installed = record.get(id);
     match (mode, installed) {
         (Mode::Install, Some(_)) if !force => {
@@ -161,7 +161,7 @@ mod tests {
         assert_eq!(outcome, Outcome::Done);
         assert_eq!(read(&dir, ".plugins/P.lua"), "lua");
         assert_eq!(read(&dir, "Data/p/d.txt"), "data");
-        let record = Record::read(&card);
+        let record = Record::read(&card).unwrap();
         assert_eq!(record.get("p").unwrap().files.len(), 2);
         assert!(!dir.path().join(".compas/store").exists(), "stage removed");
         let seen = seen.lock().unwrap();
@@ -183,7 +183,7 @@ mod tests {
             Outcome::NeedsConfirmation
         );
         assert_eq!(read(&dir, ".plugins/P.lua"), "mine");
-        assert!(Record::read(&card).plugins.is_empty());
+        assert!(Record::read(&card).unwrap().plugins.is_empty());
 
         assert_eq!(
             install(&card, &catalog, "p", true, NOOP).await.unwrap(),
@@ -259,7 +259,10 @@ mod tests {
         assert!(!dir.path().join("Data/old.txt").exists());
         assert_eq!(read(&dir, "Data/edited.txt"), "user edit");
         assert_eq!(read(&dir, "Data/kept.txt"), "user kept");
-        assert_eq!(Record::read(&card).get("p").unwrap().version, "1.1");
+        assert_eq!(
+            Record::read(&card).unwrap().get("p").unwrap().version,
+            "1.1"
+        );
     }
 
     #[tokio::test]
@@ -283,7 +286,7 @@ mod tests {
         assert!(matches!(err, Error::Verification(_)));
         assert!(!dir.path().join(".plugins/P.lua").exists());
         assert!(!dir.path().join(".compas/store").exists());
-        assert!(Record::read(&card).plugins.is_empty());
+        assert!(Record::read(&card).unwrap().plugins.is_empty());
     }
 
     #[tokio::test]

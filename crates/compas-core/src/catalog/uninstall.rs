@@ -11,7 +11,7 @@ use crate::progress::{OnProgress, Phase, Progress};
 /// into a staging folder, the record is rewritten without it, and only then
 /// are the files discarded. A failure puts everything back.
 pub fn uninstall(card: &Card, id: &str, on_progress: OnProgress<'_>) -> Result<()> {
-    let record = Record::read(card);
+    let record = Record::read(card)?;
     let plugin = record
         .get(id)
         .ok_or_else(|| Error::NotFound(format!("{id} is not installed by the store")))?;
@@ -87,7 +87,7 @@ mod tests {
         assert!(!dir.path().join(".plugins/P.lua").exists());
         assert!(!dir.path().join("Data/p.txt").exists());
         assert!(dir.path().join("Data/user.txt").exists());
-        assert!(Record::read(&card).plugins.is_empty());
+        assert!(Record::read(&card).unwrap().plugins.is_empty());
         assert!(!dir.path().join(".compas/store").exists());
     }
 
@@ -127,6 +127,6 @@ mod tests {
         }
         assert!(dir.path().join("Data/p.txt").exists());
         assert!(plugins.join("P.lua").exists());
-        assert!(Record::read(&card).get("p").is_some());
+        assert!(Record::read(&card).unwrap().get("p").is_some());
     }
 }

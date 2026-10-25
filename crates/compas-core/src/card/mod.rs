@@ -2,6 +2,7 @@
 
 mod device;
 mod discover;
+mod leftovers;
 mod paths;
 
 use std::path::{Path, PathBuf};
@@ -9,7 +10,7 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use crate::error::{Error, IoContext, Result};
-use crate::fs::volume_for;
+use crate::fs::{ensure_real_dir, volume_for};
 
 pub use device::{Device, Model};
 pub use discover::discover;
@@ -93,7 +94,7 @@ impl Card {
     /// Creates `.plugins/` if needed, refusing a symlink in its place.
     pub fn ensure_plugins_dir(&self) -> Result<PathBuf> {
         let dir = self.plugins_dir();
-        paths::ensure_real_dir(&dir).at(&dir)?;
+        ensure_real_dir(&dir).at(&dir)?;
         Ok(dir)
     }
 }

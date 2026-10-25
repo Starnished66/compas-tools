@@ -11,7 +11,7 @@ use std::fs;
 use super::index::{Plugin, MAX_FILES};
 use super::{dest, validate};
 use crate::card::Card;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::fs::write_atomic;
 use crate::version;
 
@@ -35,6 +35,13 @@ pub struct RecordedPlugin {
     pub files: Vec<RecordedFile>,
 }
 
+impl RecordedPlugin {
+    /// File name of the installed script, the key the player uses in `.disabled`.
+    pub fn script(&self) -> Option<&str> {
+        self.files.iter().find_map(|f| dest::script_name(&f.dest))
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Record {
     pub plugins: Vec<RecordedPlugin>,
@@ -42,17 +49,24 @@ pub struct Record {
 
 impl Record {
     /// An absent, unsafe or malformed record reads as empty, like the player.
-    pub fn read(card: &Card) -> Self {
+    /// A record with more entries than we can manage is an error instead, so
+    /// nothing rewrites (and loses) it.
+    pub fn read(card: &Card) -> Result<Self> {
         let path = card.plugins_dir().join(FILE_NAME);
         let is_regular = |p: &std::path::Path| fs::symlink_metadata(p).is_ok_and(|m| m.is_file());
         if !fs::symlink_metadata(card.plugins_dir()).is_ok_and(|m| m.is_dir()) || !is_regular(&path)
         {
-            return Self::default();
+            return Ok(Self::default());
         }
-        fs::read_to_string(&path)
-            .ok()
-            .and_then(|text| Self::parse(&text))
-            .unwrap_or_default()
+        let Ok(text) = fs::read_to_string(&path) else {
+            return Ok(Self::default());
+        };
+        if text.lines().filter(|l| l.starts_with("P ")).count() > MAX_RECORDED {
+            return Err(Error::Rejected(format!(
+                "the installed-plugins record lists more than {MAX_RECORDED} plugins"
+            )));
+        }
+        Ok(Self::parse(&text).unwrap_or_default())
     }
 
     pub fn write(&self, card: &Card) -> Result<()> {
@@ -180,9 +194,9 @@ impl Record {
         let [dest, sha, keep] = fields.split('\t').collect::<Vec<_>>()[..] else {
             return None;
         };
-        let keep = match keep {
-            "0" => false,
-            "1" => true,
+        let keep = match parse_keep(keep)? {
+            0 => false,
+            1 => true,
             _ => return None,
         };
         let plugin = self.plugins.last_mut()?;
@@ -198,6 +212,11 @@ impl Record {
             });
         })
     }
+}
+
+/// What the player's `strtol` accepts: optional whitespace and sign, leading zeros.
+fn parse_keep(field: &str) -> Option<i64> {
+    field.trim_start().parse().ok()
 }
 
 #[cfg(test)]
@@ -223,7 +242,7 @@ mod tests {
     fn round_trips_through_the_card() {
         let (dir, card) = fake_card();
         write_file(dir.path(), ".plugins/.store_installed", sample().as_bytes());
-        let record = Record::read(&card);
+        let record = Record::read(&card).unwrap();
         assert_eq!(record.plugins.len(), 2);
         assert!(record.plugins[0].files[1].keep);
         record.write(&card).unwrap();
@@ -250,8 +269,37 @@ mod tests {
         ];
         for text in bad {
             write_file(dir.path(), ".plugins/.store_installed", text.as_bytes());
-            assert!(Record::read(&card).plugins.is_empty(), "{text:?}");
+            assert!(Record::read(&card).unwrap().plugins.is_empty(), "{text:?}");
         }
+    }
+
+    #[test]
+    fn keep_flag_is_read_like_strtol() {
+        for (field, expected) in [
+            ("1", true),
+            ("+1", true),
+            ("01", true),
+            ("0", false),
+            ("-0", false),
+        ] {
+            let text = format!("P a 1\nF\t.plugins/A.lua\t{}\t{field}\n", sha('a'));
+            let record = Record::parse(&text).unwrap();
+            assert_eq!(record.plugins[0].files[0].keep, expected, "{field}");
+        }
+        for field in ["2", "-1", "", "x", "1x"] {
+            let text = format!("P a 1\nF\t.plugins/A.lua\t{}\t{field}\n", sha('a'));
+            assert!(Record::parse(&text).is_none(), "{field}");
+        }
+    }
+
+    #[test]
+    fn an_oversized_record_is_an_error_not_an_empty_record() {
+        let (dir, card) = fake_card();
+        let text: String = (0..=MAX_RECORDED)
+            .map(|i| format!("P p{i} 1\nF\t.plugins/P{i}.lua\t{}\t0\n", sha('a')))
+            .collect();
+        write_file(dir.path(), ".plugins/.store_installed", text.as_bytes());
+        assert!(matches!(Record::read(&card), Err(Error::Rejected(_))));
     }
 
     #[test]
@@ -265,13 +313,13 @@ mod tests {
         let (dir, card) = fake_card();
         write_file(dir.path(), ".plugins/.store_installed", sample().as_bytes());
         let mut plugin = spec("new", "1.0", &[(".plugins/B.lua", "x", false)]).plugin;
-        let next = Record::read(&card).with_installed(&plugin);
+        let next = Record::read(&card).unwrap().with_installed(&plugin);
         let ids: Vec<_> = next.plugins.iter().map(|p| p.id.as_str()).collect();
         assert_eq!(ids, ["a.one", "new"], "b lost its only file");
 
         plugin.id = "a.one".into();
         plugin.version = "2.0".into();
-        let next = Record::read(&card).with_installed(&plugin);
+        let next = Record::read(&card).unwrap().with_installed(&plugin);
         assert_eq!(next.get("a.one").unwrap().version, "2.0");
         assert_eq!(next.plugins.last().unwrap().id, "a.one");
         assert!(next.tracks("a.one", ".PLUGINS/b.lua", &plugin.files[0].sha256));

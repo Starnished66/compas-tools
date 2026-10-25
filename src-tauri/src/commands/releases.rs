@@ -26,9 +26,18 @@ pub struct PlacedFile {
 
 /// Fetches the latest release and compares it with the selected card.
 #[tauri::command]
-pub async fn releases_latest(state: State<'_, AppState>) -> CommandResult<LatestRelease> {
-    let release = Arc::new(releases::fetch_latest().await?);
-    state.set_release(release.clone());
+pub async fn releases_latest(
+    state: State<'_, AppState>,
+    refresh: bool,
+) -> CommandResult<LatestRelease> {
+    let release = match state.recent_release() {
+        Some(release) if !refresh => release,
+        _ => {
+            let release = Arc::new(releases::fetch_latest().await?);
+            state.set_release(release.clone());
+            release
+        }
+    };
     let device = state
         .selected_card()
         .map(|card| card.device())

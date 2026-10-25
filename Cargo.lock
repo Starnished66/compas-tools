@@ -503,6 +503,7 @@ dependencies = [
 name = "compas-core"
 version = "0.1.0"
 dependencies = [
+ "dunce",
  "reqwest 0.12.28",
  "serde",
  "serde_json",

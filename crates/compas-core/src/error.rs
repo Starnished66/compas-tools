@@ -17,6 +17,8 @@ pub enum Error {
     Network(#[from] reqwest::Error),
     #[error("{url} answered with status {status}")]
     HttpStatus { status: u16, url: String },
+    #[error("GitHub is limiting requests; try again in about {} minutes", retry_in_secs.div_ceil(60).max(1))]
+    RateLimited { retry_in_secs: u64 },
     #[error("download failed verification: {0}")]
     Verification(String),
     #[error("invalid plugin list: {0}")]
@@ -39,6 +41,7 @@ impl Error {
         match self {
             Error::IoAt { .. } | Error::Io(_) => "io",
             Error::Network(_) | Error::HttpStatus { .. } => "network",
+            Error::RateLimited { .. } => "rate_limited",
             Error::Verification(_) => "verification",
             Error::InvalidIndex(_) => "invalid_index",
             Error::InvalidRelease(_) => "invalid_release",

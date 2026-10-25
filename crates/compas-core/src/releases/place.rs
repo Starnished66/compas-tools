@@ -36,7 +36,8 @@ pub async fn place(
 }
 
 /// `.upt` files in the card root other than the one intended (if any). The
-/// player offers whichever image it finds, so strays risk a wrong update.
+/// player only reads its own `<board>.upt`, so strays do no harm to it, but
+/// they are leftovers worth deleting and may belong to another model.
 pub fn other_upts(card: &Card, intended: Option<(Kind, Model)>) -> Result<Vec<String>> {
     let keep = match intended {
         Some((Kind::FullImage, model)) => Some(format!("{}.upt", model.board())),

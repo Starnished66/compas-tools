@@ -29,7 +29,11 @@ URL: `https://github.com/Starnished66/compas-plugins/releases/latest/download/in
                  "sha256": "<64 hex>", "size": 1234, "keep": false } ] } ] }
 ```
 
-The whole index is rejected on the first violation of any rule:
+The whole index is rejected on the first violation of any rule. Integers may be
+written as integral floats (`15.0`, as `store_json_uint` accepts). Repeated keys
+in one object do not fail the index; cJSON uses the first, the desktop app the
+last.
+
 
 | Field                               | Rule                                                                                          |
 | ----------------------------------- | --------------------------------------------------------------------------------------------- |
@@ -63,6 +67,9 @@ a folder containing the other).
 - Not `.compas` or below it.
 - Nothing starting with `.plugins/.` (player-owned dot files).
 - Not ending in `.upt`.
+- No segment ending in `.` or a space. vfat and Windows strip those, so
+  `.compas./compas_player` or `r1.upt.` would reach player-owned paths. This is
+  deliberately stricter than `plugin_store_dest_valid`; the player is being fixed too.
 
 ### Preview (`parse_plugin_preview`, `parse_preview_metadata`)
 
@@ -111,12 +118,13 @@ treats the whole file as empty (zero installed plugins) if any rule is broken:
 - lines under 512 chars, each ends with `\n`;
 - `P` line: exactly two fields, valid id, valid version, no duplicate id, a
   previous `P` must already have an `F`;
-- `F` line before any `P`, bad dest, bad sha, keep not 0 or 1, more than 32
+- `F` line before any `P`, bad dest, bad sha, keep not 0 or 1 (read with `strtol`: `+1` and `01` are accepted), more than 32
   files per plugin, or a destination repeated anywhere in the file (case-insensitive);
 - file ends with a `P` without `F`.
 
 Limits: at most 400 plugins (`STORE_MAX_RECORD`); a file with more `P` lines is
-unreadable. New installs of a plugin not yet recorded stop at 400.
+unreadable. The desktop app reports that as an error and writes nothing, rather
+than treating it as empty. New installs of a plugin not yet recorded stop at 400.
 
 ### Writing (`record_write_path`)
 
@@ -228,12 +236,13 @@ directories are not removed. The SHA-256 of files is not checked.
 
 `.plugins/.disabled`: UTF-8 text, one `.lua` file name (not path, no `.plugins/`
 prefix) per line, `\n` terminated; empty lines are ignored and `\r\n` accepted.
-At most 64 names; names are case-sensitive and compared with `strcmp`. Lines
+At most 64 names; names are case-sensitive and compared as raw bytes with `strcmp`, so non-UTF-8
+names are legal and the desktop app keeps every line verbatim when rewriting. Lines
 are read up to 255 bytes.
 
 Write (`write_disabled_list`): write the full list to `.plugins/.disabled.tmp`,
 `fflush`, `fsync`, close, `rename` over `.disabled`, then best-effort `fsync` of
 `.plugins/`. On failure the old file is untouched. Disabling an already
 disabled name or enabling an enabled one is a no-op success; disabling beyond 64
-names fails. The name for a store plugin is the file name of its script
-destination (`classify_loaders` maps record entries to loader files the same way).
+names fails. The key of a store plugin is the file name of its script as recorded on the card
+(the installed record, not the newer catalog version, which may rename it) (`classify_loaders` maps record entries to loader files the same way).

@@ -3,7 +3,7 @@ use serde::Serialize;
 use super::classify::classify;
 use super::record::{Record, RecordedPlugin};
 use super::state::{self, PluginState};
-use super::{dest, disabled, Catalog};
+use super::{disabled, Catalog};
 use crate::card::Card;
 use crate::error::Result;
 
@@ -32,20 +32,25 @@ pub struct Entry {
 }
 
 pub fn list(catalog: &Catalog, card: &Card, plugin_api: Option<u32>) -> Result<Vec<Entry>> {
-    let record = Record::read(card);
-    let disabled = disabled::read(card)?;
+    let record = Record::read(card)?;
+    let disabled_names = disabled::read(card)?;
     let is_enabled = |script: &Option<String>| {
         script
             .as_ref()
-            .is_none_or(|s| !disabled.iter().any(|d| d == s))
+            .is_none_or(|s| !disabled::contains(&disabled_names, s))
     };
 
     let mut entries: Vec<Entry> = catalog
         .plugins
         .iter()
         .map(|p| {
-            let installed = record.get(&p.id).map(|r| r.version.as_str());
-            let script = p.script().map(str::to_string);
+            let recorded = record.get(&p.id);
+            let installed = recorded.map(|r| r.version.as_str());
+            // What is on the card is what the player sees; a renamed script
+            // in a newer catalog version must not change the key.
+            let script = recorded
+                .map_or_else(|| p.script(), RecordedPlugin::script)
+                .map(str::to_string);
             let class = classify(p.dests());
             Entry {
                 id: p.id.clone(),
@@ -80,11 +85,7 @@ pub fn list(catalog: &Catalog, card: &Card, plugin_api: Option<u32>) -> Result<V
 
 fn removed_entry(r: &RecordedPlugin, is_enabled: impl Fn(&Option<String>) -> bool) -> Entry {
     let class = classify(r.files.iter().map(|f| f.dest.as_str()));
-    let script = r
-        .files
-        .iter()
-        .find_map(|f| dest::script_name(&f.dest))
-        .map(str::to_string);
+    let script = r.script().map(str::to_string);
     Entry {
         id: r.id.clone(),
         name: r.id.clone(),
@@ -149,5 +150,28 @@ mod tests {
         assert_eq!(by_id("gone").state, PluginState::Removed);
         assert!(!by_id("gone").enabled);
         assert!(by_id("lay").enabled);
+    }
+
+    #[tokio::test]
+    async fn a_renamed_script_keeps_the_installed_name_as_disabled_key() {
+        use super::super::install::{install, update};
+
+        let (_dir, card) = fake_card();
+        let (_s1, c1) = publish(&[spec("p", "1.0", &[(".plugins/OldName.lua", "a", false)])]).await;
+        install(&card, &c1, "p", false, &|_| {}).await.unwrap();
+        crate::catalog::set_enabled(&card, "OldName.lua", false).unwrap();
+
+        let (_s2, c2) = publish(&[spec("p", "1.1", &[(".plugins/NewName.lua", "b", false)])]).await;
+        let rows = list(&c2, &card, None).unwrap();
+        assert_eq!(rows[0].script.as_deref(), Some("OldName.lua"));
+        assert!(!rows[0].enabled);
+
+        update(&card, &c2, "p", false, &|_| {}).await.unwrap();
+        let rows = list(&c2, &card, None).unwrap();
+        assert_eq!(rows[0].script.as_deref(), Some("NewName.lua"));
+        assert!(
+            rows[0].enabled,
+            "the new file name is not in the disabled list"
+        );
     }
 }
