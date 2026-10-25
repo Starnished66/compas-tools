@@ -12,33 +12,39 @@ body,
 }
 
 body {
-  background: var(--bg);
+  background: var(--window);
   color: var(--text);
-  font: 14px/1.45 var(--font);
+  font: 10pt/1.4 var(--font);
 }
 
+/* Kirigami.Heading sizes: level 1 is 1.35 and level 2 is 1.2 times the body text. */
 h1,
 h2,
 h3 {
   margin: 0;
+  font-weight: 500;
   line-height: 1.2;
 }
 
 h1 {
-  font-size: 22px;
+  font-size: 1.35em;
 }
 
 h2 {
-  font-size: 16px;
+  font-size: 1.2em;
 }
 
 p {
   margin: 0;
 }
 
+a {
+  color: var(--link);
+}
+
 :focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
+  outline: 2px solid var(--highlight);
+  outline-offset: 1px;
 }
 
 .muted {
@@ -54,9 +60,55 @@ p {
   white-space: nowrap;
 }
 
+.icon {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* Breeze check box: the view colour with a frame, the highlight colour when checked. */
+input[type='checkbox'] {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1px solid var(--frame);
+  border-radius: 3px;
+  background: var(--view);
+  cursor: pointer;
+}
+
+input[type='checkbox']:hover:not(:disabled) {
+  border-color: var(--highlight);
+}
+
+input[type='checkbox']:checked {
+  border-color: var(--highlight);
+  background: var(--highlight);
+}
+
+input[type='checkbox']:checked::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 6px;
+  width: 4px;
+  height: 9px;
+  border: solid var(--on-highlight);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+input[type='checkbox']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

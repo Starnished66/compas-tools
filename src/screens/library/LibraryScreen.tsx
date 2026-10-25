@@ -55,9 +55,10 @@ export function LibraryScreen({ onChooseCard }: Props) {
         )}
       </p>
       <div className="panel stack">
-        <LibraryStatus version={version} />
+        <LibraryStatus version={version} heading={false} />
         <div className="row">
           <Button
+            icon="refresh"
             variant="primary"
             disabled={operation.busy}
             onClick={() =>
@@ -67,6 +68,7 @@ export function LibraryScreen({ onChooseCard }: Props) {
             {t('Update library')}
           </Button>
           <Button
+            icon="tags"
             disabled={operation.busy}
             onClick={() =>
               void run(async (p) => ({ type: 'scan', done: await scanLibrary(true, p) }))
@@ -75,6 +77,7 @@ export function LibraryScreen({ onChooseCard }: Props) {
             {t('Re-read all tags')}
           </Button>
           <Button
+            icon="albumArt"
             disabled={operation.busy}
             onClick={() => void run(async (p) => ({ type: 'art', done: await buildArt(p) }))}
           >

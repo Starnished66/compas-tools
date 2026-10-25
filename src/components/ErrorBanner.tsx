@@ -1,5 +1,6 @@
 import { t } from '../i18n';
 import { Button } from './Button';
+import { Icon } from './Icon';
 
 interface Props {
   message: string;
@@ -9,8 +10,13 @@ interface Props {
 export function ErrorBanner({ message, onDismiss }: Props) {
   return (
     <div className="notice notice--danger" role="alert">
-      <span>{message}</span>
-      {onDismiss && <Button onClick={onDismiss}>{t('Dismiss')}</Button>}
+      <Icon name="error" />
+      <span className="notice__body">{message}</span>
+      {onDismiss && (
+        <Button icon="close" onClick={onDismiss}>
+          {t('Dismiss')}
+        </Button>
+      )}
     </div>
   );
 }

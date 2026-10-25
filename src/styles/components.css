@@ -1,15 +1,20 @@
+/* Breeze buttons: the button colour, a frame mixed from the text colour, a blue frame on hover. */
 .button {
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--frame);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--button);
   color: var(--text);
   font: inherit;
   cursor: pointer;
 }
 
 .button:hover:not(:disabled) {
-  background: var(--surface-sunken);
+  border-color: var(--highlight);
 }
 
 .button:disabled {
@@ -18,30 +23,31 @@
 }
 
 .button--primary {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--on-accent);
+  border-color: var(--highlight);
+  background: var(--highlight);
+  color: var(--on-highlight);
 }
 
 .button--primary:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: color-mix(in srgb, var(--highlight) 85%, var(--text));
 }
 
 .button--danger {
-  border-color: var(--danger);
-  color: var(--danger);
+  border-color: var(--negative);
+  color: var(--negative);
 }
 
 .progress {
-  height: 8px;
+  height: 6px;
   overflow: hidden;
-  border-radius: 4px;
-  background: var(--surface-sunken);
+  border-radius: 3px;
+  background: var(--window-alt);
+  border: 1px solid var(--frame);
 }
 
 .progress__bar {
   height: 100%;
-  background: var(--accent);
+  background: var(--highlight);
   transition: width 0.15s linear;
 }
 
@@ -60,58 +66,65 @@
 }
 
 .progress-label {
-  font-size: 12px;
+  margin-top: var(--space-1);
+  font-size: 0.9em;
   color: var(--text-muted);
 }
 
+/* Kirigami.InlineMessage: a tinted box with a frame and icon in the message's colour. */
 .notice {
+  --tone: var(--highlight);
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--tone);
   border-radius: var(--radius);
-  background: var(--surface-sunken);
+  background: color-mix(in srgb, var(--tone) 18%, var(--view));
+  color: var(--text);
+}
+
+.notice__body {
+  flex: 1;
+  min-width: 0;
 }
 
 .notice--danger {
-  background: var(--danger-surface);
-  color: var(--danger);
+  --tone: var(--negative);
 }
 
 .notice--warning {
-  background: var(--warning-surface);
-  color: var(--warning);
+  --tone: var(--neutral);
 }
 
 .notice--success {
-  background: var(--success-surface);
-  color: var(--success);
+  --tone: var(--positive);
 }
 
 .badge {
   display: inline-block;
-  padding: 1px var(--space-2);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--frame);
   border-radius: 999px;
-  background: var(--surface-sunken);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 0.9em;
   white-space: nowrap;
 }
 
 .badge--accent {
-  background: var(--accent);
-  color: var(--on-accent);
+  border-color: var(--highlight);
+  background: var(--highlight);
+  color: var(--on-highlight);
 }
 
 .badge--success {
-  background: var(--success-surface);
-  color: var(--success);
+  border-color: var(--positive);
+  color: var(--positive);
 }
 
 .badge--warning {
-  background: var(--warning-surface);
-  color: var(--warning);
+  border-color: var(--neutral);
+  color: var(--neutral);
 }
 
 .switch {
@@ -135,41 +148,45 @@
   position: relative;
   width: 36px;
   height: 20px;
+  border: 1px solid var(--frame);
   border-radius: 10px;
-  background: var(--border);
+  background: var(--window-alt);
 }
 
 .switch__track::after {
   content: '';
   position: absolute;
-  top: 2px;
-  left: 2px;
+  top: 1px;
+  left: 1px;
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--surface);
+  background: var(--text-muted);
   transition: left 0.12s;
 }
 
 .switch[aria-checked='true'] .switch__track {
-  background: var(--accent);
+  border-color: var(--highlight);
+  background: var(--highlight);
 }
 
 .switch[aria-checked='true'] .switch__track::after {
-  left: 18px;
+  left: 17px;
+  background: var(--on-highlight);
 }
 
 .dialog {
   max-width: 420px;
-  padding: var(--space-5);
-  border: 1px solid var(--border);
+  padding: var(--space-4);
+  border: 1px solid var(--frame);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--window);
   color: var(--text);
+  box-shadow: var(--shadow);
 }
 
 .dialog::backdrop {
-  background: rgb(0 0 0 / 0.45);
+  background: rgb(0 0 0 / 0.4);
 }
 
 .dialog__actions {
@@ -185,15 +202,42 @@
   align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-5);
-  border: 1px dashed var(--border);
+  border: 1px dashed var(--frame);
   border-radius: var(--radius);
 }
 
 .field {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
+  min-height: var(--control-height);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--frame);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--view);
   color: var(--text);
   font: inherit;
+}
+
+.field:hover:not(:disabled),
+.field:focus {
+  border-color: var(--highlight);
+}
+
+.search {
+  position: relative;
+  display: flex;
+}
+
+.search .field {
+  width: 100%;
+  padding-left: 30px;
+}
+
+.search .icon {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  pointer-events: none;
+}
+
+.dialog h2 {
+  margin-bottom: var(--space-2);
 }

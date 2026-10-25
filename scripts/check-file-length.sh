@@ -13,7 +13,7 @@ while IFS= read -r file; do
     status=1
   fi
 done < <(git ls-files --cached --others --exclude-standard \
-  | grep -Ev '(^|/)(package-lock\.json|Cargo\.lock|LICENSE)$|\.(png|ico|icns)$' \
+  | grep -Ev '(^|/)(package-lock\.json|Cargo\.lock|LICENSE)$|\.(png|ico|icns|ttf)$' \
   | while IFS= read -r f; do [ -f "$f" ] && echo "$f"; done)
 
 exit "$status"

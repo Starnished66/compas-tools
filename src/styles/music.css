@@ -3,14 +3,14 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-5);
-  border: 2px dashed var(--border);
+  border: 2px dashed var(--frame);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--view);
 }
 
 .dropzone--hover {
-  border-color: var(--accent);
-  background: var(--surface-sunken);
+  border-color: var(--highlight);
+  background: var(--window-alt);
 }
 
 .source-list {

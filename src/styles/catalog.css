@@ -35,14 +35,14 @@
   gap: var(--space-2);
   height: 100%;
   padding: var(--space-3);
-  border: 1px solid var(--border);
+  border: 1px solid var(--frame);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--view);
 }
 
 .plugin-card--selected {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  border-color: var(--highlight);
+  box-shadow: 0 0 0 1px var(--highlight);
 }
 
 .plugin-card__open {
@@ -82,7 +82,7 @@
   aspect-ratio: 3 / 4;
   overflow: hidden;
   border-radius: var(--radius);
-  background: var(--surface-sunken);
+  background: var(--window-alt);
   color: var(--text-muted);
   font-size: 12px;
 }

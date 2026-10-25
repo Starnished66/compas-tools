@@ -26,7 +26,7 @@ export function DeviceList({ devices, selected, scanning, onSelect, onScan }: Pr
     <section className="stack" aria-label={t('Connected players')}>
       <div className="row">
         <h2>{t('Connected players')}</h2>
-        <Button disabled={scanning} onClick={onScan}>
+        <Button icon="refresh" disabled={scanning} onClick={onScan}>
           {t('Scan again')}
         </Button>
       </div>

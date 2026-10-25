@@ -10,10 +10,12 @@ import { useCard } from '../../state/CardContext';
 interface Props {
   /** Change it to read the status again, e.g. after a scan. */
   version?: number;
+  /** Show the "Library" heading; the Library screen has its own. */
+  heading?: boolean;
 }
 
 /** What `compas-sdtool info` says about the library on the selected card. */
-export function LibraryStatus({ version = 0 }: Props) {
+export function LibraryStatus({ version = 0, heading = true }: Props) {
   const { card } = useCard();
   const root = card?.root ?? null;
   const [status, setStatus] = useState<Status | null>(null);
@@ -39,7 +41,7 @@ export function LibraryStatus({ version = 0 }: Props) {
 
   return (
     <section className="stack" aria-label={t('Library')}>
-      <h2>{t('Library')}</h2>
+      {heading && <h2>{t('Library')}</h2>}
       {status && (
         <p>
           {status.generation === 0

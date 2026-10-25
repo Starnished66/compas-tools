@@ -78,7 +78,7 @@ export function UpdatesScreen({ onChooseCard }: Props) {
     <section className="screen">
       <div className="screen__header">
         <h1>{t('Updates')}</h1>
-        <Button onClick={() => void check(true)} disabled={operation.busy}>
+        <Button icon="refresh" onClick={() => void check(true)} disabled={operation.busy}>
           {t('Check again')}
         </Button>
       </div>
