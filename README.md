@@ -42,7 +42,7 @@ SDTOOL_SRC=/path/to/worktree scripts/build-sdtool.sh
 ```
 
 The sources default to `~/.cache/compas-tools/player-sdtool` (compas-player, branch
-`feature/compas-sdtool`; the CLI is described in its `docs/SDTOOL.md`). On macOS the script
+`feature/compas-sdtool`; the CLI is described in compas-page's [`docs/SDTOOL.md`](https://github.com/Starnished66/compas-page/blob/main/docs/SDTOOL.md)). On macOS the script
 builds natively. Output names follow Tauri's target-triple convention.
 
 ## ADB (Device screen)
