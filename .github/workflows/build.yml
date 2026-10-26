@@ -1,6 +1,7 @@
 # Unsigned builds of Compás Tools: an AppImage, an Apple Silicon macOS .dmg and a Windows
 # installer. Each bundles compas-sdtool, built here from the player's sources at a pinned ref.
-# Written for when the repository has a remote; it has not run yet.
+# A `v*` tag also creates a draft GitHub release holding the installers; nothing is published
+# automatically (docs/RELEASING.md).
 name: Build
 
 on:
@@ -149,3 +150,26 @@ jobs:
           name: compas-tools-${{ matrix.name }}
           path: ${{ matrix.bundles }}
           if-no-files-found: error
+
+  # A draft only: the owner reviews it and publishes it by hand.
+  release:
+    name: Draft release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: app
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: compas-tools-*
+          path: installers
+          merge-multiple: true
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          ls -l installers
+          gh release create "$TAG" installers/* --repo "$GITHUB_REPOSITORY" \
+            --draft --verify-tag --title "Compás Tools $TAG" --generate-notes

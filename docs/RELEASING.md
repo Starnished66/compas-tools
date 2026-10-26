@@ -1,6 +1,7 @@
 # Releasing
 
-Nothing here has been run yet: the repository has no remote, and no signing key exists.
+The repository is private on GitHub and the CI builds run, but no signing key exists yet and the
+releases have not been tried on real hardware.
 
 ## What the CI builds
 
@@ -12,9 +13,23 @@ built from the player's sources (`PLAYER_REPO` at `PLAYER_REF`):
 - Windows: cross-built with MinGW-w64 on a Linux runner (the way the player documents it).
 - macOS: built natively on an arm64 runner (`macos-14`); Intel Macs are not supported.
 
-Before the first run, move `PLAYER_REF` to a tag or commit of compas-player that contains
-`compas-sdtool` (the Makefile clones the vendored libraries itself). Check the workflow with
-`actionlint` after any change.
+`PLAYER_REF` pins the compas-player commit (the Makefile clones the vendored libraries itself).
+Check the workflow with `actionlint` after any change.
+
+**The sdtool and the player must match.** `compas-sdtool` writes one database format
+(`compas-sdtool info` prints it as `database_format`), and the app builds a card's library only when
+the card's `device.json` reports that same format. A player release that predates the format, or
+writes no `device.json` (v1.2.0 and older), is left to build its own library. So a Compás Tools
+release must bundle the sdtool of the player release it targets: before tagging, pin `PLAYER_REF`
+to that player's release tag and check the new build's `info` against that player's
+`database_format`.
+
+## Publishing a release
+
+Push a tag `vX.Y.Z` (after the version numbers below match it). The `release` job in
+`build.yml` runs once all three installers built, and creates a **draft** GitHub release holding
+them with generated notes. It never publishes: open the draft on GitHub, check the files and the
+notes, and press Publish yourself.
 
 Unsigned builds work but warn: macOS Gatekeeper asks the user to open the app from the context
 menu, and Windows SmartScreen shows "unknown publisher". Code signing (an Apple Developer ID with
@@ -41,6 +56,10 @@ shows its panel only in builds that have the feature. To switch it on, the owner
    `tauri-apps/tauri-action` action can build, sign and publish all of this; switch the
    "Build the installer" step to it when the repository exists. The app reads
    `https://github.com/<owner>/compas-tools/releases/latest/download/latest.json`.
+
+A private repository cannot serve `latest.json` or the update bundles to users without a login, so
+the updater only works once the releases are public, or once `endpoints` points at another host
+that serves them openly.
 
 Lose the private key and installed copies can no longer be updated: users would have to install
 a new build by hand, so back it up.
