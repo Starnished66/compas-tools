@@ -183,7 +183,12 @@ impl Planner<'_> {
         let Ok(entries) = fs::read_dir(dir) else {
             return self.issue(dir, IssueKind::Unreadable);
         };
-        let mut entries: Vec<_> = entries.flatten().collect();
+        // An entry that fails to read may be a source file: the listing is then incomplete,
+        // and a mirror must not take its absence for a deletion.
+        let (mut entries, failed) = split_errors(entries);
+        if failed > 0 {
+            self.issue(dir, IssueKind::Unreadable);
+        }
         entries.sort_by_key(fs::DirEntry::file_name);
         for entry in entries {
             let name = entry.file_name().to_string_lossy().into_owned();
@@ -293,6 +298,19 @@ impl Planner<'_> {
     }
 }
 
+/// The entries that read fine, and how many did not. Dropping the failures silently would
+/// make a half-read folder look complete.
+fn split_errors<T>(entries: impl Iterator<Item = std::io::Result<T>>) -> (Vec<T>, usize) {
+    let (mut good, mut failed) = (Vec::new(), 0);
+    for entry in entries {
+        match entry {
+            Ok(entry) => good.push(entry),
+            Err(_) => failed += 1,
+        }
+    }
+    (good, failed)
+}
+
 /// Regular files below `dir`, as `prefix/…` paths. Links are not followed and
 /// hidden entries and firmware images are never listed, so never deleted.
 fn list_files(dir: &Path, prefix: &str, out: &mut Vec<String>) {
@@ -318,6 +336,22 @@ fn list_files(dir: &Path, prefix: &str, out: &mut Vec<String>) {
         }
     }
     out.sort();
+}
+
+#[cfg(test)]
+mod split_tests {
+    use super::split_errors;
+
+    #[test]
+    fn every_failed_entry_is_counted() {
+        let entries: Vec<std::io::Result<u8>> = vec![
+            Ok(1),
+            Err(std::io::Error::other("lost")),
+            Ok(2),
+            Err(std::io::Error::other("lost again")),
+        ];
+        assert_eq!(split_errors(entries.into_iter()), (vec![1, 2], 2));
+    }
 }
 
 #[cfg(test)]
