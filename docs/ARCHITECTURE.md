@@ -34,6 +34,7 @@ crates/compas-core/        Pure Rust library: all behaviour
 src-tauri/                 Tauri app: commands, events, app state
   src/commands/            One file per feature area, thin wrappers
 src/                       React + TypeScript UI (Vite)
+sdtool/                    C source of compas-sdtool; builds against a compas-player checkout
   api/                     Typed wrappers around Tauri commands and events
   i18n/                    translate() shared with compas-app
   screens/                 One folder per screen

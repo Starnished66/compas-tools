@@ -1,4 +1,4 @@
-//! The JSON lines `compas-sdtool` prints (`docs/SDTOOL.md` in compas-page).
+//! The JSON lines `compas-sdtool` prints.
 
 use serde::{Deserialize, Serialize};
 

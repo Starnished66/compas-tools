@@ -7,11 +7,19 @@ releases have not been tried on real hardware.
 
 `.github/workflows/build.yml` makes unsigned installers: an AppImage (Ubuntu 22.04), an Apple Silicon
 `.dmg` (macOS, arm64 only, 11.0 or newer) and an NSIS `.exe` plus `.msi` (Windows). Each one bundles `compas-sdtool`,
-built from the player's sources (`PLAYER_REPO` at `PLAYER_REF`):
+built from `sdtool/` in this repository against the player's sources (`PLAYER_REPO` at
+`PLAYER_REF`). The CI checks out both, then runs `make -C player -f Makefile -f
+"$PWD/sdtool/sdtool.mk" sdtool`: the player's Makefile supplies the vendored libraries and flags,
+`sdtool/sdtool.mk` the tool, and the output goes to `build/`, never into the player. The build id
+that `info` prints names both revisions (`tools-<hash>+player-<hash>`).
 
-- Linux: `make sdtool`.
-- Windows: cross-built with MinGW-w64 on a Linux runner (the way the player documents it).
+- Linux: native, and `make test-sdtool` runs the ported end-to-end tests.
+- Windows: cross-built with MinGW-w64 on a Linux runner (`SDTOOL_TARGET=windows`).
 - macOS: built natively on an arm64 runner (`macos-14`); Intel Macs are not supported.
+
+`scripts/verify-sdtool.sh` then runs `info` on each runnable binary and checks the build id and
+that `database_format` equals the player's `TAGCACHE_DATABASE_FORMAT`. `scripts/build-sdtool.sh`
+does the same flow locally (Linux and Windows in the build container).
 
 `PLAYER_REF` pins the compas-player commit (the Makefile clones the vendored libraries itself).
 Check the workflow with `actionlint` after any change.

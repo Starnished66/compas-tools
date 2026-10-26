@@ -5,7 +5,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'src-tauri', 'crates', 'artifacts'] },
+  { ignores: ['dist', 'node_modules', 'src-tauri', 'crates', 'artifacts', 'build', 'sdtool'] },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   jsxA11y.flatConfigs.recommended,

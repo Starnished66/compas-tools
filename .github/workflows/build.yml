@@ -1,5 +1,5 @@
 # Unsigned builds of Compás Tools: an AppImage, an Apple Silicon macOS .dmg and a Windows
-# installer. Each bundles compas-sdtool, built here from the player's sources at a pinned ref.
+# installer. Each bundles compas-sdtool, built here (sdtool/) against the player's sources at a pinned ref.
 # A `v*` tag also creates a draft GitHub release holding the installers; nothing is published
 # automatically (docs/RELEASING.md).
 name: Build
@@ -13,8 +13,8 @@ on:
 
 env:
   PLAYER_REPO: Starnished66/compas-player
-  # The compas-player commit whose sdtool is bundled. Move it to a release tag once there is one.
-  PLAYER_REF: e8f88f253068185a2a93b1f3a265744e8dc2f4ab
+  # The compas-player commit compas-sdtool is built against. Move it to a release tag once there is one.
+  PLAYER_REF: b20ae6803ebab0e0dd1faea902962c92dcdad203
 
 jobs:
   # compas-sdtool is a C program, so it is built per operating system and passed on as an
@@ -26,19 +26,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: linux, os: ubuntu-22.04, triple: x86_64-unknown-linux-gnu }
+          - { name: linux, os: ubuntu-22.04, triple: x86_64-unknown-linux-gnu, dir: sdtool }
           - {
               name: windows,
               os: ubuntu-22.04,
               triple: x86_64-pc-windows-msvc,
-              make_args: SDTOOL_TARGET=windows,
+              dir: sdtool-windows,
+              exe: .exe,
+              make_args: 'SDTOOL_TARGET=windows SDTOOL_CMAKE_EXTRA=-DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++',
             }
-          - { name: macos-arm64, os: macos-14, triple: aarch64-apple-darwin }
+          - { name: macos-arm64, os: macos-14, triple: aarch64-apple-darwin, dir: sdtool }
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
           repository: ${{ env.PLAYER_REPO }}
           ref: ${{ env.PLAYER_REF }}
+          path: player
       - name: Install build tools (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -51,23 +55,19 @@ jobs:
       - name: Install build tools (macOS)
         if: runner.os == 'macOS'
         run: brew install cmake
+      # The player's Makefile first (vendored libraries and flags), then ours; output goes to build/.
       - name: Build compas-sdtool
         run: |
-          if [ "${{ matrix.name }}" = windows ]; then
-            make sdtool SDTOOL_TARGET=windows SDTOOL_CMAKE_EXTRA=-DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++
-            echo "SDTOOL_FILE=build_sdtool_windows/compas-sdtool.exe" >> "$GITHUB_ENV"
-            echo "SDTOOL_NAME=compas-sdtool-${{ matrix.triple }}.exe" >> "$GITHUB_ENV"
-          else
-            make sdtool
-            echo "SDTOOL_FILE=build_sdtool/compas-sdtool" >> "$GITHUB_ENV"
-            echo "SDTOOL_NAME=compas-sdtool-${{ matrix.triple }}" >> "$GITHUB_ENV"
-          fi
-      - name: Check that it runs and reports its build
+          jobs=$(getconf _NPROCESSORS_ONLN)
+          make -C player -j"$jobs" -f Makefile -f "$PWD/sdtool/sdtool.mk" sdtool ${{ matrix.make_args }}
+          echo "SDTOOL_FILE=build/${{ matrix.dir }}/compas-sdtool${{ matrix.exe }}" >> "$GITHUB_ENV"
+          echo "SDTOOL_NAME=compas-sdtool-${{ matrix.triple }}${{ matrix.exe }}" >> "$GITHUB_ENV"
+      - name: Run the sdtool tests
+        if: runner.os == 'Linux' && matrix.name == 'linux'
+        run: make -C player -f Makefile -f "$PWD/sdtool/sdtool.mk" test-sdtool
+      - name: Check its build id and database format against the player
         if: matrix.name != 'windows'
-        run: |
-          mkdir -p card/.compas
-          ./${{ env.SDTOOL_FILE }} info card | tee info.json
-          grep -q '"build"' info.json
+        run: scripts/verify-sdtool.sh player "${{ env.SDTOOL_FILE }}"
       - run: cp "${{ env.SDTOOL_FILE }}" "${{ env.SDTOOL_NAME }}"
       - uses: actions/upload-artifact@v4
         with:
