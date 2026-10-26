@@ -163,11 +163,18 @@ pub async fn backup_user_data(
         // adb's exit status is not reliable, so the shell says it in-band.
         let path = format!("'{USER_DATA}/{rel}'");
         let command = format!(
-            "[ -r {path} ] && head -c {} {path} || echo {UNREADABLE}",
+            "if [ -r {path} ] && head -c {} {path}; then :; else echo {UNREADABLE}; fi",
             MAX_BYTES + 1
         );
         let bytes = match adb.exec_out(serial, &command).await {
-            Ok(bytes) if bytes.trim_ascii_end() != UNREADABLE.as_bytes() => bytes,
+            // A read that fails half-way prints the marker after the partial content.
+            Ok(bytes)
+                if !bytes
+                    .windows(UNREADABLE.len())
+                    .any(|w| w == UNREADABLE.as_bytes()) =>
+            {
+                bytes
+            }
             _ => {
                 skipped.push(skip(SkipReason::Unreadable));
                 continue;

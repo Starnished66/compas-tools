@@ -7,6 +7,26 @@ use regex::{Captures, Regex};
 
 const MASK: &str = "<redacted>";
 
+/// Words that follow "password" in ordinary sentences and are not the password.
+const STOP_WORDS: [&str; 16] = [
+    "for",
+    "and",
+    "or",
+    "the",
+    "a",
+    "to",
+    "not",
+    "was",
+    "incorrect",
+    "required",
+    "invalid",
+    "expired",
+    "rejected",
+    "accepted",
+    "mismatch",
+    "too",
+];
+
 /// A quoted string, with backslash escapes (`"hun\"ter2"`).
 const DOUBLE: &str = r#""(?:[^"\\\n]|\\.)*""#;
 const SINGLE: &str = r#"'(?:[^'\\\n]|\\.)*'"#;
@@ -17,7 +37,7 @@ fn pattern(text: String) -> Regex {
 
 /// Key names that mark a secret. A word counts only between separators, so `remote_pin`
 /// matches and `mapping` does not.
-const KEY_LOWER: &str = r"(?:[a-z0-9]+[_.-])*(?:pin|passw(?:or)?d|passwd|pass|pwd|passcode|passphrase|passkey|psk|sk|token|secret|api[_-]?key|apikey|authorization|auth|credentials?|session|cookie|email|user[_-]?name|username|login)(?:[_.-][a-z0-9]+)*";
+const KEY_LOWER: &str = r"(?:[a-z0-9]+[_.-])*(?:pin|passw(?:or)?d|passwd|pass|pwd|passcode|passphrase|passkey|psk|sk|token|secret|api[_-]?key|apikey|authorization|auth|credentials?|session|cookie|email|user[_-]?name|username|login|host[_-]?name)(?:[_.-][a-z0-9]+)*";
 /// camelCase keys such as `AccessToken`, `apiKey` or `clientSecret`.
 const KEY_CAMEL: &str = r"[A-Za-z0-9_.]*[a-z0-9](?:Token|Key|Secret|Password|Passwd|Pass|Pwd|Pin|Session)[A-Za-z0-9_.]*";
 
@@ -100,7 +120,7 @@ static LOOSE_TOKEN: LazyLock<Regex> = LazyLock::new(|| {
 /// "remote control code 482913", "PIN is 123456".
 static LOOSE_PIN: LazyLock<Regex> = LazyLock::new(|| {
     pattern(
-        r"(?i)((?:\bremote[ _-]?control\s+(?:pin|code|passcode)|\bpairing\s+(?:pin|code|passkey)|\b(?:pin|passkey|passcode))\b\D{0,20}?)\d{4,8}\b".into(),
+        r"(?i)((?:\bremote[ _-]?control\s+(?:pin|code|passcode)|\bpairing\s+(?:pin|code|passkey)|\b(?:pin|passkey|passcode))\b\D{0,20}?)\d(?:[ -]?\d){3,9}\b".into(),
     )
 });
 
@@ -108,6 +128,40 @@ static LOOSE_PIN: LazyLock<Regex> = LazyLock::new(|| {
 static NMCLI: LazyLock<Regex> = LazyLock::new(|| {
     pattern(format!(
         r#"(?i)(\bnmcli\b[^\n]*?\b(?:connect|up|add)\s+)({DOUBLE}|{SINGLE}|[^\s"']+)"#
+    ))
+});
+
+/// `<password>x</password>`, `<token>x</token>`, `<key name="psk">x</key>`.
+static XML_SECRET: LazyLock<Regex> = LazyLock::new(|| {
+    pattern(format!(
+        r#"(?i)(<(?:{KEY_LOWER}|key\s+name\s*=\s*["']{KEY_LOWER}["'])(?:\s[^>]*)?>)[^<]+(</)"#
+    ))
+});
+
+/// A bare `Basic <base64>` credential, with or without its header name.
+static BASIC_CREDENTIAL: LazyLock<Regex> =
+    LazyLock::new(|| pattern(r"\b(Basic\s+)[A-Za-z0-9+/]{12,}={0,2}".into()));
+
+/// `curl -u user:pass` and `curl --user user:pass`.
+static CURL_USER: LazyLock<Regex> = LazyLock::new(|| {
+    pattern(format!(
+        r#"(\bcurl\b[^\n]*?\s(?:-u|--user)(?:\s+|=))({DOUBLE}|{SINGLE}|\S+)"#
+    ))
+});
+
+/// `--password x` and `password x`: the value follows after a space, and may be
+/// introduced by "is". Plain prose such as "password is wrong" is masked too; masking too
+/// much is safer than too little.
+static SPACED_PASSWORD: LazyLock<Regex> = LazyLock::new(|| {
+    pattern(format!(
+        r#"(?i)\b(passw(?:or)?d|passwd|pwd|passphrase)(\s+(?:is\s+)?)({DOUBLE}|{SINGLE}|[^\s"']+)"#
+    ))
+});
+
+/// `wpa_passphrase <ssid> <passphrase>`: both words are private.
+static WPA_PASSPHRASE_COMMAND: LazyLock<Regex> = LazyLock::new(|| {
+    pattern(format!(
+        r#"(?i)(\bwpa_passphrase\s+)({DOUBLE}|{SINGLE}|\S+)(\s+)({DOUBLE}|{SINGLE}|\S+)"#
     ))
 });
 
@@ -174,6 +228,29 @@ pub fn redact(input: &str) -> Redacted {
     apply(&URL_QUERY, &|c| format!("{}{MASK}", &c[1]));
     apply(&LOOSE_TOKEN, &|c| format!("{}{}{MASK}", &c[1], &c[2]));
     apply(&LOOSE_PIN, &|c| format!("{}{MASK}", &c[1]));
+    apply(&XML_SECRET, &|c| format!("{}{MASK}{}", &c[1], &c[2]));
+    apply(&BASIC_CREDENTIAL, &|c| {
+        // "Basic configuration" is prose; a credential holds a digit or a base64 symbol.
+        if c[0].contains(|ch: char| ch.is_ascii_digit() || matches!(ch, '+' | '/' | '=')) {
+            format!("{}{MASK}", &c[1])
+        } else {
+            c[0].to_string()
+        }
+    });
+    apply(&CURL_USER, &|c| format!("{}{MASK}", &c[1]));
+    apply(&SPACED_PASSWORD, &|c| {
+        let introduced = c[2].trim() == "is";
+        if c[3].starts_with(MASK)
+            || (!introduced && STOP_WORDS.contains(&c[3].to_ascii_lowercase().as_str()))
+        {
+            c[0].to_string()
+        } else {
+            format!("{}{}{MASK}", &c[1], &c[2])
+        }
+    });
+    apply(&WPA_PASSPHRASE_COMMAND, &|c| {
+        format!("{}{MASK}{}{MASK}", &c[1], &c[3])
+    });
     apply(&BEARER, &|c| format!("{}{MASK}", &c[1]));
     apply(&URL_CREDENTIALS, &|c| format!("{}{MASK}@", &c[1]));
     apply(&EMAIL, &|_| "<email>".into());
@@ -213,275 +290,4 @@ pub fn is_secret_name(name: &str) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn masked(input: &str) -> String {
-        redact(input).text
-    }
-
-    #[test]
-    fn secrets_in_key_value_forms_are_masked() {
-        assert_eq!(masked("pin=1234"), "pin=<redacted>");
-        assert_eq!(
-            masked("remote_control_pin = 998877"),
-            "remote_control_pin = <redacted>"
-        );
-        assert_eq!(
-            masked(r#"{"pin": "4321", "volume": 12}"#),
-            r#"{"pin": <redacted>, "volume": 12}"#
-        );
-        assert_eq!(masked("psk=hunter2"), "psk=<redacted>");
-        assert_eq!(masked("password: 'p w'"), "password: <redacted>");
-        assert_eq!(
-            masked("lastfm.session_key=abc123"),
-            "lastfm.session_key=<redacted>"
-        );
-        assert_eq!(masked("wifi_passwd=xyz"), "wifi_passwd=<redacted>");
-        assert_eq!(
-            masked("Authorization: Bearer abcdefgh12345"),
-            "Authorization: <redacted>"
-        );
-    }
-
-    #[test]
-    fn wifi_names_keep_no_trace() {
-        assert_eq!(masked(r#"ssid="My Home Wi-Fi""#), r#"ssid=<redacted>"#);
-        assert_eq!(masked("SSID: Coffee Shop Guest"), "SSID: <redacted>");
-        assert_eq!(masked("bssid=aa:bb:cc:dd:ee:ff"), "bssid=<redacted>");
-    }
-
-    #[test]
-    fn loose_mentions_and_embedded_values_are_masked() {
-        assert_eq!(
-            masked("remote control PIN is 123456 now"),
-            "remote control PIN is <redacted> now"
-        );
-        assert_eq!(
-            masked("Bearer abcdefgh12345 sent"),
-            "Bearer <redacted> sent"
-        );
-        assert_eq!(
-            masked("GET https://bob:s3cret@host/x"),
-            "GET https://<redacted>@host/x"
-        );
-        assert_eq!(masked("mail ana@example.com done"), "mail <email> done");
-        assert_eq!(
-            masked("wlan0 aa:bb:cc:dd:ee:ff up"),
-            "wlan0 xx:xx:xx:xx:xx:xx up"
-        );
-        assert_eq!(
-            masked("lease 192.168.1.23 on lo 127.0.0.1"),
-            "lease <ip> on lo 127.0.0.1"
-        );
-    }
-
-    #[test]
-    fn ordinary_diagnostics_survive() {
-        let text =
-            "mapping=3\nplayer_version=1.2.0\nvolume=12\nshipping 5 pins\nfree 1.2G of 3.7G\n";
-        let out = redact(text);
-        assert_eq!(out.text, text);
-        assert_eq!(out.count, 0);
-    }
-
-    #[test]
-    fn wpa_cli_commands_and_supplicant_messages_are_masked() {
-        assert_eq!(
-            masked(r#"wpa_cli -i wlan0 set_network 0 psk "MyWifiPass123""#),
-            "wpa_cli -i wlan0 set_network 0 psk <redacted>"
-        );
-        assert_eq!(
-            masked(r#"wpa_cli -i wlan0 set_network 0 ssid "Casa Garita 5G""#),
-            "wpa_cli -i wlan0 set_network 0 ssid <redacted>"
-        );
-        assert_eq!(
-            masked("Trying to associate with SSID 'Casa Garita'"),
-            "Trying to associate with SSID <redacted>"
-        );
-        assert_eq!(
-            masked(r#"wlan0: associated with "CasaGarita""#),
-            "wlan0: associated with <redacted>"
-        );
-        assert_eq!(
-            masked(r#"Connected to wifi "Starbucks Guest""#),
-            "Connected to wifi <redacted>"
-        );
-        assert_eq!(
-            masked("set_network 0 psk 0123456789abcdef0123456789abcdef"),
-            "set_network 0 psk <redacted>"
-        );
-    }
-
-    #[test]
-    fn the_players_own_wifi_keys_take_the_whole_name() {
-        assert_eq!(
-            masked("wifi_last=Casa Garita 5G\nvolume=3"),
-            "wifi_last=<redacted>\nvolume=3"
-        );
-        assert_eq!(masked("wifi_ssid = \"Home Net\""), "wifi_ssid = <redacted>");
-        assert_eq!(
-            masked("wifi_enabled=1\nwifi_status=connected"),
-            "wifi_enabled=1\nwifi_status=connected"
-        );
-    }
-
-    #[test]
-    fn subsonic_urls_keep_no_user_token_or_salt() {
-        let url = "GET /rest/ping.view?u=ana&t=0123abcdef&s=salt99&v=1.16.1&c=compas";
-        let out = masked(url);
-        assert_eq!(
-            out,
-            "GET /rest/ping.view?u=<redacted>&t=<redacted>&s=<redacted>&v=1.16.1&c=compas"
-        );
-        assert_eq!(
-            masked("stream.view?id=5&p=enc:70617373"),
-            "stream.view?id=5&p=<redacted>"
-        );
-    }
-
-    #[test]
-    fn tokens_in_json_and_camel_case_keys_are_masked() {
-        assert_eq!(
-            masked(r#"{"AccessToken":"abc.def.ghi","UserId":"7"}"#),
-            r#"{"AccessToken":<redacted>,"UserId":"7"}"#
-        );
-        assert_eq!(masked("refreshToken=zzz111"), "refreshToken=<redacted>");
-        assert_eq!(masked(r#""apiKey": "k-123""#), r#""apiKey": <redacted>"#);
-        assert_eq!(masked("clientSecret: s3cr3t"), "clientSecret: <redacted>");
-        assert_eq!(
-            masked("sk=1234\npass=abc\npwd=xyz"),
-            "sk=<redacted>\npass=<redacted>\npwd=<redacted>"
-        );
-    }
-
-    #[test]
-    fn line_based_values_are_masked_to_the_end_of_the_line() {
-        assert_eq!(
-            masked("subsonic_password=pa ss word\nvolume=3"),
-            "subsonic_password=<redacted>\nvolume=3"
-        );
-        assert_eq!(
-            masked("subsonic_username=Maria Lopez"),
-            "subsonic_username=<redacted>"
-        );
-        assert_eq!(
-            masked("subsonic_password=p;a,s}s"),
-            "subsonic_password=<redacted>"
-        );
-        assert_eq!(
-            masked("wpa_passphrase=Hunter Two"),
-            "wpa_passphrase=<redacted>"
-        );
-        // Quoted and JSON values keep the shorter cut.
-        assert_eq!(
-            masked(r#"password="p a;ss" name=x"#),
-            r#"password=<redacted> name=x"#
-        );
-        assert_eq!(
-            masked(r#"{"password": 12345, "name": "x"}"#),
-            r#"{"password": <redacted>, "name": "x"}"#
-        );
-        // A query string stops at the next parameter.
-        assert_eq!(
-            masked("GET /x?token=abc123&v=1"),
-            "GET /x?token=<redacted>&v=1"
-        );
-    }
-
-    #[test]
-    fn authorization_headers_are_masked_whatever_the_scheme() {
-        for header in [
-            "Authorization: Basic YW5hOmh1bnRlcjI=",
-            "Authorization: Bearer abcdefgh12345",
-            "Authorization: Digest username=\"ana\", realm=\"x\", response=\"abc\"",
-            "authorization=Negotiate YIIB",
-        ] {
-            let out = masked(header);
-            assert!(out.ends_with("<redacted>"), "{out}");
-            assert!(
-                !out.contains("YW5h")
-                    && !out.contains("abcdefgh")
-                    && !out.contains("YIIB")
-                    && !out.contains("response="),
-                "{out}"
-            );
-        }
-        assert_eq!(
-            masked("Authorization: Basic YW5hOmh1bnRlcjI="),
-            "Authorization: <redacted>"
-        );
-    }
-
-    #[test]
-    fn bluetooth_passkeys_and_nmcli_networks_are_masked() {
-        assert_eq!(
-            masked("Bluetooth pairing passkey 123456"),
-            "Bluetooth pairing passkey <redacted>"
-        );
-        assert_eq!(
-            masked("pairing code 654321 shown"),
-            "pairing code <redacted> shown"
-        );
-        assert_eq!(
-            masked(r#"nmcli dev wifi connect "Casa Garita" password "x y""#),
-            "nmcli dev wifi connect <redacted> password <redacted>"
-        );
-        assert_eq!(
-            masked("nmcli connection up CasaGarita"),
-            "nmcli connection up <redacted>"
-        );
-    }
-
-    #[test]
-    fn a_uuid_after_the_word_token_and_remote_codes_are_masked() {
-        assert_eq!(
-            masked("using token 3f2504e0-4f89-11d3-9a0c-0305e82c3301 for sync"),
-            "using token <redacted> for sync"
-        );
-        assert_eq!(
-            masked("Remote control code 482913"),
-            "Remote control code <redacted>"
-        );
-        assert_eq!(
-            masked("remote control pin: 1234"),
-            "remote control pin: <redacted>"
-        );
-    }
-
-    #[test]
-    fn escaped_quotes_inside_a_value_do_not_end_it() {
-        let out = masked(r#"{"password":"hun\"ter2","name":"x"}"#);
-        assert_eq!(out, r#"{"password":<redacted>,"name":"x"}"#);
-        assert!(!out.contains("ter2"));
-    }
-
-    #[test]
-    fn counts_every_masked_place() {
-        assert_eq!(redact("pin=1\ntoken=2\nssid=x\n").count, 3);
-    }
-
-    #[test]
-    fn secret_looking_names_are_recognised() {
-        for name in [
-            "wpa_supplicant.conf",
-            "wifi",
-            "remote_pin",
-            "PIN",
-            "api-token.json",
-            "pairing.db",
-            "auth.json",
-        ] {
-            assert!(is_secret_name(name), "{name}");
-        }
-        for name in [
-            "settings.ini",
-            "mapping.json",
-            "pinned_albums",
-            "player_crash.log",
-            "spinner.png",
-        ] {
-            assert!(!is_secret_name(name), "{name}");
-        }
-    }
-}
+mod tests;
