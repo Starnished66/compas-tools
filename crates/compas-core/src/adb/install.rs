@@ -15,7 +15,7 @@ use crate::progress::{OnProgress, Phase, Progress};
 use crate::releases::{Freshness, Kind, Release};
 
 mod card;
-#[cfg(test)]
+#[cfg(all(test, unix))]
 use card::parse_free_kb;
 use card::{is_plain_name, recovery_partition_ok, verify_card, RECOVERY_FLAG};
 
