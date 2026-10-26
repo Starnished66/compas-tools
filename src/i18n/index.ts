@@ -24,6 +24,8 @@ function current(): Language {
   return resolveLanguage(preference, navigator.language);
 }
 
+document.documentElement.lang = current();
+
 /** Translates a static English source string. Every UI string goes through here. */
 export function t(source: string, variables?: TranslationVariables): string {
   return translate(source, current(), variables);

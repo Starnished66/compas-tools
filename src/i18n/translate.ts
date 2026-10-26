@@ -23,8 +23,7 @@ export function resolveLanguage(
 
 /**
  * Return the small subset of CLDR cardinal rules needed by our six supported
- * locales. Hermes does not consistently ship Intl.PluralRules, so keep this
- * selector independent of runtime Intl polyfills.
+ * locales, without depending on Intl.PluralRules.
  */
 function pluralCategory(language: Language, count: number): 'one' | 'few' | 'many' | 'other' {
   if (!Number.isFinite(count)) return 'other';

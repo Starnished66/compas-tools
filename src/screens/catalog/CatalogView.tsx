@@ -83,7 +83,7 @@ export function CatalogView({ view, onChooseCard }: Props) {
       {recordDamaged && (
         <div>
           <Button disabled={actions.busy} onClick={() => void actions.moveRecordAside()}>
-            {t('Move the record aside')}
+            {t('Move the plugin record file aside')}
           </Button>
         </div>
       )}

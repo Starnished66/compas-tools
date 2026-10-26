@@ -118,7 +118,9 @@ describe('CatalogView', () => {
     expect(screen.queryByText('Alpha')).not.toBeInTheDocument();
 
     vi.mocked(loadEntries).mockResolvedValue(entries);
-    await userEvent.click(screen.getByRole('button', { name: 'Move the record aside' }));
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Move the plugin record file aside' }),
+    );
     expect(moveRecordAside).toHaveBeenCalled();
     expect(await screen.findByText('Alpha')).toBeInTheDocument();
   });
