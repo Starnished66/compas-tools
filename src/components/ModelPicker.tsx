@@ -2,9 +2,10 @@ import type { Model } from '../api/types';
 import { t } from '../i18n';
 
 const MODELS: { value: Model; label: string }[] = [
-  { value: 'r1', label: 'Hiby R1' },
-  { value: 'r3proii', label: 'Hiby R3 Pro II' },
-  { value: 'r3ii_2025', label: 'Hiby R3 II (2025)' },
+  { value: 'r1', label: 'HiBy R1' },
+  { value: 'r3proii', label: 'HiBy R3 Pro II' },
+  { value: 'r3ii_2025', label: 'HiBy R3 II (2025)' },
+  { value: 'tempotec_v1', label: 'TempoTec Variations V1' },
 ];
 
 interface Props {

@@ -67,6 +67,22 @@ async fn passes_the_right_arguments() {
     );
 }
 
+/// The library tool does not list the V1, and its album art is the same on every board.
+#[tokio::test]
+async fn a_tempotec_v1_gets_art_through_a_board_the_tool_knows() {
+    let (_dir, card) = fake_card();
+    let tool_dir = tempfile::tempdir().unwrap();
+    let echo = r#"{"event":"done","command":"art","board":"r1","albums":1,"written":1,"unchanged":0,"no_art":0,"mtime_offset":0}"#;
+    let tool = fake_tool(tool_dir.path(), echo, 3);
+    let error = tool
+        .art(&card, Some(Model::TempotecV1), None, &|_| {})
+        .await
+        .unwrap_err();
+    let text = error.to_string();
+    assert!(text.contains("--board r1"), "{text}");
+    assert!(!text.contains("tempotec_v1"), "{text}");
+}
+
 #[tokio::test]
 async fn info_reads_the_single_object() {
     let (_dir, card) = fake_card();

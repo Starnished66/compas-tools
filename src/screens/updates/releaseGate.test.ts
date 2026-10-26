@@ -43,5 +43,12 @@ describe('releaseGate', () => {
     );
     expect(releaseGate(latest('update_available', ['r1']), 'r1').playerOnlyAvailable).toBe(true);
     expect(releaseGate(null, 'r1').playerOnlyAvailable).toBe(true);
+    // A firmware-only release leaves the V1 with its full image only.
+    expect(releaseGate(latest('update_available', []), 'tempotec_v1').playerOnlyAvailable).toBe(
+      false,
+    );
+    expect(
+      releaseGate(latest('update_available', ['tempotec_v1']), 'tempotec_v1').playerOnlyAvailable,
+    ).toBe(true);
   });
 });

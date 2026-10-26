@@ -1,6 +1,6 @@
 /** Mirrors the serde types in compas-core; field names are the wire names. */
 
-export type Model = 'r1' | 'r3proii' | 'r3ii_2025';
+export type Model = 'r1' | 'r3proii' | 'r3ii_2025' | 'tempotec_v1';
 
 export interface Device {
   schema: number;

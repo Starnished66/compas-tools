@@ -69,7 +69,7 @@ impl SdTool {
     ) -> Result<ArtDone> {
         let mut extra: Vec<OsString> = Vec::new();
         if let Some(model) = board {
-            extra.extend(["--board".into(), model.board().into()]);
+            extra.extend(["--board".into(), model.art_board().into()]);
         }
         extra.extend(offset_args(mtime_offset));
         self.run(args("art", card, extra), on_progress).await

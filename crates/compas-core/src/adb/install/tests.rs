@@ -101,6 +101,32 @@ async fn a_full_image_goes_to_the_card_root_then_recovery_and_back() {
 }
 
 #[tokio::test]
+async fn a_tempotec_v1_gets_v1_upt_not_its_board_id() {
+    let (_server, release) = release("v1.3.0").await;
+    let dir = tempfile::tempdir().unwrap();
+    let cache = tempfile::tempdir().unwrap();
+    let fake = FakeAdb::new(dir.path(), "v1_serial", "240,320", PS_COMPAS);
+    fake.write_remote(
+        "/usr/bin/compas_player",
+        "COMPAS_PLAYER_BOARD:tempotec_v1 v1.2.0",
+    );
+    let report = install_full_image(
+        &fake.adb(),
+        "v1_serial",
+        &request(&release, cache.path(), Model::TempotecV1),
+        &|_| {},
+    )
+    .await
+    .unwrap();
+    assert_eq!(report.remote_path, "/data/mnt/sd_0/v1.upt");
+    assert_eq!(
+        std::fs::read(fake.remote("/data/mnt/sd_0/v1.upt")).unwrap(),
+        b"image tempotec_v1"
+    );
+    assert_eq!(report.device.unwrap().board, Some(Model::TempotecV1));
+}
+
+#[tokio::test]
 async fn a_corrupt_push_is_removed_and_nothing_reboots() {
     let (_server, release) = release("v1.2.0").await;
     let dir = tempfile::tempdir().unwrap();

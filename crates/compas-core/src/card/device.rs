@@ -14,10 +14,18 @@ pub enum Model {
     R3ProII,
     #[serde(rename = "r3ii_2025")]
     R3II2025,
+    /// TempoTec Variations V1 (240x320).
+    #[serde(rename = "tempotec_v1")]
+    TempotecV1,
 }
 
 impl Model {
-    pub const ALL: [Model; 3] = [Model::R1, Model::R3ProII, Model::R3II2025];
+    pub const ALL: [Model; 4] = [
+        Model::R1,
+        Model::R3ProII,
+        Model::R3II2025,
+        Model::TempotecV1,
+    ];
 
     /// Name used for update files on the card and in the player's releases.
     pub fn board(self) -> &'static str {
@@ -25,6 +33,30 @@ impl Model {
             Model::R1 => "r1",
             Model::R3ProII => "r3proii",
             Model::R3II2025 => "r3ii_2025",
+            Model::TempotecV1 => "tempotec_v1",
+        }
+    }
+
+    /// The model for a board id, as in `COMPAS_PLAYER_BOARD:<board>` or `device.json`.
+    pub fn from_board(board: &str) -> Option<Model> {
+        Model::ALL.into_iter().find(|m| m.board() == board)
+    }
+
+    /// Name of the firmware image: `<stem>.upt`. The V1's is `v1.upt`, not its board id.
+    pub fn update_stem(self) -> &'static str {
+        match self {
+            Model::TempotecV1 => "v1",
+            other => other.board(),
+        }
+    }
+
+    /// The board name the library tool accepts for album art. Its caches (a 72 px thumbnail
+    /// and a 480 px cover) are the same on every board, and the player's V1 build uses the
+    /// same sizes, so the tool's closest known board stands in for the V1.
+    pub fn art_board(self) -> &'static str {
+        match self {
+            Model::TempotecV1 => "r1",
+            other => other.board(),
         }
     }
 }
@@ -57,6 +89,18 @@ pub(super) fn read(card: &Card) -> Result<Option<Device>> {
 mod tests {
     use super::*;
     use crate::test_support::{fake_card, write_file};
+
+    #[test]
+    fn boards_names_and_update_files() {
+        assert_eq!(Model::from_board("tempotec_v1"), Some(Model::TempotecV1));
+        assert_eq!(Model::from_board("r3proii"), Some(Model::R3ProII));
+        assert_eq!(Model::from_board("v1"), None);
+        assert_eq!(Model::TempotecV1.update_stem(), "v1");
+        assert_eq!(Model::R3II2025.update_stem(), "r3ii_2025");
+        // The library tool does not know the V1, but its art does not depend on the board.
+        assert_eq!(Model::TempotecV1.art_board(), "r1");
+        assert_eq!(Model::R3ProII.art_board(), "r3proii");
+    }
 
     #[test]
     fn reads_player_written_file() {

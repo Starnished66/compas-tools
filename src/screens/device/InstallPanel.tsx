@@ -56,6 +56,8 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
   const model = device.board ?? chosen;
   // An update is copied to the SD card first, so there has to be one.
   const noCard = !device.sd_mounted;
+  // The V1's way of installing Compás over the vendor's system is not confirmed yet.
+  const stockV1 = model === 'tempotec_v1' && device.firmware !== 'compas';
   const installedVersion = device.player_version;
   // Compared with the version read over adb, not with any selected player.
   useEffect(() => {
@@ -137,7 +139,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
         <div className="row">
           <Button
             variant={gate.recommended ? 'primary' : 'secondary'}
-            disabled={operation.busy || needsBackup || !model || !latest || noCard}
+            disabled={operation.busy || needsBackup || !model || !latest || noCard || stockV1}
             onClick={() => {
               setAsking('full_image');
             }}
@@ -155,6 +157,15 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
             </Button>
           )}
         </div>
+        {stockV1 && (
+          <Notice tone="info">
+            <p>
+              {t(
+                'Installing Compás on a stock TempoTec Variations V1 is not supported yet, because its install route is not confirmed.',
+              )}
+            </p>
+          </Notice>
+        )}
         {noCard && (
           <Notice tone="warning">
             <p>{t('Please insert an SD card to upgrade.')}</p>
@@ -196,10 +207,14 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
       {failed && model && (
         <Notice tone="warning">
           <p>
-            {t(
-              'If the player does not start the update by itself, put it into recovery by hand: switch it off, then hold {keys} while connecting.',
-              { keys: recoveryKeys(model) },
-            )}
+            {recoveryKeys(model)
+              ? t(
+                  'If the player does not start the update by itself, put it into recovery by hand: switch it off, then hold {keys} while connecting.',
+                  { keys: recoveryKeys(model) ?? '' },
+                )
+              : t(
+                  'The recovery keys of the TempoTec Variations V1 are not confirmed yet, so this app cannot tell you how to start the update by hand.',
+                )}
           </p>
         </Notice>
       )}

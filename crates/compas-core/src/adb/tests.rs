@@ -154,4 +154,50 @@ async fn the_sd_card_must_show_in_proc_mounts() {
     }
 }
 
+#[tokio::test]
+async fn a_tempotec_v1_is_recognised_by_its_marker_or_its_screen() {
+    let program = "ELF COMPAS_PLAYER_BOARD:tempotec_v1 build v1.3.0";
+    // Compás: the marker in the running program names the board, whatever the screen says.
+    let dir = tempfile::tempdir().unwrap();
+    let fake = FakeAdb::new(dir.path(), "s1", "480,800", PS_COMPAS);
+    fake.write_remote("/usr/bin/compas_player", program);
+    let info = identify(&fake.adb(), "s1").await.unwrap();
+    assert_eq!(info.board, Some(Model::TempotecV1));
+    assert_eq!(info.player_version.as_deref(), Some("v1.3.0"));
+
+    // The vendor's firmware has no marker: the 240x320 panel says it is a V1.
+    let dir = tempfile::tempdir().unwrap();
+    let fake = FakeAdb::new(dir.path(), "s2", "240,320", PS_STOCK);
+    let info = identify(&fake.adb(), "s2").await.unwrap();
+    assert_eq!(
+        (info.board, info.firmware),
+        (Some(Model::TempotecV1), Firmware::Stock)
+    );
+
+    // Two markers, an unknown board or a missing program fall back to the screen.
+    for program in [
+        "COMPAS_PLAYER_BOARD:r1 COMPAS_PLAYER_BOARD:r3proii",
+        "COMPAS_PLAYER_BOARD:future_board",
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let fake = FakeAdb::new(dir.path(), "s3", "480,720", PS_COMPAS);
+        fake.write_remote("/usr/bin/compas_player", program);
+        assert_eq!(
+            identify(&fake.adb(), "s3").await.unwrap().board,
+            Some(Model::R3ProII)
+        );
+    }
+}
+
+#[tokio::test]
+async fn the_marker_beats_a_misleading_screen_size_on_other_boards() {
+    let dir = tempfile::tempdir().unwrap();
+    let fake = FakeAdb::new(dir.path(), "s1", "480,800", PS_COMPAS);
+    fake.write_remote("/usr/bin/compas_player", "COMPAS_PLAYER_BOARD:r3ii_2025");
+    assert_eq!(
+        identify(&fake.adb(), "s1").await.unwrap().board,
+        Some(Model::R3II2025)
+    );
+}
+
 use crate::card::Model;

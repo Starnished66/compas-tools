@@ -19,7 +19,8 @@ pub enum Firmware {
 #[derive(Debug, Clone, Serialize)]
 pub struct DeviceInfo {
     pub serial: String,
-    /// From the screen size; the product name over ADB (`Nexus_4`, `mako`) does not say.
+    /// From the board marker in a Compás program, else the screen size; the product name over
+    /// ADB (`Nexus_4`, `mako`) does not say.
     pub board: Option<Model>,
     pub firmware: Firmware,
     /// Read from the running Compás program (`vX.Y.Z`); unknown when it cannot be told.
@@ -76,6 +77,7 @@ pub(super) fn board_from_size(text: &str) -> Option<Model> {
         480 if fits(800) => Some(Model::R1),
         480 if fits(720) => Some(Model::R3ProII),
         320 if fits(480) => Some(Model::R3II2025),
+        240 if fits(320) => Some(Model::TempotecV1),
         _ => None,
     }
 }
@@ -126,6 +128,28 @@ async fn version_from_binary(adb: &Adb, serial: &str, binary: &str) -> Option<St
     }
 }
 
+/// The board id compiled into every Compás program as `COMPAS_PLAYER_BOARD:<board>`.
+/// `None` when it cannot be read or names a board this app does not know.
+async fn board_from_binary(adb: &Adb, serial: &str, binary: &str) -> Option<Model> {
+    let out = adb
+        .shell(
+            serial,
+            &format!(
+                "if [ -r {binary} ]; then grep -a -o 'COMPAS_PLAYER_BOARD:[a-z0-9_]*' {binary} | sort -u; fi"
+            ),
+        )
+        .await
+        .ok()?;
+    let mut found = out
+        .lines()
+        .filter_map(|l| l.trim().strip_prefix("COMPAS_PLAYER_BOARD:"))
+        .filter(|b| !b.is_empty());
+    match (found.next(), found.next()) {
+        (Some(board), None) => Model::from_board(board),
+        _ => None,
+    }
+}
+
 /// Whether the SD card is mounted: updates are staged on it. `/proc/mounts` names it
 /// `/usr/data/mnt/sd_0` (and `/data/mnt/sd_0` is the same place).
 async fn sd_is_mounted(adb: &Adb, serial: &str) -> bool {
@@ -157,16 +181,23 @@ pub async fn identify(adb: &Adb, serial: &str) -> Result<DeviceInfo> {
 
     let firmware = firmware_from_processes(&processes);
     // The version comes from the running program itself, not from a file on the card.
-    let player_version = if firmware == Firmware::Compas {
-        version_from_binary(adb, serial, &player_binary(&processes)).await
+    let (player_version, marker_board) = if firmware == Firmware::Compas {
+        let binary = player_binary(&processes);
+        (
+            version_from_binary(adb, serial, &binary).await,
+            board_from_binary(adb, serial, &binary).await,
+        )
     } else {
-        None
+        (None, None)
     };
     let sd_mounted = sd_is_mounted(adb, serial).await;
 
     Ok(DeviceInfo {
         serial: serial.to_string(),
-        board: board_from_size(&size).or(device.as_ref().map(|d| d.model)),
+        // A Compás program names its own board; otherwise the screen size, then device.json.
+        board: marker_board
+            .or_else(|| board_from_size(&size))
+            .or(device.as_ref().map(|d| d.model)),
         firmware,
         player_version,
         plugin_api: device.as_ref().map(|d| d.plugin_api),
@@ -216,6 +247,8 @@ mod tests {
         assert_eq!(board_from_size("480,800\n"), Some(Model::R1));
         assert_eq!(board_from_size("480x720"), Some(Model::R3ProII));
         assert_eq!(board_from_size("320,480"), Some(Model::R3II2025));
+        assert_eq!(board_from_size("240,320"), Some(Model::TempotecV1));
+        assert_eq!(board_from_size("240,640"), Some(Model::TempotecV1));
         assert_eq!(
             board_from_size("480,1600"),
             Some(Model::R1),

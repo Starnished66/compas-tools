@@ -138,7 +138,7 @@ describe('DeviceScreen', () => {
 
   it('shows the board and firmware it recognised and picks the only player', async () => {
     renderScreen();
-    expect((await screen.findAllByText(/Hiby R1 · Stock HiBy firmware/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/HiBy R1 · Stock HiBy firmware/)).length).toBeGreaterThan(0);
     expect(
       await screen.findByRole('button', { name: 'Install the latest firmware' }),
     ).toBeInTheDocument();
@@ -191,7 +191,7 @@ describe('DeviceScreen', () => {
     expect(installOnDevice).not.toHaveBeenCalled();
     const dialog = await screen.findByRole('dialog', { name: 'Install on ingenic_1?' });
     expect(dialog).toHaveTextContent('r1.upt');
-    expect(dialog).toHaveTextContent('Hiby R1');
+    expect(dialog).toHaveTextContent('HiBy R1');
     expect(dialog).toHaveTextContent('ingenic_1');
     expect(dialog).toHaveTextContent(/reboot into recovery and install/);
     await userEvent.click(screen.getByRole('button', { name: 'Install and reboot' }));
@@ -451,5 +451,28 @@ describe('DeviceScreen', () => {
     expect(await screen.findByText(/offline/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Update only the player' })).toBeDisabled();
+  });
+  it('names a TempoTec V1, offers its firmware and explains the stock case', async () => {
+    vi.mocked(listDevices).mockResolvedValue([
+      view({ board: 'tempotec_v1', firmware: 'compas', player_version: 'v1.2.0' }),
+    ]);
+    vi.mocked(latestRelease).mockResolvedValue(latest('update_available', []));
+    renderScreen();
+    expect((await screen.findAllByText(/TempoTec Variations V1/)).length).toBeGreaterThan(0);
+    const install = await screen.findByRole('button', { name: 'Install the latest firmware' });
+    await waitFor(() => {
+      expect(install).toBeEnabled();
+    });
+    await userEvent.click(install);
+    expect(await screen.findByText(/v1\.upt/)).toBeInTheDocument();
+  });
+
+  it('does not offer to install Compás on a stock TempoTec V1', async () => {
+    vi.mocked(listDevices).mockResolvedValue([view({ board: 'tempotec_v1', firmware: 'stock' })]);
+    renderScreen();
+    expect(
+      await screen.findByText(/stock TempoTec Variations V1 is not supported yet/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeDisabled();
   });
 });

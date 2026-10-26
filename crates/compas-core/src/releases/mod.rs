@@ -17,7 +17,7 @@ pub use github::{fetch_latest, fetch_latest_from, API_BASE};
 pub enum Kind {
     /// Just the player binary, placed at `.compas/compas_player`.
     PlayerOnly,
-    /// The whole firmware image, placed at `<board>.upt` in the card root.
+    /// The whole firmware image, placed at `<stem>.upt` in the card root (`v1.upt` for the V1).
     FullImage,
 }
 
@@ -70,7 +70,7 @@ impl Release {
         match (kind, model) {
             (Kind::PlayerOnly, Model::R1) => "compas_player".into(),
             (Kind::PlayerOnly, other) => format!("compas_player_{}", other.board()),
-            (Kind::FullImage, other) => format!("{}.upt", other.board()),
+            (Kind::FullImage, other) => format!("{}.upt", other.update_stem()),
         }
     }
 
@@ -149,6 +149,14 @@ mod tests {
             Release::asset_name(Kind::FullImage, Model::R3II2025),
             "r3ii_2025.upt"
         );
+        assert_eq!(
+            Release::asset_name(Kind::FullImage, Model::TempotecV1),
+            "v1.upt"
+        );
+        assert_eq!(
+            Release::asset_name(Kind::PlayerOnly, Model::TempotecV1),
+            "compas_player_tempotec_v1"
+        );
     }
 
     #[tokio::test]
@@ -209,6 +217,15 @@ mod tests {
         assert!(!release.supports(Kind::PlayerOnly, Model::R1));
         assert!(release.supports(Kind::FullImage, Model::R1));
         assert!(release.file(Kind::FullImage, Model::R3ProII).is_ok());
+        // The V1 is offered its own image even though no player-only file exists.
+        assert_eq!(
+            release
+                .file(Kind::FullImage, Model::TempotecV1)
+                .unwrap()
+                .name,
+            "v1.upt"
+        );
+        assert!(!release.supports(Kind::PlayerOnly, Model::TempotecV1));
     }
 
     #[tokio::test]
@@ -216,14 +233,20 @@ mod tests {
         let (_server, mut release) = release("v1.2.0").await;
         release.checksums.remove("compas_player");
         release.list_player_only_boards();
-        assert_eq!(release.player_only_boards, ["r3proii", "r3ii_2025"]);
+        assert_eq!(
+            release.player_only_boards,
+            ["r3proii", "r3ii_2025", "tempotec_v1"]
+        );
         assert!(!release.supports(Kind::PlayerOnly, Model::R1));
     }
 
     #[tokio::test]
     async fn a_release_with_player_files_lists_its_boards() {
         let (_server, release) = release("v1.2.0").await;
-        assert_eq!(release.player_only_boards, ["r1", "r3proii", "r3ii_2025"]);
+        assert_eq!(
+            release.player_only_boards,
+            ["r1", "r3proii", "r3ii_2025", "tempotec_v1"]
+        );
         assert!(release.supports(Kind::PlayerOnly, Model::R3ProII));
     }
 }

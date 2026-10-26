@@ -14,9 +14,10 @@ interface Props {
 }
 
 const MODEL_NAMES: Record<Model, string> = {
-  r1: 'Hiby R1',
-  r3proii: 'Hiby R3 Pro II',
-  r3ii_2025: 'Hiby R3 II (2025)',
+  r1: 'HiBy R1',
+  r3proii: 'HiBy R3 Pro II',
+  r3ii_2025: 'HiBy R3 II (2025)',
+  tempotec_v1: 'TempoTec Variations V1',
 };
 
 export function CardDetails({ card, model, onChooseModel }: Props) {

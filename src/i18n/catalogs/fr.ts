@@ -265,4 +265,6 @@ export const fr: Record<string, TranslationValue> = {
   "Firmware and player updates are installed over USB with ADB, not through the SD card. Connect your player over USB with ADB turned on.": "Les mises à jour du firmware et du lecteur s'installent par USB avec ADB, pas via la carte SD. Branchez votre lecteur en USB avec ADB activé.",
   "Go to Device": "Aller à Appareil",
   "Please insert an SD card to upgrade.": "Veuillez insérer une carte SD pour mettre à jour.",
+  "Installing Compás on a stock TempoTec Variations V1 is not supported yet, because its install route is not confirmed.": "L'installation de Compás sur un TempoTec Variations V1 d'origine n'est pas encore prise en charge, car sa méthode d'installation n'est pas confirmée.",
+  "The recovery keys of the TempoTec Variations V1 are not confirmed yet, so this app cannot tell you how to start the update by hand.": "Les touches de récupération du TempoTec Variations V1 ne sont pas encore confirmées ; cette application ne peut donc pas vous dire comment lancer la mise à jour à la main.",
 };

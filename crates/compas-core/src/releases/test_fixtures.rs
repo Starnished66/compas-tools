@@ -18,7 +18,7 @@ pub async fn release_with(tag: &str, player_only: bool) -> (TestServer, Release)
     if player_only {
         files.push(("compas_player".into(), R1_PLAYER.to_vec()));
     }
-    for board in ["r1", "r3proii", "r3ii_2025"] {
+    for board in ["r1", "r3proii", "r3ii_2025", "tempotec_v1"] {
         if board != "r1" && player_only {
             files.push((
                 format!("compas_player_{board}"),
@@ -26,7 +26,8 @@ pub async fn release_with(tag: &str, player_only: bool) -> (TestServer, Release)
             ));
         }
         files.push((
-            format!("{board}.upt"),
+            // The V1's image is `v1.upt`, not `tempotec_v1.upt`.
+            format!("{}.upt", if board == "tempotec_v1" { "v1" } else { board }),
             format!("image {board}").into_bytes(),
         ));
     }

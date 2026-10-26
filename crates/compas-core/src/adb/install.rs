@@ -269,7 +269,7 @@ pub async fn install_full_image(
     on_progress: OnProgress<'_>,
 ) -> Result<InstallReport> {
     let job = request.job(adb, serial, on_progress);
-    let remote = format!("{SD_ROOT}/{}.upt", request.model.board());
+    let remote = format!("{SD_ROOT}/{}.upt", request.model.update_stem());
     job.stage(Kind::FullImage, &remote).await?;
     // Not confirmed on hardware yet; if it fails the user falls back to the key combination.
     adb.shell(serial, "/usr/bin/bootmode.sh Recovery").await?;
