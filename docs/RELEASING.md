@@ -54,7 +54,7 @@ shows its panel only in builds that have the feature. To switch it on, the owner
 5. Publish a GitHub release (tag `vX.Y.Z`) holding the installers, the update bundles and `.sig`
    files, and a `latest.json` listing each platform's URL and signature. The
    `tauri-apps/tauri-action` action can build, sign and publish all of this; switch the
-   "Build the installer" step to it when the repository exists. The app reads
+   "Build the installer" step to it. The app reads
    `https://github.com/<owner>/compas-tools/releases/latest/download/latest.json`.
 
 A private repository cannot serve `latest.json` or the update bundles to users without a login, so
