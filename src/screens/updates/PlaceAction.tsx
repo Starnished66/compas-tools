@@ -35,7 +35,7 @@ export function PlaceAction({
       <p className="muted">{description}</p>
       <div>
         <Button icon="copy" variant="primary" disabled={disabled || busy} onClick={onPlace}>
-          {t('Copy to card')}
+          {t('Install and update')}
         </Button>
       </div>
       {busy && <ProgressBar progress={progress} label={title} />}

@@ -117,7 +117,7 @@ export const ru: Record<string, TranslationValue> = {
   "not text, so it cannot be masked": "не текст, поэтому его нельзя скрыть",
   "could not be read": "не удалось прочитать",
   "its name cannot be copied safely": "его имя нельзя безопасно скопировать",
-  "Install and update": "Установка и обновление",
+  "Install and update": "Установить и обновить",
   "1. Back up the player": "1. Резервная копия плеера",
   "Copies the player’s own settings and logs to this computer. The SD card, account tokens, server passwords, Wi-Fi details and the remote-control PIN are never copied, and anything that looks secret is masked before it is saved.": "Копирует настройки и журналы плеера на этот компьютер. SD-карта, токены учётных записей, пароли серверов, данные Wi-Fi и PIN-код пульта никогда не копируются, а всё, что похоже на секрет, скрывается перед сохранением.",
   "Back up now": "Сделать копию",
