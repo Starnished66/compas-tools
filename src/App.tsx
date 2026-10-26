@@ -8,6 +8,7 @@ import { CatalogView } from './screens/catalog/CatalogView';
 import { DeviceScreen } from './screens/device/DeviceScreen';
 import { LibraryScreen } from './screens/library/LibraryScreen';
 import { MusicScreen } from './screens/music/MusicScreen';
+import { AboutScreen } from './screens/about/AboutScreen';
 import { UpdatesScreen } from './screens/updates/UpdatesScreen';
 import { OperationProvider } from './hooks/useOperation';
 import { CardProvider, useCard } from './state/CardContext';
@@ -33,6 +34,7 @@ function Shell() {
         {screen === 'device' && <DeviceScreen />}
         {screen === 'music' && <MusicScreen onChooseCard={toCard} />}
         {screen === 'library' && <LibraryScreen onChooseCard={toCard} />}
+        {screen === 'about' && <AboutScreen />}
         {screen === 'updates' && (
           <UpdatesScreen
             onGoToDevice={() => {

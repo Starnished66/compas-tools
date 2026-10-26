@@ -271,4 +271,9 @@ export const ru: Record<string, TranslationValue> = {
   "Install without a settings copy": "Установить без копии настроек",
   "This player model is not recognised, so nothing can be installed.": "Модель этого плеера не распознана, поэтому ничего установить нельзя.",
   "The install is not confirmed: the player was not seen restarting on the new version (it reports {version}). The update file stays on the player.": "Установка не подтверждена: не видно, чтобы плеер перезапустился с новой версией (он сообщает {version}). Файл обновления остаётся на плеере.",
+  "About": "О программе",
+  "Licences and notices": "Лицензии и уведомления",
+  "Third-party material": "Сторонние материалы",
+  "Compás Tools is free software, released under the GNU General Public License, version 3. It comes with no warranty.": "Compás Tools — свободное программное обеспечение под лицензией GNU General Public License версии 3. Гарантий не предоставляется.",
+  "The installer also carries these texts in its licenses folder, together with the notices for the library code inside compas-sdtool and the exact sources it was built from.": "Установщик также содержит эти тексты в папке licenses вместе с уведомлениями о библиотечном коде внутри compas-sdtool и точными исходными кодами, из которых он собран.",
 };

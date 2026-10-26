@@ -29,6 +29,13 @@
     "targets": ["appimage", "dmg", "nsis", "msi"],
     "category": "Utility",
     "externalBin": ["binaries/compas-sdtool"],
+    "resources": {
+      "../LICENSE": "licenses/LICENSE-GPL-3.0.txt",
+      "../THIRD_PARTY.md": "licenses/THIRD_PARTY.md",
+      "../src/assets/fonts/OFL.txt": "licenses/NotoSans-OFL.txt",
+      "../src/assets/icons/COPYING-ICONS": "licenses/Breeze-icons-COPYING.txt",
+      "licenses-sdtool/*": "licenses/sdtool/"
+    },
     "shortDescription": "Manage a Compás player: install, updates, music library and plugins",
     "icon": [
       "icons/32x32.png",

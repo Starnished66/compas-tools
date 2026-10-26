@@ -28,3 +28,12 @@ The colour tokens in `src/styles/tokens.css` are the values of KDE's colour sche
 (`/usr/share/color-schemes/BreezeLight.colors`) and "Breeze Dark" (`BreezeDark.colors`), from
 the `plasma-breeze` package, which carries the KDE project's LGPL licence. Each token names the
 colour scheme group and key it comes from.
+
+## compas-sdtool and the player's code
+
+`compas-sdtool` is a C program built from `sdtool/` in this repository together with the
+sources of the Compás player (`Starnished66/compas-player`) at the commit pinned as `PLAYER_REF`
+in `.github/workflows/build.yml`. The player's sources, and the libraries vendored in them, carry
+their own licences. Every installer holds the player's licence texts under `licenses/sdtool/`,
+with a `BUILD_INFO.txt` naming the exact player commit and the commit of this repository the
+tool was built from, so the corresponding sources can be fetched from GitHub.

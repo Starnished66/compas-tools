@@ -3,7 +3,7 @@ import { Icon } from './Icon';
 import { LanguagePicker } from './LanguagePicker';
 
 export type ScreenId =
-  'card' | 'device' | 'music' | 'library' | 'plugins' | 'layouts' | 'themes' | 'updates';
+  'card' | 'device' | 'music' | 'library' | 'plugins' | 'layouts' | 'themes' | 'updates' | 'about';
 
 interface Props {
   current: ScreenId;
@@ -21,6 +21,7 @@ export function Sidebar({ current, cardLabel, onNavigate }: Props) {
     { id: 'layouts', label: t('Layouts') },
     { id: 'themes', label: t('Themes') },
     { id: 'updates', label: t('Updates') },
+    { id: 'about', label: t('About') },
   ];
   return (
     <nav className="sidebar" aria-label={t('Main')}>

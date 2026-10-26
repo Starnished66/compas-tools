@@ -271,4 +271,9 @@ export const fr: Record<string, TranslationValue> = {
   "Install without a settings copy": "Installer sans copie des réglages",
   "This player model is not recognised, so nothing can be installed.": "Le modèle de ce lecteur n'est pas reconnu ; rien ne peut être installé.",
   "The install is not confirmed: the player was not seen restarting on the new version (it reports {version}). The update file stays on the player.": "L'installation n'est pas confirmée : le lecteur n'a pas été vu redémarrer avec la nouvelle version (il indique {version}). Le fichier de mise à jour reste sur le lecteur.",
+  "About": "À propos",
+  "Licences and notices": "Licences et mentions",
+  "Third-party material": "Éléments tiers",
+  "Compás Tools is free software, released under the GNU General Public License, version 3. It comes with no warranty.": "Compás Tools est un logiciel libre, publié sous la licence publique générale GNU, version 3. Il est fourni sans aucune garantie.",
+  "The installer also carries these texts in its licenses folder, together with the notices for the library code inside compas-sdtool and the exact sources it was built from.": "L'installateur contient aussi ces textes dans son dossier licenses, avec les mentions du code de bibliothèque présent dans compas-sdtool et les sources exactes à partir desquelles il a été compilé.",
 };

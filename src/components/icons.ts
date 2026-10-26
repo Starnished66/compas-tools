@@ -11,6 +11,7 @@ export const ICONS = {
   layouts: 'actions/22/view-grid',
   themes: 'preferences/22/preferences-desktop-theme-global-symbolic',
   updates: 'status/22/system-software-update',
+  about: 'actions/22/help-about',
   install: 'actions/16/download',
   update: 'actions/16/go-up',
   refresh: 'actions/16/view-refresh',
