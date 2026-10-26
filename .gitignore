@@ -9,3 +9,5 @@ src-tauri/binaries/
 build/
 src-tauri/licenses-sdtool/*
 !src-tauri/licenses-sdtool/README.txt
+src-tauri/licenses-generated/*
+!src-tauri/licenses-generated/README.txt

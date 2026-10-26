@@ -1,4 +1,5 @@
-FROM ubuntu:22.04
+# Pinned by digest; the tag is only for the reader. Move both together.
+FROM ubuntu:22.04@sha256:0a9887931b0e38af2e3487ed39e29436b0535c4f3f52e57745baaf79d1898956
 
 ENV DEBIAN_FRONTEND=noninteractive \
     RUSTUP_HOME=/opt/rustup \
@@ -27,7 +28,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal \
-        --default-toolchain stable --component clippy,rustfmt \
+        --default-toolchain 1.99.1 --component clippy,rustfmt \
     && chmod -R a+rwX /opt/rustup /opt/cargo
 
 # Mount point of the cache volume; writable for the unprivileged build user.

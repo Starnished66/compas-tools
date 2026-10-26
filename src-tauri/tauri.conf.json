@@ -34,7 +34,8 @@
       "../THIRD_PARTY.md": "licenses/THIRD_PARTY.md",
       "../src/assets/fonts/OFL.txt": "licenses/NotoSans-OFL.txt",
       "../src/assets/icons/COPYING-ICONS": "licenses/Breeze-icons-COPYING.txt",
-      "licenses-sdtool/*": "licenses/sdtool/"
+      "licenses-sdtool/*": "licenses/sdtool/",
+      "licenses-generated/*": "licenses/"
     },
     "shortDescription": "Manage a Compás player: install, updates, music library and plugins",
     "icon": [

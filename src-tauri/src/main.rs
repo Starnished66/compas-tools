@@ -6,7 +6,7 @@ mod error;
 mod sidecar;
 mod state;
 
-use commands::{adb, app_update, card, catalog, library, music, releases};
+use commands::{about, adb, app_update, card, catalog, library, music, releases};
 use tauri::Manager;
 
 fn main() {
@@ -37,6 +37,7 @@ fn main() {
             adb::adb_collect_logs,
             adb::adb_save_logs,
             card::card_list,
+            about::about_notices,
             card::card_select,
             card::card_current,
             card::card_clear,

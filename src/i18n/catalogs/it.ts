@@ -277,4 +277,7 @@ export const it: Record<string, TranslationValue> = {
   "Compás Tools is free software, released under the GNU General Public License, version 3. It comes with no warranty.": "Compás Tools è software libero, rilasciato con la GNU General Public License, versione 3. Non offre alcuna garanzia.",
   "The installer also carries these texts in its licenses folder, together with the notices for the library code inside compas-sdtool and the exact sources it was built from.": "Il programma di installazione include questi testi anche nella cartella licenses, insieme agli avvisi del codice di libreria contenuto in compas-sdtool e alle fonti esatte da cui è stato compilato.",
   "This release has no firmware image for this player.": "Questa versione non include un'immagine del firmware per questo lettore.",
+  "Libraries inside the app": "Librerie incluse nell'app",
+  "These notices are installed with the app, not in this build.": "Questi avvisi vengono installati con l'app, non in questa build.",
+  "Loading…": "Caricamento…",
 };

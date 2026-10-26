@@ -4,6 +4,7 @@ use tauri::ipc::Channel;
 
 use compas_core::Progress;
 
+pub mod about;
 pub mod adb;
 pub mod app_update;
 pub mod card;
