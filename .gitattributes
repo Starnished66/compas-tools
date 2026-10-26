@@ -1,0 +1,6 @@
+# Checked out with Unix line ends everywhere, so formatters agree on Windows too.
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.icns binary
+*.ttf binary

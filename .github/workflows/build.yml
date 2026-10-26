@@ -13,7 +13,7 @@ on:
 env:
   PLAYER_REPO: Starnished66/compas-player
   # The compas-player commit whose sdtool is bundled. Move it to a release tag once there is one.
-  PLAYER_REF: 2f582c812a5511cae58d3e9af542e6dfb9718b64
+  PLAYER_REF: e8f88f253068185a2a93b1f3a265744e8dc2f4ab
 
 jobs:
   # compas-sdtool is a C program, so it is built per operating system and passed on as an
@@ -102,13 +102,13 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           pattern: sdtool-*
-          path: sdtool
+          path: ${{ runner.temp }}/sdtool
           merge-multiple: true
       - name: Place the sidecar
         shell: bash
         run: |
           mkdir -p src-tauri/binaries
-          cp sdtool/compas-sdtool-* src-tauri/binaries/
+          cp "$RUNNER_TEMP"/sdtool/compas-sdtool-* src-tauri/binaries/
           chmod +x src-tauri/binaries/compas-sdtool-* || true
           if [ "${{ matrix.name }}" = macos ]; then
             # A universal app needs the two architectures joined into one sidecar.
