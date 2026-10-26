@@ -35,12 +35,23 @@ fn all_digits(s: &str) -> bool {
     !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())
 }
 
-/// `.<name>.tmp.<pid>.<n>`, as made by `fs::temp_sibling`.
+/// `.<name>.tmp.<pid>.<n>`, as made by `fs::temp_sibling`, or `.<name>.<pid>-<millis>.part`, an
+/// upload to the player over adb that was cut short.
 fn is_temp_name(name: &str) -> bool {
-    name.strip_prefix('.')
-        .and_then(|n| n.rsplit_once(".tmp."))
-        .and_then(|(base, tail)| Some((base, tail.split_once('.')?)))
-        .is_some_and(|(base, (pid, n))| !base.is_empty() && all_digits(pid) && all_digits(n))
+    let adb_part = name
+        .strip_prefix('.')
+        .and_then(|n| n.strip_suffix(".part"))
+        .and_then(|n| n.rsplit_once('.'))
+        .and_then(|(base, tail)| Some((base, tail.split_once('-')?)))
+        .is_some_and(|(base, (pid, millis))| {
+            !base.is_empty() && all_digits(pid) && all_digits(millis)
+        });
+    adb_part
+        || name
+            .strip_prefix('.')
+            .and_then(|n| n.rsplit_once(".tmp."))
+            .and_then(|(base, tail)| Some((base, tail.split_once('.')?)))
+            .is_some_and(|(base, (pid, n))| !base.is_empty() && all_digits(pid) && all_digits(n))
 }
 
 /// The creation time in a `<label>.<secs>.<n>` stage folder name; the label
@@ -135,6 +146,9 @@ mod tests {
         assert!(!is_temp_name(".tmp.notes"));
         assert!(!is_temp_name("r1.upt.tmp.123.4"));
         assert!(!is_temp_name(".x.tmp.12a.4"));
+        assert!(is_temp_name(".r1.upt.4242-1760000000000.part"));
+        assert!(!is_temp_name("r1.upt.4242-1760000000000.part"));
+        assert!(!is_temp_name(".r1.upt.x-17.part"));
         assert_eq!(
             stage_secs("example.plugin.1700000000.3"),
             Some(1_700_000_000)

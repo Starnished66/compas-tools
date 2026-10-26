@@ -57,6 +57,8 @@ pub struct Release {
     pub url: String,
     /// Boards this release ships a player-only file for; a firmware-only release has none.
     pub player_only_boards: Vec<String>,
+    /// Boards this release ships a full firmware image for.
+    pub full_image_boards: Vec<String>,
     #[serde(skip)]
     assets: Vec<Asset>,
     #[serde(skip)]
@@ -78,6 +80,14 @@ impl Release {
     pub fn supports(&self, kind: Kind, model: Model) -> bool {
         let name = Self::asset_name(kind, model);
         self.checksums.contains_key(&name) && self.assets.iter().any(|a| a.name == name)
+    }
+
+    pub(crate) fn list_full_image_boards(&mut self) {
+        self.full_image_boards = Model::ALL
+            .into_iter()
+            .filter(|m| self.supports(Kind::FullImage, *m))
+            .map(|m| m.board().to_string())
+            .collect();
     }
 
     pub(crate) fn list_player_only_boards(&mut self) {
@@ -248,5 +258,17 @@ mod tests {
             ["r1", "r3proii", "r3ii_2025", "tempotec_v1"]
         );
         assert!(release.supports(Kind::PlayerOnly, Model::R3ProII));
+        assert_eq!(
+            release.full_image_boards,
+            ["r1", "r3proii", "r3ii_2025", "tempotec_v1"]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_missing_image_is_not_listed() {
+        let (_server, mut release) = release("v1.3.0").await;
+        release.checksums.remove("v1.upt");
+        release.list_full_image_boards();
+        assert_eq!(release.full_image_boards, ["r1", "r3proii", "r3ii_2025"]);
     }
 }

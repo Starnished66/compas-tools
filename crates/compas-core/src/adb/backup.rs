@@ -12,7 +12,7 @@ use serde::Serialize;
 
 use super::redact::{is_secret_name, redact};
 use super::{Adb, USER_DATA};
-use crate::error::{Error, IoContext, Result};
+use crate::error::{IoContext, Result};
 use crate::progress::{OnProgress, Phase, Progress};
 
 /// What a backup may contain, from the player's own sources
@@ -222,11 +222,6 @@ pub async fn backup_user_data(
         total,
     });
 
-    if files.is_empty() {
-        return Err(Error::Adb(format!(
-            "none of the expected files were found in {USER_DATA}"
-        )));
-    }
     let quality = if copied == 0 || !settings_copied {
         BackupQuality::Unusable
     } else if skipped.iter().any(|s| s.reason != SkipReason::Private) {

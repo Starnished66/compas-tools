@@ -30,7 +30,8 @@ fn player(dir: &Path, serial: &str, size: &str, ps: &str) -> FakeAdb {
         "/proc/mtd",
         "dev: size erasesize name\nmtd5: 00100000 00020000 \"ota\"\n",
     );
-    fake.write_remote("/dev/mtd5", "ota:kernel2");
+    // The flag block holds something else until the helper sets it.
+    fake.write_remote("/dev/mtd5", "ota:normal");
     fake.write_remote("/proc/sys/kernel/random/boot_id", "boot-before\n");
     fake
 }
@@ -298,6 +299,10 @@ async fn a_changed_serial_is_accepted_only_for_the_same_board() {
     let fake = player(dir.path(), "ingenic_1", "480,800", PS_STOCK);
     fake.set(
         "devices.txt",
+        &devices_file(&[&format!("ingenic_1 device usb:1-1 {MAKO}")]),
+    );
+    fake.set(
+        "devices_after_reboot",
         &devices_file(&[&format!("ingenic_after_recovery device usb:1-1 {MAKO}")]),
     );
 
@@ -318,7 +323,7 @@ async fn a_changed_serial_is_accepted_only_for_the_same_board() {
         "devices.txt",
         &devices_file(&[&format!("ingenic_after_recovery device usb:1-1 {MAKO}")]),
     );
-    let returned = wait_for_return(&fake.adb(), "ingenic_1", Model::R1, &QUICK).await;
+    let returned = wait_for_return(&fake.adb(), "ingenic_1", Model::R1, &QUICK, &[]).await;
     assert!(matches!(returned, Returned::TimedOut));
 }
 
@@ -330,6 +335,10 @@ async fn several_matching_players_are_left_for_the_user_to_choose() {
     let fake = player(dir.path(), "ingenic_1", "480,800", PS_STOCK);
     fake.set(
         "devices.txt",
+        &devices_file(&[&format!("ingenic_1 device {MAKO}")]),
+    );
+    fake.set(
+        "devices_after_reboot",
         &devices_file(&[
             &format!("ingenic_a device {MAKO}"),
             &format!("ingenic_b device {MAKO}"),

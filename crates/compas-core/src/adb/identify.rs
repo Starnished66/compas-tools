@@ -194,10 +194,9 @@ pub async fn identify(adb: &Adb, serial: &str) -> Result<DeviceInfo> {
 
     Ok(DeviceInfo {
         serial: serial.to_string(),
-        // A Compás program names its own board; otherwise the screen size, then device.json.
-        board: marker_board
-            .or_else(|| board_from_size(&size))
-            .or(device.as_ref().and_then(|d| d.model)),
+        // A Compás program names its own board; otherwise the screen size. The card's
+        // device.json is never used: a card moved between players describes another one.
+        board: marker_board.or_else(|| board_from_size(&size)),
         firmware,
         player_version,
         plugin_api: device.as_ref().map(|d| d.plugin_api),

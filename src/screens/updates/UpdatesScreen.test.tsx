@@ -19,6 +19,7 @@ function latest(boards: string[]): LatestRelease {
       published_at: '2026-10-17T17:45:54Z',
       url: 'https://example.test/release',
       player_only_boards: boards,
+      full_image_boards: ['r1', 'r3proii', 'r3ii_2025', 'tempotec_v1'],
     },
   };
 }

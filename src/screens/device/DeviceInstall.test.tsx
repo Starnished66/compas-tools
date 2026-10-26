@@ -127,4 +127,18 @@ describe('DeviceScreen install checks', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeDisabled();
   });
+
+  it('does not offer the firmware when the release has no image for this player', async () => {
+    vi.mocked(listDevices).mockResolvedValue([
+      view({ board: 'tempotec_v1', firmware: 'compas', player_version: 'v1.2.0' }),
+    ]);
+    const release = latest('update_available', []);
+    release.release.full_image_boards = ['r1'];
+    vi.mocked(latestRelease).mockResolvedValue(release);
+    renderScreen();
+    expect(
+      await screen.findByText('This release has no firmware image for this player.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeDisabled();
+  });
 });

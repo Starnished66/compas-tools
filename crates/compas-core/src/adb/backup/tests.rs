@@ -274,4 +274,18 @@ mod with_fake_adb {
         );
         assert!(reason("player_exit.log").is_none());
     }
+
+    /// The vendor's firmware has none of the Compás files; that is an unusable copy the user can
+    /// choose to go without, not an error that locks the first install out.
+    #[tokio::test]
+    async fn a_stock_player_with_nothing_to_copy_gives_an_unusable_copy_not_an_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let fake = FakeAdb::new(dir.path(), "stock_1", "480,800", PS_STOCK);
+        let out = tempfile::tempdir().unwrap();
+        let report = backup_user_data(&fake.adb(), "stock_1", out.path(), &|_| {})
+            .await
+            .unwrap();
+        assert_eq!(report.files, 0);
+        assert_eq!(report.quality, BackupQuality::Unusable);
+    }
 }

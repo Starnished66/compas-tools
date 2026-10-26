@@ -25,9 +25,13 @@ case "$cmd" in
     case "$c" in
       /usr/bin/bootmode.sh*)
         [ -e "$D/bootmode_fails" ] && { echo "/usr/bin/bootmode.sh: not found" >&2; exit 1; }
+        # The helper sets the recovery flag in the NAND flag block; `bootmode_noop` pretends it did not.
+        [ -e "$D/bootmode_noop" ] || { mkdir -p "$R/dev" && printf 'ota:kernel2' > "$R/dev/mtd5"; }
         echo "ok" ;;
       sync) : ;;
       reboot)
+        # `devices_after_reboot` is the device list once the player is back (a new serial, say).
+        [ -e "$D/devices_after_reboot" ] && cp "$D/devices_after_reboot" "$D/devices.txt"
         # A real reboot gives the kernel a new boot id; `no_reboot` pretends the command did nothing.
         [ -e "$D/no_reboot" ] || { [ -e "$R/proc/sys/kernel/random/boot_id" ] && echo "boot-$$-$(date +%s)" > "$R/proc/sys/kernel/random/boot_id"; } ;;
       "cat /sys/class/graphics/fb0/virtual_size"*) cat "$D/fb" 2>/dev/null ;;

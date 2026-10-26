@@ -276,4 +276,5 @@ export const de: Record<string, TranslationValue> = {
   "Third-party material": "Material von Dritten",
   "Compás Tools is free software, released under the GNU General Public License, version 3. It comes with no warranty.": "Compás Tools ist freie Software unter der GNU General Public License, Version 3. Es gibt keine Gewährleistung.",
   "The installer also carries these texts in its licenses folder, together with the notices for the library code inside compas-sdtool and the exact sources it was built from.": "Das Installationspaket enthält diese Texte auch in seinem Ordner licenses, zusammen mit den Hinweisen zum Bibliothekscode in compas-sdtool und den genauen Quellen, aus denen es gebaut wurde.",
+  "This release has no firmware image for this player.": "Dieses Release enthält kein Firmware-Image für diesen Player.",
 };

@@ -54,6 +54,11 @@ pub(super) async fn verify_card(adb: &Adb, serial: &str) -> Result<u64> {
     }
 }
 
+/// A string as one shell word: in single quotes, with any single quote closed and escaped.
+pub(super) fn shell_quote(text: &str) -> String {
+    format!("'{}'", text.replace('\'', "'\\''"))
+}
+
 /// Names are put into shell commands: only plain file-name characters are allowed.
 pub(super) fn is_plain_name(name: &str) -> bool {
     !name.is_empty()

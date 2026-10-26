@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use serde::Serialize;
 
-use super::identify::{identify, DeviceInfo};
+use super::identify::{identify, DeviceInfo, Firmware};
 use super::{Adb, SD_ROOT};
 use crate::card::Model;
 use crate::error::{Error, IoContext, Result};
@@ -17,7 +17,7 @@ use crate::releases::{Freshness, Kind, Release};
 mod card;
 #[cfg(all(test, unix))]
 use card::parse_free_kb;
-use card::{is_plain_name, recovery_partition_ok, verify_card, RECOVERY_FLAG};
+use card::{is_plain_name, recovery_partition_ok, shell_quote, verify_card, RECOVERY_FLAG};
 
 /// Slack kept free on the card beyond the file, as elsewhere in the app.
 const MARGIN_KB: u64 = 2048;
@@ -153,8 +153,28 @@ impl Job<'_> {
         }
         let moved = async {
             verify_card(adb, serial).await?;
-            adb.shell(serial, &format!("mv -f {temp} {remote} && sync"))
-                .await
+            // adb's exit status is not reliable here, so the shell says it in-band.
+            let said = adb
+                .shell(serial, &format!("mv -f {temp} {remote} && sync && echo ok"))
+                .await?;
+            if said.trim() != "ok" {
+                return Err(Error::Verification(format!(
+                    "{remote} could not be put in place on the device"
+                )));
+            }
+            // The temporary name is gone and the file under its final name is the download.
+            let gone = adb
+                .shell(
+                    serial,
+                    &format!("if [ -e {temp} ]; then echo present; else echo gone; fi"),
+                )
+                .await?;
+            if gone.trim() != "gone" {
+                return Err(Error::Verification(format!(
+                    "{temp} is still on the device after the rename"
+                )));
+            }
+            self.matches_download(remote, &file.sha256, &dir).await
         }
         .await;
         if let Err(error) = moved {
@@ -206,6 +226,14 @@ impl Job<'_> {
             ));
         }
         self.park_other_images(selected).await?;
+        // A flag that is already set proves nothing about this run: it has to change.
+        let before = adb.shell(serial, "head -c 11 /dev/mtd5").await?;
+        if before == RECOVERY_FLAG {
+            return Err(Error::Rejected(
+                "the recovery flag was already set before this install, so it cannot be told whether this install set it. Restart the player normally and try again"
+                    .into(),
+            ));
+        }
         // Not confirmed on hardware yet; if it fails the user falls back to the key combination.
         adb.shell(serial, "/usr/bin/bootmode.sh Recovery").await?;
         let flag = adb.shell(serial, "head -c 11 /dev/mtd5").await?;
@@ -229,11 +257,6 @@ impl Job<'_> {
             if !lower.ends_with(".upt") || lower == keep.to_ascii_lowercase() {
                 continue;
             }
-            if !is_plain_name(name) {
-                return Err(Error::Rejected(format!(
-                    "{name} on the SD card has a name that cannot be moved aside safely"
-                )));
-            }
             let from = format!("{SD_ROOT}/{name}");
             let mut parked = false;
             for n in 0..10 {
@@ -242,10 +265,13 @@ impl Job<'_> {
                 } else {
                     format!("{from}.parked.{n}")
                 };
+                let (q_from, q_to) = (shell_quote(&from), shell_quote(&to));
                 let moved = adb
                     .shell(
                         serial,
-                        &format!("if [ -e {to} ]; then echo taken; else mv {from} {to} && echo moved; fi"),
+                        &format!(
+                            "if [ -e {q_to} ]; then echo taken; else mv {q_from} {q_to} && echo moved; fi"
+                        ),
                     )
                     .await?;
                 if moved.trim() == "moved" {
@@ -278,11 +304,21 @@ impl Job<'_> {
     async fn reboot_and_confirm(&self, remote: String) -> Result<InstallReport> {
         self.report(Phase::Rebooting, 0, 1);
         let before = self.boot_id(self.serial).await;
+        // Players already connected are not the one coming back under a new serial.
+        let others: Vec<String> = self
+            .adb
+            .devices()
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(|d| d.serial)
+            .filter(|s| s != self.serial)
+            .collect();
         self.adb.shell(self.serial, "sync").await?;
         // The connection drops as the device goes down, so an error here is expected.
         let _ = self.adb.shell(self.serial, "reboot").await;
         self.report(Phase::Waiting, 0, 1);
-        let returned = wait_for_return(self.adb, self.serial, self.model, self.wait).await;
+        let returned = wait_for_return(self.adb, self.serial, self.model, self.wait, &others).await;
         let (device, candidates) = match returned {
             Returned::Back(device) => (Some(device), Vec::new()),
             Returned::Candidates(found) => (None, found),
@@ -322,8 +358,15 @@ enum Returned {
 
 /// Waits for the device to disappear (it is rebooting) and to come back, then looks at it again.
 /// Other connected devices are ignored: only the same serial counts, or, if the serial changed
-/// after recovery, a player-looking device that identifies as the same board.
-async fn wait_for_return(adb: &Adb, serial: &str, board: Model, wait: &WaitOptions) -> Returned {
+/// after recovery, a player-looking device that identifies as the same board and was not
+/// already connected before the reboot.
+async fn wait_for_return(
+    adb: &Adb,
+    serial: &str,
+    board: Model,
+    wait: &WaitOptions,
+    already_connected: &[String],
+) -> Returned {
     let online = || async {
         adb.devices()
             .await
@@ -345,7 +388,10 @@ async fn wait_for_return(adb: &Adb, serial: &str, board: Model, wait: &WaitOptio
             }
         } else {
             let mut same_board = Vec::new();
-            for device in devices.iter().filter(|d| d.looks_like_player()) {
+            for device in devices
+                .iter()
+                .filter(|d| d.looks_like_player() && !already_connected.contains(&d.serial))
+            {
                 if let Ok(info) = identify(adb, &device.serial).await {
                     if info.board == Some(board) {
                         same_board.push(info);
@@ -402,6 +448,13 @@ impl<'a> InstallRequest<'a> {
         let model = info.board.ok_or_else(|| {
             Error::Rejected("this player model is not recognised, so nothing was installed".into())
         })?;
+        if model == Model::TempotecV1 && info.firmware != Firmware::Compas {
+            // The way onto a stock V1 is not confirmed, so nothing is staged for it.
+            return Err(Error::Rejected(
+                "installing Compás on a stock TempoTec Variations V1 is not supported yet, so nothing was installed"
+                    .into(),
+            ));
+        }
         if !info.sd_mounted {
             return Err(Error::Rejected(
                 "the player's SD card is not mounted, so nothing was installed".into(),

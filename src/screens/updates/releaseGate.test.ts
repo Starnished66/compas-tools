@@ -11,6 +11,7 @@ function latest(freshness: LatestRelease['freshness'], boards: string[]): Latest
       published_at: '',
       url: '',
       player_only_boards: boards,
+      full_image_boards: ['r1', 'r3proii', 'r3ii_2025', 'tempotec_v1'],
     },
   };
 }
@@ -50,5 +51,13 @@ describe('releaseGate', () => {
     expect(
       releaseGate(latest('update_available', ['tempotec_v1']), 'tempotec_v1').playerOnlyAvailable,
     ).toBe(true);
+  });
+
+  it('knows when a release has no firmware image for the model', () => {
+    const release = latest('update_available', []);
+    release.release.full_image_boards = ['r1'];
+    expect(releaseGate(release, 'r1').fullImageAvailable).toBe(true);
+    expect(releaseGate(release, 'tempotec_v1').fullImageAvailable).toBe(false);
+    expect(releaseGate(null, 'tempotec_v1').fullImageAvailable).toBe(true);
   });
 });

@@ -25,6 +25,7 @@ export function latest(
       published_at: '',
       url: '',
       player_only_boards: boards,
+      full_image_boards: ['r1', 'r3proii', 'r3ii_2025', 'tempotec_v1'],
     },
   };
 }

@@ -9,6 +9,8 @@ export interface ReleaseGate {
   downgrade: boolean;
   /** The release ships a player-only file for this model. Unknown until the release is loaded. */
   playerOnlyAvailable: boolean;
+  /** The release ships a full firmware image for this model. Unknown until it is loaded. */
+  fullImageAvailable: boolean;
 }
 
 export function releaseGate(
@@ -20,8 +22,11 @@ export function releaseGate(
     recommended: freshness !== 'newer' && freshness !== 'up_to_date',
     downgrade: freshness === 'newer',
     playerOnlyAvailable: !latest || !model || latest.release.player_only_boards.includes(model),
+    fullImageAvailable: !latest || !model || latest.release.full_image_boards.includes(model),
   };
 }
+
+export const noImageText = () => t('This release has no firmware image for this player.');
 
 export const firmwareOnlyText = () =>
   t('This release is a full firmware update only. Use the full firmware option instead.');

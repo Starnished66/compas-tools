@@ -276,4 +276,5 @@ export const ru: Record<string, TranslationValue> = {
   "Third-party material": "Сторонние материалы",
   "Compás Tools is free software, released under the GNU General Public License, version 3. It comes with no warranty.": "Compás Tools — свободное программное обеспечение под лицензией GNU General Public License версии 3. Гарантий не предоставляется.",
   "The installer also carries these texts in its licenses folder, together with the notices for the library code inside compas-sdtool and the exact sources it was built from.": "Установщик также содержит эти тексты в папке licenses вместе с уведомлениями о библиотечном коде внутри compas-sdtool и точными исходными кодами, из которых он собран.",
+  "This release has no firmware image for this player.": "В этом выпуске нет образа прошивки для этого плеера.",
 };

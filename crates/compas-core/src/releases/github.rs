@@ -50,6 +50,7 @@ pub async fn fetch_latest_from(api_base: &str) -> Result<Release> {
 
     let mut release = Release {
         player_only_boards: Vec::new(),
+        full_image_boards: Vec::new(),
         name: api
             .name
             .filter(|n| !n.is_empty())
@@ -70,6 +71,7 @@ pub async fn fetch_latest_from(api_base: &str) -> Result<Release> {
         checksums: parse_sums(&String::from_utf8_lossy(&sums)),
     };
     release.list_player_only_boards();
+    release.list_full_image_boards();
     Ok(release)
 }
 

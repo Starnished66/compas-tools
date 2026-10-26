@@ -19,7 +19,7 @@ import { ProgressBar } from '../../components/ProgressBar';
 import { useOperation } from '../../hooks/useOperation';
 import { t } from '../../i18n';
 import { recoveryKeys } from '../updates/instructions';
-import { downgradeText, firmwareOnlyText, releaseGate } from '../updates/releaseGate';
+import { downgradeText, firmwareOnlyText, noImageText, releaseGate } from '../updates/releaseGate';
 import { BOARD_NAMES, firmwareLabel, releaseFileName } from './labels';
 
 interface Props {
@@ -154,7 +154,15 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
         <div className="row">
           <Button
             variant={gate.recommended ? 'primary' : 'secondary'}
-            disabled={operation.busy || needsBackup || !model || !latest || noCard || stockV1}
+            disabled={
+              operation.busy ||
+              needsBackup ||
+              !model ||
+              !latest ||
+              noCard ||
+              stockV1 ||
+              !gate.fullImageAvailable
+            }
             onClick={() => {
               setAsking('full_image');
             }}
@@ -181,6 +189,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
             </p>
           </Notice>
         )}
+        {!gate.fullImageAvailable && <p className="muted">{noImageText()}</p>}
         {noCard && (
           <Notice tone="warning">
             <p>{t('Please insert an SD card to upgrade.')}</p>

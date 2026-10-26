@@ -86,6 +86,8 @@ export interface Release {
   url: string;
   /** Boards this release ships a player-only file for; empty for a firmware-only release. */
   player_only_boards: string[];
+  /** Boards this release ships a full firmware image for. */
+  full_image_boards: string[];
 }
 
 export interface LatestRelease {
