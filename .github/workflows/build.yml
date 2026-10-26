@@ -85,17 +85,17 @@ jobs:
           - name: linux
             os: ubuntu-22.04
             build: npx tauri build --bundles appimage
-            bundles: src-tauri/target/release/bundle/appimage/*.AppImage
+            bundles: target/release/bundle/appimage/*.AppImage
           - name: macos
             os: macos-14
             build: npx tauri build --target universal-apple-darwin --bundles dmg
-            bundles: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            bundles: target/universal-apple-darwin/release/bundle/dmg/*.dmg
           - name: windows
             os: windows-2022
             build: npx tauri build --bundles nsis,msi
             bundles: |
-              src-tauri/target/release/bundle/nsis/*.exe
-              src-tauri/target/release/bundle/msi/*.msi
+              target/release/bundle/nsis/*.exe
+              target/release/bundle/msi/*.msi
     steps:
       - uses: actions/checkout@v4
 
