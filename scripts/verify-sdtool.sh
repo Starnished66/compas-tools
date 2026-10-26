@@ -15,7 +15,7 @@ echo "$info"
 
 build=$(sed -n 's/.*"build":"\([^"]*\)".*/\1/p' <<< "$info")
 format=$(sed -n 's/.*"database_format":\([0-9]*\).*/\1/p' <<< "$info")
-want_format=$(sed -n 's/^#define TAGCACHE_DATABASE_FORMAT \([0-9]*\)u\?.*/\1/p' \
+want_format=$(sed -n 's/^#define TAGCACHE_DATABASE_FORMAT \([0-9][0-9]*\).*/\1/p' \
   "$player/src/library/tagcache/core/tagcache.h")
 player_rev=$(git -C "$player" rev-parse --short HEAD)
 
