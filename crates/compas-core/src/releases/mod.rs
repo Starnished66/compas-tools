@@ -1,7 +1,6 @@
-//! Player releases and placing update files on the card.
+//! Player releases: what the latest one is and which files it ships.
 
 mod github;
-mod place;
 
 use std::collections::HashMap;
 
@@ -12,11 +11,6 @@ use crate::error::{Error, Result};
 use crate::version;
 
 pub use github::{fetch_latest, fetch_latest_from, API_BASE};
-pub use place::{other_upts, place};
-
-/// The first player release that writes `.compas/device.json`. A player that has run
-/// without writing one is older than this (v1.2.0 and earlier).
-pub const DEVICE_INFO_SINCE: &str = "v1.3.0";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -30,13 +24,10 @@ pub enum Kind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Freshness {
-    /// The card has no `device.json`, so its version is not known.
+    /// The player's version is not known.
     Unknown,
     UpToDate,
     UpdateAvailable,
-    /// No version is recorded, which is what v1.2.0 and older players look like, but also a
-    /// newer player whose card was not readable. An update is suggested, not claimed.
-    ProbablyOlder,
     /// The card runs something newer than the latest release.
     Newer,
 }
@@ -116,29 +107,7 @@ impl Release {
         })
     }
 
-    /// A player proven to predate `device.json` (its program lacks the file name): older than
-    /// any release from [`DEVICE_INFO_SINCE`] on. Older releases say nothing.
-    pub fn freshness_older_than_device_info(&self) -> Freshness {
-        self.since_device_info(Freshness::UpdateAvailable)
-    }
-
-    /// A player with no `device.json` on its storage. v1.2.0 and earlier look like this, but
-    /// so does a newer player whose card was swapped, read-only or not mounted yet.
-    pub fn freshness_probably_older(&self) -> Freshness {
-        self.since_device_info(Freshness::ProbablyOlder)
-    }
-
-    fn since_device_info(&self, when_older: Freshness) -> Freshness {
-        let since = version::strip_v(DEVICE_INFO_SINCE);
-        let latest = version::strip_v(&self.tag);
-        if version::is_valid(latest) && version::compare(latest, since).is_ge() {
-            when_older
-        } else {
-            Freshness::Unknown
-        }
-    }
-
-    /// Compares the player version on the card with this release.
+    /// Compares the player's version with this release.
     pub fn freshness(&self, installed: Option<&str>) -> Freshness {
         let latest = version::strip_v(&self.tag);
         match installed {
@@ -231,22 +200,6 @@ mod tests {
         assert_eq!(release.freshness(Some("v1.3.1")), Freshness::Newer);
         assert_eq!(release.freshness(Some("v")), Freshness::Unknown);
         assert_eq!(release.freshness(Some("vdev")), Freshness::Unknown);
-    }
-
-    #[tokio::test]
-    async fn a_player_without_device_json_is_older_than_the_file_itself() {
-        let (_server, firmware_only) = release_with("v1.3.0", false).await;
-        assert_eq!(
-            firmware_only.freshness_older_than_device_info(),
-            Freshness::UpdateAvailable
-        );
-        assert_eq!(
-            firmware_only.freshness_probably_older(),
-            Freshness::ProbablyOlder
-        );
-        let (_server, older) = release("v1.2.0").await;
-        assert_eq!(older.freshness_older_than_device_info(), Freshness::Unknown);
-        assert_eq!(older.freshness_probably_older(), Freshness::Unknown);
     }
 
     #[tokio::test]

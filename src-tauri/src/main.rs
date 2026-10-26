@@ -56,8 +56,6 @@ fn main() {
             music::music_tidy,
             music::music_update_library,
             releases::releases_latest,
-            releases::releases_place,
-            releases::releases_other_upts,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Compás Tools");

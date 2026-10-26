@@ -33,7 +33,13 @@ function Shell() {
         {screen === 'device' && <DeviceScreen />}
         {screen === 'music' && <MusicScreen onChooseCard={toCard} />}
         {screen === 'library' && <LibraryScreen onChooseCard={toCard} />}
-        {screen === 'updates' && <UpdatesScreen onChooseCard={toCard} />}
+        {screen === 'updates' && (
+          <UpdatesScreen
+            onGoToDevice={() => {
+              setScreen('device');
+            }}
+          />
+        )}
       </main>
       <ActionDialog />
     </div>

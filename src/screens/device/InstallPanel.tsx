@@ -54,8 +54,9 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
   const [releaseError, setReleaseError] = useState<string | null>(null);
 
   const model = device.board ?? chosen;
+  // An update is copied to the SD card first, so there has to be one.
+  const noCard = !device.sd_mounted;
   const installedVersion = device.player_version;
-  const olderThan = device.older_than;
   // Compared with the version read over adb, not with any selected player.
   useEffect(() => {
     const live = { current: true };
@@ -63,7 +64,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
     setReleaseError(null);
     void (async () => {
       try {
-        const found = await latestRelease(false, installedVersion ?? '', olderThan !== null);
+        const found = await latestRelease(false, installedVersion ?? '');
         if (live.current) setLatest(found);
       } catch (failure) {
         if (live.current) setReleaseError(errorMessage(failure));
@@ -72,7 +73,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
     return () => {
       live.current = false;
     };
-  }, [installedVersion, olderThan]);
+  }, [installedVersion]);
   const gate = releaseGate(latest, model);
   const downgrade = latest && gate.downgrade ? downgradeText(installedVersion, latest) : null;
   // The first install replaces the vendor's system; take the user's settings along first.
@@ -108,9 +109,6 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
         {device.board ? BOARD_NAMES[device.board] : t('Unknown model')} ·{' '}
         {firmwareLabel(device.firmware)}
         {device.player_version ? ` · ${device.player_version}` : ''}
-        {!device.player_version && olderThan
-          ? ` · ${t('older than {version}', { version: olderThan })}`
-          : ''}
       </p>
       {!device.board && <ModelPicker value={chosen} onChange={setChosen} />}
 
@@ -139,7 +137,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
         <div className="row">
           <Button
             variant={gate.recommended ? 'primary' : 'secondary'}
-            disabled={operation.busy || needsBackup || !model || !latest}
+            disabled={operation.busy || needsBackup || !model || !latest || noCard}
             onClick={() => {
               setAsking('full_image');
             }}
@@ -148,7 +146,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
           </Button>
           {device.firmware === 'compas' && (
             <Button
-              disabled={operation.busy || !model || !latest || !gate.playerOnlyAvailable}
+              disabled={operation.busy || !model || !latest || noCard || !gate.playerOnlyAvailable}
               onClick={() => {
                 setAsking('player_only');
               }}
@@ -157,6 +155,11 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
             </Button>
           )}
         </div>
+        {noCard && (
+          <Notice tone="warning">
+            <p>{t('Please insert an SD card to upgrade.')}</p>
+          </Notice>
+        )}
         {!latest && !releaseError && <p className="muted">{t('Checking the latest release…')}</p>}
         {releaseError && <ErrorBanner message={releaseError} />}
         {device.firmware === 'compas' && !gate.playerOnlyAvailable && (

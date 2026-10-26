@@ -21,12 +21,6 @@ describe('releaseGate', () => {
     expect(releaseGate(latest('unknown', ['r1']), 'r1').recommended).toBe(true);
   });
 
-  it('recommends the firmware, never a downgrade warning, for a player with no version', () => {
-    const gate = releaseGate(latest('probably_older', []), 'r1');
-    expect(gate.recommended).toBe(true);
-    expect(gate.downgrade).toBe(false);
-  });
-
   it('does not recommend reinstalling the same version', () => {
     const gate = releaseGate(latest('up_to_date', ['r1']), 'r1');
     expect(gate.recommended).toBe(false);

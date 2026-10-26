@@ -22,12 +22,11 @@ pub struct DeviceInfo {
     /// From the screen size; the product name over ADB (`Nexus_4`, `mako`) does not say.
     pub board: Option<Model>,
     pub firmware: Firmware,
-    /// From `.compas/device.json` on the card, when the player has written one.
+    /// Read from the running Compás program (`vX.Y.Z`); unknown when it cannot be told.
     pub player_version: Option<String>,
     pub plugin_api: Option<u32>,
-    /// Set when the running Compás program has no notion of `device.json` (its file name is
-    /// absent from the binary): v1.2.0 and earlier. The version cannot be read but is lower.
-    pub older_than: Option<String>,
+    /// Whether the SD card is mounted; an update needs it.
+    pub sd_mounted: bool,
 }
 
 /// `adb devices` output: a header, then `<serial>\t<state>` lines.
@@ -108,19 +107,34 @@ pub(super) fn player_binary(ps: &str) -> String {
         .to_string()
 }
 
-/// How many times the program mentions `device.json`: none before v1.3.0. `None` when it
-/// could not be asked (no such file, no grep, adb error), which is not the same as none.
-async fn device_info_mentions(adb: &Adb, serial: &str, binary: &str) -> Option<u32> {
+/// The version label baked into the program: exactly one `vX.Y.Z` string in it. A development
+/// build, several versions, no program or any adb error mean it is not known (never guessed).
+async fn version_from_binary(adb: &Adb, serial: &str, binary: &str) -> Option<String> {
     let out = adb
         .shell(
             serial,
             &format!(
-                "if [ -r {binary} ]; then grep -c device.json {binary}; else echo missing; fi"
+                "if [ -r {binary} ]; then grep -a -o 'v[0-9][0-9]*\\.[0-9][0-9]*\\.[0-9][0-9]*' {binary} | sort -u; fi"
             ),
         )
         .await
         .ok()?;
-    out.trim().parse().ok()
+    let mut found = out.lines().map(str::trim).filter(|l| !l.is_empty());
+    match (found.next(), found.next()) {
+        (Some(version), None) => Some(version.to_string()),
+        _ => None,
+    }
+}
+
+/// Whether the SD card is mounted: updates are staged on it. `/proc/mounts` names it
+/// `/usr/data/mnt/sd_0` (and `/data/mnt/sd_0` is the same place).
+async fn sd_is_mounted(adb: &Adb, serial: &str) -> bool {
+    adb.shell(
+        serial,
+        "if grep -q 'mnt/sd_0 ' /proc/mounts; then echo mounted; fi",
+    )
+    .await
+    .is_ok_and(|out| out.trim() == "mounted")
 }
 
 pub async fn identify(adb: &Adb, serial: &str) -> Result<DeviceInfo> {
@@ -142,23 +156,21 @@ pub async fn identify(adb: &Adb, serial: &str) -> Result<DeviceInfo> {
     let device: Option<Device> = serde_json::from_str(device_json.trim()).ok();
 
     let firmware = firmware_from_processes(&processes);
-    // The card says nothing here: it may be missing, unmounted, swapped or read-only.
-    let older_than = if firmware == Firmware::Compas {
-        device_info_mentions(adb, serial, &player_binary(&processes))
-            .await
-            .filter(|count| *count == 0)
-            .map(|_| crate::releases::DEVICE_INFO_SINCE.to_string())
+    // The version comes from the running program itself, not from a file on the card.
+    let player_version = if firmware == Firmware::Compas {
+        version_from_binary(adb, serial, &player_binary(&processes)).await
     } else {
         None
     };
+    let sd_mounted = sd_is_mounted(adb, serial).await;
 
     Ok(DeviceInfo {
         serial: serial.to_string(),
         board: board_from_size(&size).or(device.as_ref().map(|d| d.model)),
         firmware,
-        player_version: device.as_ref().map(|d| d.player_version.clone()),
+        player_version,
         plugin_api: device.as_ref().map(|d| d.plugin_api),
-        older_than,
+        sd_mounted,
     })
 }
 

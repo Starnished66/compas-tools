@@ -75,7 +75,7 @@ export interface Progress {
 }
 
 export type ReleaseKind = 'player_only' | 'full_image';
-export type Freshness = 'unknown' | 'up_to_date' | 'update_available' | 'probably_older' | 'newer';
+export type Freshness = 'unknown' | 'up_to_date' | 'update_available' | 'newer';
 
 export interface Release {
   tag: string;
@@ -90,11 +90,6 @@ export interface Release {
 export interface LatestRelease {
   release: Release;
   freshness: Freshness;
-}
-
-export interface PlacedFile {
-  path: string;
-  other_upts: string[];
 }
 
 export type IssueKind =
@@ -191,8 +186,8 @@ export interface DeviceInfo {
   firmware: Firmware;
   player_version: string | null;
   plugin_api: number | null;
-  /** Compás runs but wrote no device.json: older than this release, version unreadable. */
-  older_than: string | null;
+  /** The SD card is mounted; an update is staged on it. */
+  sd_mounted: boolean;
 }
 
 export interface DeviceView {

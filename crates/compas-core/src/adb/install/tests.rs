@@ -48,11 +48,9 @@ async fn a_full_image_goes_to_the_card_root_then_recovery_and_back() {
     let (_server, release) = release("v1.2.0").await;
     let dir = tempfile::tempdir().unwrap();
     let cache = tempfile::tempdir().unwrap();
-    let fake = FakeAdb::new(dir.path(), "ingenic_1", "480,800", PS_STOCK);
-    fake.write_remote(
-        "/data/mnt/sd_0/.compas/device.json",
-        r#"{"schema":1,"model":"r1","player_version":"1.2.0","plugin_api":17}"#,
-    );
+    let fake = FakeAdb::new(dir.path(), "ingenic_1", "480,800", PS_COMPAS);
+    // The version is read from the running program, which stays the old one until it restarts.
+    fake.write_remote("/usr/bin/compas_player", "ELF player v1.2.0");
 
     let seen = std::sync::Mutex::new(Vec::new());
     let report = install_full_image(
@@ -157,10 +155,7 @@ async fn a_player_only_update_replaces_the_player_and_restarts() {
     let dir = tempfile::tempdir().unwrap();
     let cache = tempfile::tempdir().unwrap();
     let fake = FakeAdb::new(dir.path(), "s1", "480,720", PS_COMPAS);
-    fake.write_remote(
-        "/data/mnt/sd_0/.compas/device.json",
-        r#"{"schema":1,"model":"r3proii","player_version":"1.1.0","plugin_api":16}"#,
-    );
+    fake.write_remote("/usr/bin/compas_player", "ELF player v1.1.0");
 
     let report = install_player_only(
         &fake.adb(),
@@ -184,7 +179,7 @@ async fn a_player_only_update_replaces_the_player_and_restarts() {
     assert_eq!(
         report.freshness,
         Freshness::UpdateAvailable,
-        "device.json still says 1.1.0"
+        "the program still says v1.1.0"
     );
 }
 

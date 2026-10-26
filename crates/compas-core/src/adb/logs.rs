@@ -198,10 +198,7 @@ mod tests {
             "crash at 12:00\nremote_control_pin=424242\nconnected ssid=\"Home Net\" psk=hunter2\nuser ana@example.com ip 192.168.1.50\n",
         );
         fake.write_remote("/data/mnt/sd_0/.compas/ota/update.log", "update ok\n");
-        fake.write_remote(
-            "/data/mnt/sd_0/.compas/device.json",
-            r#"{"schema":1,"model":"r1","player_version":"1.2.0","plugin_api":17}"#,
-        );
+        fake.write_remote("/usr/bin/compas_player", "ELF player v1.2.0");
 
         let bundle = collect(&fake).await;
         assert_eq!(bundle.files.len(), 11 + 6);

@@ -55,14 +55,6 @@ impl AppState {
         *lock(&self.catalog) = Some(catalog);
     }
 
-    /// The release shown to the user, whatever its age.
-    pub fn release(&self) -> CommandResult<Arc<Release>> {
-        lock(&self.release)
-            .clone()
-            .map(|(_, release)| release)
-            .ok_or_else(|| CommandError::new("no_release", "No player release is loaded."))
-    }
-
     /// The cached release, if it was fetched recently; GitHub limits
     /// anonymous requests to 60 an hour.
     pub fn recent_release(&self) -> Option<Arc<Release>> {

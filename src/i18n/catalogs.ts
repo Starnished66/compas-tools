@@ -78,10 +78,6 @@ export const catalogs: Record<Language, Record<string, TranslationValue>> = {
       one: '{count} file copied, {skipped} left out on purpose.',
       other: '{count} files copied, {skipped} left out on purpose.',
     },
-    '{count} other .upt file on the player': {
-      one: '{count} other .upt file on the player',
-      other: '{count} other .upt files on the player',
-    },
   },
   es,
   de,

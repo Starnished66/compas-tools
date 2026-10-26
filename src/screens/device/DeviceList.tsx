@@ -23,11 +23,7 @@ function describe(device: DeviceView): string {
   const { info } = device;
   if (!info) return t('Could not read the player.');
   const board = info.board ? BOARD_NAMES[info.board] : t('Unknown model');
-  const version = info.player_version
-    ? ` · ${info.player_version}`
-    : info.older_than
-      ? ` · ${t('older than {version}', { version: info.older_than })}`
-      : '';
+  const version = info.player_version ? ` · ${info.player_version}` : '';
   return `${board} · ${firmwareLabel(info.firmware)}${version}`;
 }
 

@@ -62,7 +62,7 @@ function info(overrides: Partial<DeviceInfo> = {}): DeviceInfo {
     firmware: 'stock',
     player_version: null,
     plugin_api: null,
-    older_than: null,
+    sd_mounted: true,
     ...overrides,
   };
 }
@@ -378,7 +378,7 @@ describe('DeviceScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Install the latest firmware' }));
     expect(await screen.findByText('Go back to the older version?')).toBeInTheDocument();
     expect(installOnDevice).not.toHaveBeenCalled();
-    expect(latestRelease).toHaveBeenCalledWith(false, 'v1.3.1', false);
+    expect(latestRelease).toHaveBeenCalledWith(false, 'v1.3.1');
   });
 
   it('keeps reinstalling possible when the player is up to date', async () => {
@@ -401,22 +401,47 @@ describe('DeviceScreen', () => {
     expect(screen.getByRole('button', { name: 'Update only the player' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeEnabled();
   });
-  it('treats a v1.2.0 player (Compás, no device.json) as older and offers the v1.3.0 firmware', async () => {
+  it('offers the v1.3.0 firmware as the normal update for a v1.2.0 player', async () => {
     vi.mocked(listDevices).mockResolvedValue([
-      view({ firmware: 'compas', player_version: null, older_than: 'v1.3.0' }),
+      view({ firmware: 'compas', player_version: 'v1.2.0' }),
     ]);
     vi.mocked(latestRelease).mockResolvedValue(latest('update_available', []));
     renderScreen();
     const install = await screen.findByRole('button', { name: 'Install the latest firmware' });
-    expect((await screen.findAllByText(/older than v1\.3\.0/)).length).toBeGreaterThan(0);
-    expect(latestRelease).toHaveBeenCalledWith(false, '', true);
-    // Not a downgrade: no warning, the firmware is the highlighted action.
+    await waitFor(() => {
+      expect(install).toBeEnabled();
+    });
+    expect(screen.getAllByText(/v1\.2\.0/).length).toBeGreaterThan(0);
+    expect(latestRelease).toHaveBeenCalledWith(false, 'v1.2.0');
     expect(screen.queryByText(/goes back to the older version/)).not.toBeInTheDocument();
     expect(install.className).toContain('button--primary');
     expect(screen.getByRole('button', { name: 'Update only the player' })).toBeDisabled();
     await userEvent.click(install);
     expect(await screen.findByRole('button', { name: 'Install and reboot' })).toBeInTheDocument();
   });
+
+  it('does not guess a version: unknown is not a downgrade and not "older"', async () => {
+    vi.mocked(listDevices).mockResolvedValue([view({ firmware: 'compas', player_version: null })]);
+    vi.mocked(latestRelease).mockResolvedValue(latest('unknown'));
+    renderScreen();
+    const install = await screen.findByRole('button', { name: 'Install the latest firmware' });
+    await waitFor(() => {
+      expect(install).toBeEnabled();
+    });
+    expect(latestRelease).toHaveBeenCalledWith(false, '');
+    expect(screen.queryByText(/goes back to the older version/)).not.toBeInTheDocument();
+  });
+
+  it('asks for an SD card and blocks both installs until one is mounted', async () => {
+    vi.mocked(listDevices).mockResolvedValue([
+      view({ firmware: 'compas', player_version: 'v1.2.0', sd_mounted: false }),
+    ]);
+    renderScreen();
+    expect(await screen.findByText('Please insert an SD card to upgrade.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Update only the player' })).toBeDisabled();
+  });
+
   it('keeps installing disabled until the latest release is known', async () => {
     vi.mocked(listDevices).mockResolvedValue([
       view({ firmware: 'compas', player_version: 'v1.2.0' }),

@@ -1,37 +1,23 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
 
-import type { Freshness, LatestRelease } from '../../api/types';
+import type { LatestRelease } from '../../api/types';
 import { Button } from '../../components/Button';
-import { Notice } from '../../components/Notice';
 import { formatDate } from '../../format';
 import { t } from '../../i18n';
 
 interface Props {
   latest: LatestRelease;
-  installedVersion: string | null;
 }
 
-function freshnessText(freshness: Freshness, installed: string | null): string {
-  switch (freshness) {
-    case 'up_to_date':
-      return t('Your player is up to date ({version}).', { version: installed ?? '' });
-    case 'update_available':
-      return t('Your player has {version}; an update is available.', { version: installed ?? '' });
-    case 'probably_older':
-      return t(
-        'No version information on this player. Players on v1.2.0 or older need the full firmware update; newer players record it on their next start.',
-      );
-    case 'newer':
-      return t('Your player has {version}, newer than the latest release.', {
-        version: installed ?? '',
-      });
-    case 'unknown':
-      return t('The player version is not known yet.');
-  }
+/** Which kinds of update the release offers: a firmware-only release ships no player file. */
+export function releaseKindText(latest: LatestRelease): string {
+  return latest.release.player_only_boards.length > 0
+    ? t('This release can update the whole firmware, or just the player.')
+    : t('This release is a full firmware update only.');
 }
 
-export function ReleaseSummary({ latest, installedVersion }: Props) {
-  const { release, freshness } = latest;
+export function ReleaseSummary({ latest }: Props) {
+  const { release } = latest;
   const date = formatDate(release.published_at);
   return (
     <section className="panel stack" aria-label={t('Latest release')}>
@@ -42,13 +28,7 @@ export function ReleaseSummary({ latest, installedVersion }: Props) {
           {date && ` · ${date}`}
         </span>
       </div>
-      <Notice
-        tone={
-          freshness === 'update_available' || freshness === 'probably_older' ? 'warning' : 'info'
-        }
-      >
-        <p>{freshnessText(freshness, installedVersion)}</p>
-      </Notice>
+      <p>{releaseKindText(latest)}</p>
       {release.notes && (
         <details>
           <summary>{t('Release notes')}</summary>
