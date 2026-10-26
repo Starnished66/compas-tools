@@ -170,6 +170,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          ls -l installers
-          gh release create "$TAG" installers/* --repo "$GITHUB_REPOSITORY" \
+          # The Windows bundle keeps its nsis/ and msi/ folders; only files go to the release.
+          mapfile -t files < <(find installers -type f)
+          printf '%s\n' "${files[@]}"
+          gh release create "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" \
             --draft --verify-tag --title "Compás Tools $TAG" --generate-notes
