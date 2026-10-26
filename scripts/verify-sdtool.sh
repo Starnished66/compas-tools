@@ -23,6 +23,10 @@ case "$build" in
   tools-*+player-"$player_rev"*) ;;
   *) echo "build '$build' does not name player $player_rev" >&2; exit 1 ;;
 esac
+# A release must not ship a build from uncommitted sources.
+if [ -n "${CI:-}" ] && [[ "$build" == *-dirty* ]]; then
+  echo "build '$build' is dirty" >&2; exit 1
+fi
 if [ -n "${SDTOOL_EXPECT_BUILD:-}" ] && [ "$build" != "$SDTOOL_EXPECT_BUILD" ]; then
   echo "build '$build', expected '$SDTOOL_EXPECT_BUILD'" >&2; exit 1
 fi

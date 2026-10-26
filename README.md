@@ -12,7 +12,7 @@ It runs on Linux (AppImage), macOS on Apple Silicon and Windows. Download it fro
 
 You need Node 22. On Linux the Rust side builds in a Podman container (`Containerfile`), so you don't need Rust installed. On macOS and Windows, install Rust and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) and run the same commands directly.
 
-The app bundles `compas-sdtool`, the player's own library code as a command-line tool. Its sources are in `sdtool/` and build against a `compas-player` checkout at the commit pinned as `PLAYER_REF` in `.github/workflows/build.yml` (the player is only read; the output goes to `build/`):
+The app bundles `compas-sdtool`, the player's own library code as a command-line tool. Its sources are in `sdtool/` and build against a `compas-player` checkout at the commit pinned as `PLAYER_REF` in `.github/workflows/build.yml` (its sources are not changed and the output goes to `build/`, but its Makefile fetches its libraries into the checkout, so use a separate `git worktree` of the player):
 
 ```sh
 npm install

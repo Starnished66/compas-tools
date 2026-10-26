@@ -34,11 +34,11 @@ crates/compas-core/        Pure Rust library: all behaviour
 src-tauri/                 Tauri app: commands, events, app state
   src/commands/            One file per feature area, thin wrappers
 src/                       React + TypeScript UI (Vite)
-sdtool/                    C source of compas-sdtool; builds against a compas-player checkout
   api/                     Typed wrappers around Tauri commands and events
   i18n/                    translate() shared with compas-app
   screens/                 One folder per screen
   components/              Reusable UI pieces
+sdtool/                    C source of compas-sdtool (see SDTOOL.md); builds against a compas-player checkout
 docs/                      Architecture, roadmap, on-card formats
 scripts/                   Developer and CI helpers
 Containerfile              Linux build environment (Ubuntu 22.04 base)
@@ -77,3 +77,36 @@ They are written up in [formats/plugin-store.md](formats/plugin-store.md).
 
 Every downloaded file is checked against its published size and SHA-256 before
 it reaches the card.
+
+## ADB (Device screen)
+
+The Device screen installs and updates the player over USB and collects logs, using `adb`:
+a system `adb` when there is one, otherwise Google's platform-tools downloaded on first use
+(after asking) into the app's data folder: a pinned version (r37.0.1) fetched over HTTPS and
+checked against its SHA-256 before it is unpacked. Every adb call goes through
+`crates/compas-core/src/adb`.
+
+Set `COMPAS_ADB` to the path of any program that behaves like `adb` to use it instead. The
+tests do this with a fake adb (`adb/fake.rs`): a shell script serving a pretend player with
+recorded outputs for stock and Compás firmware on each board. No test touches a real device.
+
+The backup reads only an allowlist of `/usr/data` entries (settings, EQ, theme overrides, the
+player's logs), one file at a time, and masks each file in memory before it is written. The SD
+card (`/usr/data/mnt`), `.compas/plugins`, server passwords and the PIN files are never read.
+
+## Repository and tests
+
+| Path                 | Contents                                                                |
+| -------------------- | ----------------------------------------------------------------------- |
+| `crates/compas-core` | Rust library with all behaviour; no Tauri dependency                    |
+| `src-tauri`          | Tauri app: thin commands and app state                                  |
+| `src`                | React + TypeScript UI                                                   |
+| `sdtool`             | C source of compas-sdtool                                               |
+| `scripts`            | `dev.sh` (build container), `build-appimage.sh`, `check-file-length.sh` |
+
+One integration test uses the real plugin catalog and installs a small plugin into a
+temporary card. It is skipped by default:
+
+```sh
+scripts/dev.sh cargo test -p compas-core -- --ignored
+```

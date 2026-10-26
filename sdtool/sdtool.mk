@@ -70,8 +70,9 @@ SDTOOL_LIBS = $(SDTOOL_DIR)/libwavpack/libwavpack.a $(SDTOOL_DIR)/libsndfile/lib
 
 # The id reported by `info`: this repository's revision and the player's, so a bundled
 # tool can be traced to its sources. Callers that cannot run git here pass SDTOOL_BUILD_ID.
-SDTOOL_REV = $(shell git -C $(1) rev-parse --short HEAD 2>/dev/null || echo unknown)$(shell git -C $(1) diff --quiet HEAD -- $(2) 2>/dev/null || echo -dirty)
-SDTOOL_BUILD_ID ?= tools-$(call SDTOOL_REV,$(SDTOOL_ROOT),.)+player-$(call SDTOOL_REV,.,.)
+# A revision is marked -dirty only when git ran; untracked files count under $(2) too.
+SDTOOL_REV = $(shell git -C $(1) rev-parse --short HEAD 2>/dev/null || echo unknown)$(if $(shell git -C $(1) rev-parse HEAD 2>/dev/null),$(if $(shell git -C $(1) status --porcelain -- $(2) 2>/dev/null),-dirty))
+SDTOOL_BUILD_ID := $(or $(SDTOOL_BUILD_ID),tools-$(call SDTOOL_REV,$(SDTOOL_ROOT),.)+player-$(call SDTOOL_REV,.,.))
 .PHONY: SDTOOL_FORCE
 $(SDTOOL_DIR)/.build_id: SDTOOL_FORCE
 	@mkdir -p $(dir $@)
@@ -99,7 +100,7 @@ $(SDTOOL_DIR)/$(OPUSFILE_DIR)/%.o: $(OPUSFILE_DIR)/%.c libogg_vendor_config/ogg/
 $(SDTOOL_DIR)/$(JPEG_DIR)/%.o: $(JPEG_DIR)/%.c
 	@mkdir -p $(dir $@)
 	$(SDTOOL_CC) $(JPEG_CFLAGS) -c $< -o $@
-$(SDTOOL_DIR)/own/%.o: $(SDTOOL_SRC_DIR)/%.c
+$(SDTOOL_DIR)/own/%.o: $(SDTOOL_SRC_DIR)/%.c $(LVGL_PATCH_STAMP)
 	@mkdir -p $(dir $@)
 	$(SDTOOL_CC) $(SDTOOL_CFLAGS) -c $< -o $@
 $(SDTOOL_DIR)/%.o: %.c $(LVGL_PATCH_STAMP)
