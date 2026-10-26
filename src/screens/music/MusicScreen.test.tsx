@@ -157,6 +157,18 @@ describe('MusicScreen', () => {
     expect(screen.queryByText(/Library updated/)).not.toBeInTheDocument();
   });
 
+  it("explains that the player builds the library when its format is not the tool's", async () => {
+    vi.mocked(copyTransfer).mockResolvedValue({
+      ...result,
+      failed: [],
+      library: { status: 'unsupported' },
+    });
+    await copyOnce();
+    expect(await screen.findByText(/built by the player on its next start/)).toBeInTheDocument();
+    expect(screen.getByText(/Copied 2 files/)).toBeInTheDocument();
+    expect(screen.queryByText(/Library updated/)).not.toBeInTheDocument();
+  });
+
   it('keeps the copy when the library update fails and retries only the update', async () => {
     vi.mocked(copyTransfer).mockResolvedValue({
       ...result,

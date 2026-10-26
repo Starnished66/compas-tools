@@ -5,6 +5,7 @@ import { ErrorBanner } from '../../components/ErrorBanner';
 import { Notice } from '../../components/Notice';
 import { t } from '../../i18n';
 import { ArtResult, ScanResult } from '../library/LibraryResult';
+import { LibraryNotReady } from '../library/LibraryNotReady';
 
 interface Props {
   result: CopyView;
@@ -49,6 +50,7 @@ export function CopyResult({ result, busy, onRetryLibrary }: Props) {
       {library.status === 'skipped' && (
         <p className="muted">{t('Nothing changed on the card, so the library was not updated.')}</p>
       )}
+      {library.status === 'unsupported' && <LibraryNotReady />}
       {library.status === 'updated' && (
         <>
           <ScanResult done={library.scan} />

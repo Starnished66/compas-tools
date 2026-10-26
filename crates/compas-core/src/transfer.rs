@@ -1,18 +1,22 @@
 //! What happens after music was copied: the library is brought up to date in
-//! the same operation, and a failure there never undoes the copy.
+//! the same operation, and a failure there never undoes the copy. Only a card
+//! whose player writes the tool's database format gets that update.
 
 use serde::Serialize;
 
 use crate::card::Card;
 use crate::music::CopyReport;
 use crate::progress::OnProgress;
-use crate::sdtool::{LibraryUpdate, SdTool};
+use crate::sdtool::{library_ready, LibraryUpdate, SdTool};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum LibraryOutcome {
     /// Nothing changed on the card, so there was nothing to update.
     Skipped,
+    /// The player on the card does not write this tool's database format, so
+    /// the player builds the library on its next start.
+    Unsupported,
     Updated(LibraryUpdate),
     /// The copied files stay; only the library update has to be repeated.
     Failed {
@@ -31,8 +35,16 @@ pub async fn update_after_copy(
     if copy.copied + copy.deleted == 0 {
         return LibraryOutcome::Skipped;
     }
-    match tool.update_library(card, on_progress).await {
-        Ok(update) => LibraryOutcome::Updated(update),
+    let update = async {
+        let info = tool.info(card).await?;
+        if !library_ready(card, &info)? {
+            return Ok(None);
+        }
+        tool.update_library(card, on_progress).await.map(Some)
+    };
+    match update.await {
+        Ok(Some(update)) => LibraryOutcome::Updated(update),
+        Ok(None) => LibraryOutcome::Unsupported,
         Err(error) => LibraryOutcome::Failed {
             message: error.to_string(),
         },
@@ -53,9 +65,23 @@ echo '{"event":"done","command":"scan","files":2,"parsed":1,"unchanged":0,"faile
     const ART_STEP: &str = r#"echo '{"event":"progress","phase":"art","done":1,"total":1}'
 echo '{"event":"done","command":"art","board":"r1","albums":1,"written":1,"unchanged":0,"no_art":0,"failed":0,"mtime_offset":3600}'"#;
 
+    const INFO: &str =
+        r#"echo '{"sdtool_version":"1.0.0","database_format":7,"generation":0,"songs":0}'"#;
+
     /// A fake tool whose `scan` and `art` commands run the given shell snippets.
     fn script(scan: &str, art: &str) -> String {
-        format!("case \"$1\" in\nscan) {scan} ;;\nart) {art} ;;\nesac")
+        format!("case \"$1\" in\ninfo) {INFO} ;;\nscan) {scan} ;;\nart) {art} ;;\nesac")
+    }
+
+    /// A card whose `device.json` reports the given database format.
+    fn card_with_format(format: Option<u32>) -> (tempfile::TempDir, Card) {
+        let (dir, card) = fake_card();
+        let format = format.map_or("null".to_string(), |f| f.to_string());
+        let json = format!(
+            r#"{{"schema":1,"model":"r1","player_version":"1.3.0","plugin_api":17,"database_format":{format}}}"#
+        );
+        write_file(dir.path(), ".compas/device.json", json.as_bytes());
+        (dir, card)
     }
 
     fn working() -> String {
@@ -72,7 +98,7 @@ echo '{"event":"done","command":"art","board":"r1","albums":1,"written":1,"uncha
 
     #[tokio::test]
     async fn a_copy_that_changed_files_runs_scan_then_art_as_one_operation() {
-        let (_dir, card) = fake_card();
+        let (_dir, card) = card_with_format(Some(7));
         let tools = tempfile::tempdir().unwrap();
         let tool = script_tool(tools.path(), &working());
         let seen = Mutex::new(Vec::new());
@@ -85,7 +111,7 @@ echo '{"event":"done","command":"art","board":"r1","albums":1,"written":1,"uncha
         let LibraryOutcome::Updated(update) = outcome else {
             panic!("{outcome:?}")
         };
-        assert_eq!(calls(tools.path()), ["scan", "art"]);
+        assert_eq!(calls(tools.path()), ["info", "scan", "art"]);
         assert_eq!((update.scan.failed, update.scan.mtime_offset), (1, 3600));
         assert_eq!(update.art.unwrap().written, 1);
         assert_eq!(
@@ -96,7 +122,7 @@ echo '{"event":"done","command":"art","board":"r1","albums":1,"written":1,"uncha
 
     #[tokio::test]
     async fn removals_alone_also_update_the_library() {
-        let (_dir, card) = fake_card();
+        let (_dir, card) = card_with_format(Some(7));
         let tools = tempfile::tempdir().unwrap();
         let tool = script_tool(tools.path(), &working());
         let outcome = update_after_copy(&tool, &card, &copied(0, 3), &|_| {}).await;
@@ -105,7 +131,7 @@ echo '{"event":"done","command":"art","board":"r1","albums":1,"written":1,"uncha
 
     #[tokio::test]
     async fn nothing_changed_means_the_tool_is_not_even_started() {
-        let (_dir, card) = fake_card();
+        let (_dir, card) = card_with_format(Some(7));
         let tools = tempfile::tempdir().unwrap();
         let tool = script_tool(tools.path(), &working());
         let identical_only = CopyReport {
@@ -120,7 +146,7 @@ echo '{"event":"done","command":"art","board":"r1","albums":1,"written":1,"uncha
 
     #[tokio::test]
     async fn a_partly_failed_copy_still_updates_the_library() {
-        let (_dir, card) = fake_card();
+        let (_dir, card) = card_with_format(Some(7));
         let tools = tempfile::tempdir().unwrap();
         let tool = script_tool(tools.path(), &working());
         let mut report = copied(1, 0);
@@ -135,7 +161,7 @@ echo '{"event":"done","command":"art","board":"r1","albums":1,"written":1,"uncha
 
     #[tokio::test]
     async fn a_failing_tool_keeps_the_copied_files_and_a_retry_runs_only_the_update() {
-        let (card_dir, card) = fake_card();
+        let (card_dir, card) = card_with_format(Some(7));
         let src = tempfile::tempdir().unwrap();
         write_file(src.path(), "Album/01.flac", b"music");
         let plan =
@@ -165,12 +191,12 @@ echo '{"event":"done","command":"art","board":"r1","albums":1,"written":1,"uncha
         let fixed = script_tool(tools.path(), &working());
         let update = fixed.update_library(&card, &|_| {}).await.unwrap();
         assert_eq!(update.scan.songs, 1);
-        assert_eq!(calls(tools.path()), ["scan", "scan", "art"]);
+        assert_eq!(calls(tools.path()), ["info", "scan", "art"]);
     }
 
     #[tokio::test]
     async fn a_partial_art_failure_still_counts_as_an_updated_library() {
-        let (_dir, card) = fake_card();
+        let (_dir, card) = card_with_format(Some(7));
         let tools = tempfile::tempdir().unwrap();
         // The order sdtool 1.1 prints: `done` with a `failed` count, then `art_failed`.
         let art = r#"echo '{"event":"done","command":"art","board":"r1","albums":10,"written":8,"unchanged":1,"no_art":0,"failed":1,"mtime_offset":0}'
@@ -189,7 +215,7 @@ echo '{"event":"error","code":"art_failed","message":"one cover"}'; exit 1"#;
 
     #[tokio::test]
     async fn covers_failing_completely_do_not_make_the_library_update_fail() {
-        let (_dir, card) = fake_card();
+        let (_dir, card) = card_with_format(Some(7));
         let tools = tempfile::tempdir().unwrap();
         let art = r#"echo '{"event":"error","code":"out_of_memory","message":"x"}'; exit 1"#;
         let tool = script_tool(tools.path(), &script(SCAN_STEP, art));
@@ -208,7 +234,7 @@ echo '{"event":"error","code":"art_failed","message":"one cover"}'; exit 1"#;
 
     #[tokio::test]
     async fn a_failed_scan_is_the_only_failure_that_offers_a_retry() {
-        let (_dir, card) = fake_card();
+        let (_dir, card) = card_with_format(Some(7));
         let tools = tempfile::tempdir().unwrap();
         let scan = r#"echo '{"event":"error","code":"write_failed","message":"x"}'; exit 1"#;
         let tool = script_tool(tools.path(), &script(scan, ART_STEP));
@@ -216,16 +242,42 @@ echo '{"event":"error","code":"art_failed","message":"one cover"}'; exit 1"#;
         assert!(matches!(outcome, LibraryOutcome::Failed { .. }));
         assert_eq!(
             calls(tools.path()),
-            ["scan"],
+            ["info", "scan"],
             "no art step after a failed scan"
         );
     }
 
     #[tokio::test]
     async fn a_missing_tool_is_a_failure_not_a_panic() {
-        let (_dir, card) = fake_card();
+        let (_dir, card) = card_with_format(Some(7));
         let tool = SdTool::new("/nonexistent/compas-sdtool");
         let outcome = update_after_copy(&tool, &card, &copied(1, 0), &|_| {}).await;
         assert!(matches!(outcome, LibraryOutcome::Failed { .. }));
+    }
+
+    #[tokio::test]
+    async fn a_card_without_device_json_or_with_another_format_skips_the_library() {
+        let older = card_with_format(Some(3));
+        let missing = fake_card();
+        for (_dir, card) in [older, missing] {
+            let tools = tempfile::tempdir().unwrap();
+            let tool = script_tool(tools.path(), &working());
+
+            let outcome = update_after_copy(&tool, &card, &copied(2, 0), &|_| {}).await;
+            assert!(
+                matches!(outcome, LibraryOutcome::Unsupported),
+                "{outcome:?}"
+            );
+            assert_eq!(calls(tools.path()), ["info"], "no scan and no art");
+            assert!(tool.ensure_library_ready(&card).await.is_err());
+        }
+    }
+
+    #[tokio::test]
+    async fn a_card_with_the_same_format_is_ready() {
+        let (_dir, card) = card_with_format(Some(7));
+        let tools = tempfile::tempdir().unwrap();
+        let tool = script_tool(tools.path(), &working());
+        assert!(tool.ensure_library_ready(&card).await.is_ok());
     }
 }

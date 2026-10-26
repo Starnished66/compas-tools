@@ -106,6 +106,7 @@ pub async fn music_update_library(
 ) -> CommandResult<LibraryUpdate> {
     let _busy = state.try_busy()?;
     let card = state.card()?;
+    sdtool().ensure_library_ready(&card).await?;
     Ok(sdtool()
         .update_library(&card, &reporter(on_progress))
         .await?)

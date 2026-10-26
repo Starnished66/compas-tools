@@ -2,6 +2,7 @@
 //! program, used to build the music database and album-art cache.
 
 mod events;
+mod guard;
 
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -17,6 +18,7 @@ use crate::error::{Error, Result};
 use crate::progress::{OnProgress, Progress};
 
 pub use events::{ArtDone, LibraryInfo, LibraryUpdate, ScanDone};
+pub use guard::library_ready;
 
 /// Last stderr lines kept to explain a crash.
 const STDERR_TAIL: usize = 5;

@@ -12,6 +12,7 @@ import { t } from '../../i18n';
 import { useCard } from '../../state/CardContext';
 import { ArtResult, ScanResult } from './LibraryResult';
 import { LibraryStatus } from './LibraryStatus';
+import { useLibraryStatus } from './useLibraryStatus';
 
 interface Props {
   onChooseCard: () => void;
@@ -24,6 +25,7 @@ export function LibraryScreen({ onChooseCard }: Props) {
   const operation = useOperation();
   const [result, setResult] = useState<Result>(null);
   const [version, setVersion] = useState(0);
+  const { status, problem } = useLibraryStatus(version);
 
   if (!card) {
     return (
@@ -38,6 +40,8 @@ export function LibraryScreen({ onChooseCard }: Props) {
       </section>
     );
   }
+
+  const ready = status?.library_ready === true;
 
   const run = async (task: Parameters<typeof operation.run<Result>>[0]) => {
     setResult(null);
@@ -55,12 +59,12 @@ export function LibraryScreen({ onChooseCard }: Props) {
         )}
       </p>
       <div className="panel stack">
-        <LibraryStatus version={version} heading={false} />
+        <LibraryStatus status={status} problem={problem} heading={false} />
         <div className="row">
           <Button
             icon="refresh"
             variant="primary"
-            disabled={operation.busy}
+            disabled={operation.busy || !ready}
             onClick={() =>
               void run(async (p) => ({ type: 'scan', done: await scanLibrary(false, p) }))
             }
@@ -69,7 +73,7 @@ export function LibraryScreen({ onChooseCard }: Props) {
           </Button>
           <Button
             icon="tags"
-            disabled={operation.busy}
+            disabled={operation.busy || !ready}
             onClick={() =>
               void run(async (p) => ({ type: 'scan', done: await scanLibrary(true, p) }))
             }
@@ -78,7 +82,7 @@ export function LibraryScreen({ onChooseCard }: Props) {
           </Button>
           <Button
             icon="albumArt"
-            disabled={operation.busy}
+            disabled={operation.busy || !ready}
             onClick={() => void run(async (p) => ({ type: 'art', done: await buildArt(p) }))}
           >
             {t('Build album art')}

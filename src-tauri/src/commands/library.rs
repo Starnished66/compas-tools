@@ -2,7 +2,7 @@ use serde::Serialize;
 use tauri::ipc::Channel;
 use tauri::State;
 
-use compas_core::sdtool::{ArtDone, LibraryInfo, ScanDone, ScanOptions};
+use compas_core::sdtool::{library_ready, ArtDone, LibraryInfo, ScanDone, ScanOptions};
 use compas_core::Progress;
 
 use super::reporter;
@@ -14,17 +14,17 @@ use crate::state::AppState;
 pub struct LibraryStatus {
     #[serde(flatten)]
     info: LibraryInfo,
-    /// The player on the card writes another database layout than this tool.
-    format_mismatch: bool,
+    /// The card's player writes the database layout this tool writes; otherwise
+    /// the player builds the library itself.
+    library_ready: bool,
 }
 
 #[tauri::command]
 pub async fn library_info(state: State<'_, AppState>) -> CommandResult<LibraryStatus> {
     let card = state.card()?;
     let info = sdtool().info(&card).await?;
-    let card_format = card.device()?.and_then(|d| d.database_format);
     Ok(LibraryStatus {
-        format_mismatch: card_format.is_some_and(|f| f != info.database_format),
+        library_ready: library_ready(&card, &info)?,
         info,
     })
 }
@@ -37,6 +37,7 @@ pub async fn library_scan(
 ) -> CommandResult<ScanDone> {
     let _busy = state.try_busy()?;
     let card = state.card()?;
+    sdtool().ensure_library_ready(&card).await?;
     let options = ScanOptions {
         full,
         mtime_offset: None,
@@ -53,6 +54,7 @@ pub async fn library_art(
 ) -> CommandResult<ArtDone> {
     let _busy = state.try_busy()?;
     let card = state.card()?;
+    sdtool().ensure_library_ready(&card).await?;
     Ok(sdtool()
         .art(&card, None, None, &reporter(on_progress))
         .await?)

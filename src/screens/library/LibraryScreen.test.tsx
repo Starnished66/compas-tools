@@ -13,7 +13,7 @@ const status = {
   database_format: 5,
   generation: 12,
   songs: 4032,
-  format_mismatch: false,
+  library_ready: true,
 };
 
 describe('LibraryScreen', () => {
@@ -26,11 +26,14 @@ describe('LibraryScreen', () => {
     expect(await screen.findByText('4032 songs, library generation 12.')).toBeInTheDocument();
   });
 
-  it('warns about a database layout mismatch and an empty library', async () => {
-    vi.mocked(libraryStatus).mockResolvedValue({ ...status, generation: 0, format_mismatch: true });
+  it('explains why the buttons are off when the player builds the library', async () => {
+    vi.mocked(libraryStatus).mockResolvedValue({ ...status, generation: 0, library_ready: false });
     render(<LibraryScreen onChooseCard={vi.fn()} />);
     expect(await screen.findByText('No library on this card yet.')).toBeInTheDocument();
-    expect(screen.getByText(/different library layout/)).toBeInTheDocument();
+    expect(screen.getByText(/built by the player on its next start/)).toBeInTheDocument();
+    for (const name of ['Update library', 'Re-read all tags', 'Build album art']) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+    }
   });
 
   it('reports the counts of a scan, failures and the time shift', async () => {
@@ -46,6 +49,7 @@ describe('LibraryScreen', () => {
       mtime_offset: 3600,
     });
     render(<LibraryScreen onChooseCard={vi.fn()} />);
+    await screen.findByText(/4032 songs/);
     await userEvent.click(screen.getByRole('button', { name: 'Update library' }));
 
     expect(await screen.findByText(/Library updated: 8 songs, generation 13/)).toBeInTheDocument();
@@ -68,6 +72,7 @@ describe('LibraryScreen', () => {
       mtime_offset: 0,
     });
     render(<LibraryScreen onChooseCard={vi.fn()} />);
+    await screen.findByText(/4032 songs/);
     await userEvent.click(screen.getByRole('button', { name: 'Re-read all tags' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('No music was found on the card.');
 
@@ -87,6 +92,7 @@ describe('LibraryScreen', () => {
       warning: 'Some album covers could not be written; the others were.',
     });
     render(<LibraryScreen onChooseCard={vi.fn()} />);
+    await screen.findByText(/4032 songs/);
     await userEvent.click(screen.getByRole('button', { name: 'Build album art' }));
     expect(await screen.findByText(/Album art checked for 10 albums/)).toBeInTheDocument();
     expect(screen.getByText(/Some album covers could not be written/)).toBeInTheDocument();

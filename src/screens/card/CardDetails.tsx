@@ -5,6 +5,7 @@ import { ModelPicker } from '../../components/ModelPicker';
 import { formatBytes } from '../../format';
 import { t } from '../../i18n';
 import { LibraryStatus } from '../library/LibraryStatus';
+import { useLibraryStatus } from '../library/useLibraryStatus';
 
 interface Props {
   card: CardInfo;
@@ -20,6 +21,7 @@ const MODEL_NAMES: Record<Model, string> = {
 
 export function CardDetails({ card, model, onChooseModel }: Props) {
   const { device } = card;
+  const library = useLibraryStatus();
   return (
     <section className="panel stack" aria-label={t('Card details')}>
       <h2>{card.label}</h2>
@@ -56,7 +58,7 @@ export function CardDetails({ card, model, onChooseModel }: Props) {
           <ModelPicker value={model} onChange={onChooseModel} />
         </Notice>
       )}
-      <LibraryStatus />
+      <LibraryStatus {...library} />
       <EjectAdvice />
     </section>
   );

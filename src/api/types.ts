@@ -138,6 +138,7 @@ export interface LibraryUpdate {
 /** What happened to the library after a copy. `failed` leaves the copied files in place. */
 export type LibraryOutcome =
   | { status: 'skipped' }
+  | { status: 'unsupported' }
   | ({ status: 'updated' } & LibraryUpdate)
   | { status: 'failed'; message: string };
 
@@ -147,7 +148,8 @@ export interface LibraryStatus {
   /** 0 when the card has no library yet. */
   generation: number;
   songs: number;
-  format_mismatch: boolean;
+  /** False when the player builds the library itself (its database format differs or is unknown). */
+  library_ready: boolean;
 }
 
 export interface ScanDone {

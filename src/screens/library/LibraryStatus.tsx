@@ -1,44 +1,16 @@
-import { useEffect, useState } from 'react';
-
-import { libraryStatus } from '../../api/library';
-import { errorMessage } from '../../api/invoke';
 import type { LibraryStatus as Status } from '../../api/types';
-import { Notice } from '../../components/Notice';
 import { t } from '../../i18n';
-import { useCard } from '../../state/CardContext';
+import { LibraryNotReady } from './LibraryNotReady';
 
 interface Props {
-  /** Change it to read the status again, e.g. after a scan. */
-  version?: number;
+  status: Status | null;
+  problem: string | null;
   /** Show the "Library" heading; the Library screen has its own. */
   heading?: boolean;
 }
 
 /** What `compas-sdtool info` says about the library on the selected card. */
-export function LibraryStatus({ version = 0, heading = true }: Props) {
-  const { card } = useCard();
-  const root = card?.root ?? null;
-  const [status, setStatus] = useState<Status | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!root) return;
-    let current = true;
-    setStatus(null);
-    setProblem(null);
-    libraryStatus().then(
-      (value) => {
-        if (current) setStatus(value);
-      },
-      (failure: unknown) => {
-        if (current) setProblem(errorMessage(failure));
-      },
-    );
-    return () => {
-      current = false;
-    };
-  }, [root, version]);
-
+export function LibraryStatus({ status, problem, heading = true }: Props) {
   return (
     <section className="stack" aria-label={t('Library')}>
       {heading && <h2>{t('Library')}</h2>}
@@ -52,15 +24,7 @@ export function LibraryStatus({ version = 0, heading = true }: Props) {
               })}
         </p>
       )}
-      {status?.format_mismatch && (
-        <Notice tone="warning">
-          <p>
-            {t(
-              'The player on this card writes a different library layout than this app. Update Compás Tools or the player before building the library.',
-            )}
-          </p>
-        </Notice>
-      )}
+      {status && !status.library_ready && <LibraryNotReady />}
       {problem && (
         <p className="muted">{t('Library information is not available: {problem}', { problem })}</p>
       )}
