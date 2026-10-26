@@ -13,8 +13,8 @@ interface Props {
 
 export function Sidebar({ current, cardLabel, onNavigate }: Props) {
   const items: { id: ScreenId; label: string }[] = [
-    { id: 'card', label: t('Player') },
     { id: 'device', label: t('Device') },
+    { id: 'card', label: t('Player') },
     { id: 'music', label: t('Music') },
     { id: 'library', label: t('Library') },
     { id: 'plugins', label: t('Plugins') },

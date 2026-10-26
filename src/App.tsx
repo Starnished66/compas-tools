@@ -17,7 +17,7 @@ import { MusicProvider } from './state/MusicContext';
 function Shell() {
   useLanguage(); // re-render everything when the language changes
   const { card } = useCard();
-  const [screen, setScreen] = useState<ScreenId>('card');
+  const [screen, setScreen] = useState<ScreenId>('device');
   const toCard = () => {
     setScreen('card');
   };
