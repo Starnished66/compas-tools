@@ -91,19 +91,18 @@ async fn a_v_prefixed_version_is_kept_as_the_player_wrote_it() {
     assert!(info.older_than.is_none());
 }
 
-/// v1.2.0 runs `compas_player` but writes no `device.json`: the version cannot be read, yet
-/// the player is known to be older than the first release that writes the file.
+/// v1.2.0's program has no notion of `device.json`; v1.3.0's does, card or no card.
 #[tokio::test]
-async fn a_v1_2_0_player_is_recognised_by_running_compas_without_device_json() {
+async fn a_v1_2_0_player_is_recognised_by_its_program_not_by_the_card() {
     let dir = tempfile::tempdir().unwrap();
     let fake = FakeAdb::new(dir.path(), "s1", "480,800", PS_COMPAS);
+    fake.write_remote("/usr/bin/compas_player", "ELF player v1.2.0 settings.txt");
     fake.write_remote("/usr/data/.compas/settings.txt", "volume=12\n");
     let info = identify(&fake.adb(), "s1").await.unwrap();
     assert_eq!(info.firmware, Firmware::Compas);
     assert_eq!(info.board, Some(Model::R1));
     assert!(info.player_version.is_none());
     assert_eq!(info.older_than.as_deref(), Some("v1.3.0"));
-
     // The vendor's firmware has no device.json either, and is not "older Compás".
     let stock = tempfile::tempdir().unwrap();
     let fake = FakeAdb::new(stock.path(), "s2", "480,800", PS_STOCK);
@@ -115,3 +114,55 @@ async fn a_v1_2_0_player_is_recognised_by_running_compas_without_device_json() {
 }
 
 use crate::card::Model;
+
+#[tokio::test]
+async fn a_v1_3_0_player_is_never_called_older_whatever_its_card_does() {
+    let v13 = "ELF player writes .compas/device.json at boot";
+    // No card at all, and a card without the file: the program still knows device.json.
+    for card_file in [None, Some("")] {
+        let dir = tempfile::tempdir().unwrap();
+        let fake = FakeAdb::new(dir.path(), "s1", "480,800", PS_COMPAS);
+        fake.write_remote("/usr/bin/compas_player", v13);
+        if let Some(content) = card_file {
+            fake.write_remote("/data/mnt/sd_0/.compas/device.json", content);
+        }
+        let info = identify(&fake.adb(), "s1").await.unwrap();
+        assert!(info.older_than.is_none() && info.player_version.is_none());
+    }
+}
+
+#[tokio::test]
+async fn an_unreadable_program_leaves_the_version_unknown_not_old() {
+    // The binary is not where ps says, so grep cannot be asked.
+    let dir = tempfile::tempdir().unwrap();
+    let fake = FakeAdb::new(dir.path(), "s1", "480,800", PS_COMPAS);
+    let info = identify(&fake.adb(), "s1").await.unwrap();
+    assert!(info.older_than.is_none());
+
+    // A player-only install elsewhere is found through ps.
+    let ps = PS_COMPAS.replace("/usr/bin/compas_player", "/usr/data/compas_player");
+    let dir = tempfile::tempdir().unwrap();
+    let fake = FakeAdb::new(dir.path(), "s2", "480,800", &ps);
+    fake.write_remote("/usr/data/compas_player", "old program");
+    assert_eq!(
+        identify(&fake.adb(), "s2")
+            .await
+            .unwrap()
+            .older_than
+            .as_deref(),
+        Some("v1.3.0")
+    );
+}
+
+#[test]
+fn the_player_program_is_taken_from_ps_with_a_safe_default() {
+    assert_eq!(identify::player_binary(PS_COMPAS), "/usr/bin/compas_player");
+    assert_eq!(
+        identify::player_binary("1 root compas_player"),
+        "/usr/bin/compas_player"
+    );
+    assert_eq!(
+        identify::player_binary("1 root /tmp/a;b/compas_player"),
+        "/usr/bin/compas_player"
+    );
+}

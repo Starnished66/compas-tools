@@ -75,11 +75,9 @@ describe('UpdatesScreen', () => {
   });
   it('offers the v1.3.0 firmware as the normal update for a v1.2.0 player without device.json', async () => {
     current = { ...card, device: null };
-    vi.mocked(latestRelease).mockResolvedValue(latest('update_available', []));
+    vi.mocked(latestRelease).mockResolvedValue(latest('probably_older', []));
     renderScreen();
-    expect(
-      await screen.findByText('This player is older than v1.3.0; an update is available.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/No version information on this player/)).toBeInTheDocument();
     const buttons = await screen.findAllByRole('button', { name: 'Install and update' });
     expect(buttons[1]?.className).toContain('button--primary');
     expect(buttons[0]).toBeDisabled();

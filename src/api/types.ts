@@ -75,7 +75,7 @@ export interface Progress {
 }
 
 export type ReleaseKind = 'player_only' | 'full_image';
-export type Freshness = 'unknown' | 'up_to_date' | 'update_available' | 'newer';
+export type Freshness = 'unknown' | 'up_to_date' | 'update_available' | 'probably_older' | 'newer';
 
 export interface Release {
   tag: string;

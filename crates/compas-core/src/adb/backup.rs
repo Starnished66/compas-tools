@@ -265,7 +265,7 @@ mod tests {
 
     #[cfg(unix)]
     mod with_fake_adb {
-        use super::super::super::fake::{FakeAdb, PS_STOCK};
+        use super::super::super::fake::{FakeAdb, PS_COMPAS, PS_STOCK};
         use super::super::*;
 
         fn fixture(dir: &Path) -> FakeAdb {
@@ -371,7 +371,7 @@ mod tests {
         #[tokio::test]
         async fn a_v1_2_0_layout_with_few_files_backs_up() {
             let dir = tempfile::tempdir().unwrap();
-            let fake = FakeAdb::new(dir.path(), "ingenic_1", "480,800", PS_STOCK);
+            let fake = FakeAdb::new(dir.path(), "ingenic_1", "480,800", PS_COMPAS);
             fake.write_remote("/usr/data/.compas/settings.txt", "volume=7\nname=Old\n");
             fake.write_remote("/usr/data/player_exit.log", "exit 0\n");
             fake.write_remote("/usr/data/.compas/plugins/x.json", "{\"token\":\"T\"}");

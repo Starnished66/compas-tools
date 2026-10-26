@@ -113,6 +113,7 @@ describe('DeviceScreen', () => {
     vi.resetAllMocks();
     vi.mocked(adbStatus).mockResolvedValue(tools);
     vi.mocked(listDevices).mockResolvedValue([view()]);
+    vi.mocked(latestRelease).mockResolvedValue(latest('update_available'));
   });
 
   it('asks before downloading adb when none is installed, then scans', async () => {
@@ -415,5 +416,15 @@ describe('DeviceScreen', () => {
     expect(screen.getByRole('button', { name: 'Update only the player' })).toBeDisabled();
     await userEvent.click(install);
     expect(await screen.findByRole('button', { name: 'Install and reboot' })).toBeInTheDocument();
+  });
+  it('keeps installing disabled until the latest release is known', async () => {
+    vi.mocked(listDevices).mockResolvedValue([
+      view({ firmware: 'compas', player_version: 'v1.2.0' }),
+    ]);
+    vi.mocked(latestRelease).mockRejectedValue({ code: 'network', message: 'offline' });
+    renderScreen();
+    expect(await screen.findByText(/offline/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Update only the player' })).toBeDisabled();
   });
 });

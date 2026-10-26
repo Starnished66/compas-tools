@@ -2,6 +2,7 @@ import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import { useEffect, useState } from 'react';
 
 import { backupDevice, installOnDevice, removeUpdateFile } from '../../api/adb';
+import { errorMessage } from '../../api/invoke';
 import { latestRelease } from '../../api/releases';
 import type {
   BackupReport,
@@ -50,6 +51,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const [latest, setLatest] = useState<LatestRelease | null>(null);
+  const [releaseError, setReleaseError] = useState<string | null>(null);
 
   const model = device.board ?? chosen;
   const installedVersion = device.player_version;
@@ -57,12 +59,14 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
   // Compared with the version read over adb, not with any selected player.
   useEffect(() => {
     const live = { current: true };
+    setLatest(null);
+    setReleaseError(null);
     void (async () => {
       try {
         const found = await latestRelease(false, installedVersion ?? '', olderThan !== null);
         if (live.current) setLatest(found);
-      } catch {
-        if (live.current) setLatest(null);
+      } catch (failure) {
+        if (live.current) setReleaseError(errorMessage(failure));
       }
     })();
     return () => {
@@ -135,7 +139,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
         <div className="row">
           <Button
             variant={gate.recommended ? 'primary' : 'secondary'}
-            disabled={operation.busy || needsBackup || !model}
+            disabled={operation.busy || needsBackup || !model || !latest}
             onClick={() => {
               setAsking('full_image');
             }}
@@ -144,7 +148,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
           </Button>
           {device.firmware === 'compas' && (
             <Button
-              disabled={operation.busy || !model || !gate.playerOnlyAvailable}
+              disabled={operation.busy || !model || !latest || !gate.playerOnlyAvailable}
               onClick={() => {
                 setAsking('player_only');
               }}
@@ -153,6 +157,8 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
             </Button>
           )}
         </div>
+        {!latest && !releaseError && <p className="muted">{t('Checking the latest release…')}</p>}
+        {releaseError && <ErrorBanner message={releaseError} />}
         {device.firmware === 'compas' && !gate.playerOnlyAvailable && (
           <p className="muted">{firmwareOnlyText()}</p>
         )}

@@ -278,6 +278,7 @@ export const ru: Record<string, TranslationValue> = {
   "Go back to the older version?": "Вернуться к старой версии?",
   "Install anyway": "Всё равно установить",
   "Your player already has {version}, the latest release. Reinstalling is possible if you need it.": "На вашем плеере уже версия {version}, последний выпуск. При необходимости можно переустановить.",
-  "This player is older than {version}; an update is available.": "Этот плеер старше версии {version}; доступно обновление.",
   "older than {version}": "старше {version}",
+  "No version information on this player. Players on v1.2.0 or older need the full firmware update; newer players record it on their next start.": "У этого плеера нет сведений о версии. Плеерам с v1.2.0 и старше нужно полное обновление прошивки; более новые записывают её при следующем запуске.",
+  "Checking the latest release…": "Проверка последнего выпуска…",
 };

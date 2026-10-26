@@ -4,7 +4,8 @@ use std::cmp::Ordering;
 
 /// Drops the leading `v`/`V` that release tags and `device.json` may carry (`v1.3.0`).
 pub fn strip_v(version: &str) -> &str {
-    version.trim().trim_start_matches(['v', 'V'])
+    let version = version.trim();
+    version.strip_prefix(['v', 'V']).unwrap_or(version)
 }
 
 /// One to four numeric groups, under 32 characters (`store_version_valid`).
@@ -54,6 +55,14 @@ mod tests {
             compare("99999999999999999999", "100000000000000000000"),
             Ordering::Less
         );
+    }
+
+    #[test]
+    fn strips_one_leading_v_only() {
+        assert_eq!(strip_v("v1.3.0"), "1.3.0");
+        assert_eq!(strip_v("V1.3.0"), "1.3.0");
+        assert_eq!(strip_v(" 1.3.0 "), "1.3.0");
+        assert!(!is_valid(strip_v("vv1.3.0")));
     }
 
     #[test]

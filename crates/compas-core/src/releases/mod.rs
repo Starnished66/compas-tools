@@ -34,6 +34,9 @@ pub enum Freshness {
     Unknown,
     UpToDate,
     UpdateAvailable,
+    /// No version is recorded, which is what v1.2.0 and older players look like, but also a
+    /// newer player whose card was not readable. An update is suggested, not claimed.
+    ProbablyOlder,
     /// The card runs something newer than the latest release.
     Newer,
 }
@@ -83,7 +86,7 @@ impl Release {
     /// Whether the release ships a file of this kind for the model.
     pub fn supports(&self, kind: Kind, model: Model) -> bool {
         let name = Self::asset_name(kind, model);
-        self.assets.iter().any(|a| a.name == name)
+        self.checksums.contains_key(&name) && self.assets.iter().any(|a| a.name == name)
     }
 
     pub(crate) fn list_player_only_boards(&mut self) {
@@ -113,13 +116,23 @@ impl Release {
         })
     }
 
-    /// For a player that has no `device.json` although it runs: it predates the file, so it is
-    /// older than any release from [`DEVICE_INFO_SINCE`] on. Older releases say nothing.
-    pub fn freshness_without_device_info(&self) -> Freshness {
+    /// A player proven to predate `device.json` (its program lacks the file name): older than
+    /// any release from [`DEVICE_INFO_SINCE`] on. Older releases say nothing.
+    pub fn freshness_older_than_device_info(&self) -> Freshness {
+        self.since_device_info(Freshness::UpdateAvailable)
+    }
+
+    /// A player with no `device.json` on its storage. v1.2.0 and earlier look like this, but
+    /// so does a newer player whose card was swapped, read-only or not mounted yet.
+    pub fn freshness_probably_older(&self) -> Freshness {
+        self.since_device_info(Freshness::ProbablyOlder)
+    }
+
+    fn since_device_info(&self, when_older: Freshness) -> Freshness {
         let since = version::strip_v(DEVICE_INFO_SINCE);
         let latest = version::strip_v(&self.tag);
         if version::is_valid(latest) && version::compare(latest, since).is_ge() {
-            Freshness::UpdateAvailable
+            when_older
         } else {
             Freshness::Unknown
         }
@@ -224,11 +237,16 @@ mod tests {
     async fn a_player_without_device_json_is_older_than_the_file_itself() {
         let (_server, firmware_only) = release_with("v1.3.0", false).await;
         assert_eq!(
-            firmware_only.freshness_without_device_info(),
+            firmware_only.freshness_older_than_device_info(),
             Freshness::UpdateAvailable
         );
+        assert_eq!(
+            firmware_only.freshness_probably_older(),
+            Freshness::ProbablyOlder
+        );
         let (_server, older) = release("v1.2.0").await;
-        assert_eq!(older.freshness_without_device_info(), Freshness::Unknown);
+        assert_eq!(older.freshness_older_than_device_info(), Freshness::Unknown);
+        assert_eq!(older.freshness_probably_older(), Freshness::Unknown);
     }
 
     #[tokio::test]
@@ -238,6 +256,15 @@ mod tests {
         assert!(!release.supports(Kind::PlayerOnly, Model::R1));
         assert!(release.supports(Kind::FullImage, Model::R1));
         assert!(release.file(Kind::FullImage, Model::R3ProII).is_ok());
+    }
+
+    #[tokio::test]
+    async fn an_asset_without_a_checksum_is_not_offered() {
+        let (_server, mut release) = release("v1.2.0").await;
+        release.checksums.remove("compas_player");
+        release.list_player_only_boards();
+        assert_eq!(release.player_only_boards, ["r3proii", "r3ii_2025"]);
+        assert!(!release.supports(Kind::PlayerOnly, Model::R1));
     }
 
     #[tokio::test]

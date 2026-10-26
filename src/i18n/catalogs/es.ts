@@ -278,6 +278,7 @@ export const es: Record<string, TranslationValue> = {
   "Go back to the older version?": "¿Volver a la versión anterior?",
   "Install anyway": "Instalar de todos modos",
   "Your player already has {version}, the latest release. Reinstalling is possible if you need it.": "Tu reproductor ya tiene la versión {version}, la última publicada. Puedes reinstalarla si lo necesitas.",
-  "This player is older than {version}; an update is available.": "Este reproductor es anterior a {version}; hay una actualización disponible.",
   "older than {version}": "anterior a {version}",
+  "No version information on this player. Players on v1.2.0 or older need the full firmware update; newer players record it on their next start.": "Este reproductor no tiene información de versión. Los de v1.2.0 o anteriores necesitan la actualización completa de firmware; los más nuevos la registran en su próximo arranque.",
+  "Checking the latest release…": "Comprobando la última versión…",
 };

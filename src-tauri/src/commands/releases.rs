@@ -44,7 +44,7 @@ pub async fn releases_latest(
         // The Device screen passes what it read over adb; no selected player is consulted.
         match installed.as_deref().filter(|v| !v.is_empty()) {
             Some(version) => release.freshness(Some(version)),
-            None if without_device_info == Some(true) => release.freshness_without_device_info(),
+            None if without_device_info == Some(true) => release.freshness_older_than_device_info(),
             None => Freshness::Unknown,
         }
     } else {
@@ -52,9 +52,9 @@ pub async fn releases_latest(
             None => Freshness::Unknown,
             Some(card) => match card.device()? {
                 Some(device) => release.freshness(Some(&device.player_version)),
-                // A player that runs without writing device.json predates the file.
+                // No file: v1.2.0 and older, but also a newer player that has not written it.
                 None if !card.compas_dir().join("device.json").exists() => {
-                    release.freshness_without_device_info()
+                    release.freshness_probably_older()
                 }
                 None => Freshness::Unknown,
             },

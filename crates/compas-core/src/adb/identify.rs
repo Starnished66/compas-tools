@@ -25,8 +25,8 @@ pub struct DeviceInfo {
     /// From `.compas/device.json` on the card, when the player has written one.
     pub player_version: Option<String>,
     pub plugin_api: Option<u32>,
-    /// Set when Compás runs but wrote no `device.json`: the player is older than this release
-    /// (v1.2.0 and earlier), so its version cannot be read but is known to be lower.
+    /// Set when the running Compás program has no notion of `device.json` (its file name is
+    /// absent from the binary): v1.2.0 and earlier. The version cannot be read but is lower.
     pub older_than: Option<String>,
 }
 
@@ -93,6 +93,36 @@ pub(super) fn firmware_from_processes(ps: &str) -> Firmware {
     }
 }
 
+/// The running player program from the `ps` output; the firmware installs it as
+/// `/usr/bin/compas_player`, a player-only install may put it elsewhere.
+pub(super) fn player_binary(ps: &str) -> String {
+    const DEFAULT: &str = "/usr/bin/compas_player";
+    ps.split_whitespace()
+        .find(|w| {
+            w.starts_with('/')
+                && w.ends_with("compas_player")
+                && w.bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"/._-".contains(&b))
+        })
+        .unwrap_or(DEFAULT)
+        .to_string()
+}
+
+/// How many times the program mentions `device.json`: none before v1.3.0. `None` when it
+/// could not be asked (no such file, no grep, adb error), which is not the same as none.
+async fn device_info_mentions(adb: &Adb, serial: &str, binary: &str) -> Option<u32> {
+    let out = adb
+        .shell(
+            serial,
+            &format!(
+                "if [ -r {binary} ]; then grep -c device.json {binary}; else echo missing; fi"
+            ),
+        )
+        .await
+        .ok()?;
+    out.trim().parse().ok()
+}
+
 pub async fn identify(adb: &Adb, serial: &str) -> Result<DeviceInfo> {
     let size = adb
         .shell(
@@ -112,6 +142,15 @@ pub async fn identify(adb: &Adb, serial: &str) -> Result<DeviceInfo> {
     let device: Option<Device> = serde_json::from_str(device_json.trim()).ok();
 
     let firmware = firmware_from_processes(&processes);
+    // The card says nothing here: it may be missing, unmounted, swapped or read-only.
+    let older_than = if firmware == Firmware::Compas {
+        device_info_mentions(adb, serial, &player_binary(&processes))
+            .await
+            .filter(|count| *count == 0)
+            .map(|_| crate::releases::DEVICE_INFO_SINCE.to_string())
+    } else {
+        None
+    };
 
     Ok(DeviceInfo {
         serial: serial.to_string(),
@@ -119,8 +158,7 @@ pub async fn identify(adb: &Adb, serial: &str) -> Result<DeviceInfo> {
         firmware,
         player_version: device.as_ref().map(|d| d.player_version.clone()),
         plugin_api: device.as_ref().map(|d| d.plugin_api),
-        older_than: (firmware == Firmware::Compas && device_json.trim().is_empty())
-            .then(|| crate::releases::DEVICE_INFO_SINCE.to_string()),
+        older_than,
     })
 }
 

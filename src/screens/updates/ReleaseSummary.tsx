@@ -11,15 +11,16 @@ interface Props {
   installedVersion: string | null;
 }
 
-function freshnessText(freshness: Freshness, installed: string | null, tag: string): string {
+function freshnessText(freshness: Freshness, installed: string | null): string {
   switch (freshness) {
     case 'up_to_date':
       return t('Your player is up to date ({version}).', { version: installed ?? '' });
     case 'update_available':
-      // No version is known: the player predates device.json, so it is older than this release.
-      if (!installed)
-        return t('This player is older than {version}; an update is available.', { version: tag });
-      return t('Your player has {version}; an update is available.', { version: installed });
+      return t('Your player has {version}; an update is available.', { version: installed ?? '' });
+    case 'probably_older':
+      return t(
+        'No version information on this player. Players on v1.2.0 or older need the full firmware update; newer players record it on their next start.',
+      );
     case 'newer':
       return t('Your player has {version}, newer than the latest release.', {
         version: installed ?? '',
@@ -41,8 +42,12 @@ export function ReleaseSummary({ latest, installedVersion }: Props) {
           {date && ` · ${date}`}
         </span>
       </div>
-      <Notice tone={freshness === 'update_available' ? 'warning' : 'info'}>
-        <p>{freshnessText(freshness, installedVersion, release.tag)}</p>
+      <Notice
+        tone={
+          freshness === 'update_available' || freshness === 'probably_older' ? 'warning' : 'info'
+        }
+      >
+        <p>{freshnessText(freshness, installedVersion)}</p>
       </Notice>
       {release.notes && (
         <details>
