@@ -9,7 +9,6 @@ use compas_core::adb::{
     self, Adb, BackupReport, DeviceInfo, InstallReport, InstallRequest, LogBundle, ToolsSource,
     WaitOptions,
 };
-use compas_core::card::Model;
 use compas_core::releases::{self, Kind};
 use compas_core::Progress;
 
@@ -154,7 +153,6 @@ pub async fn adb_install(
     state: State<'_, AppState>,
     serial: String,
     kind: Kind,
-    model: Model,
     on_progress: Channel<Progress>,
 ) -> CommandResult<InstallReport> {
     let _busy = state.try_busy()?;
@@ -168,7 +166,6 @@ pub async fn adb_install(
     };
     let cache = dir(&app, "cache")?.join("releases");
     let request = InstallRequest {
-        model,
         release: &release,
         cache_dir: &cache,
         wait: WaitOptions::default(),

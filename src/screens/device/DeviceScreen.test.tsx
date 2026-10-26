@@ -164,6 +164,7 @@ describe('DeviceScreen', () => {
   it('makes the first install wait for a backup and then installs the full image', async () => {
     vi.mocked(backupDevice).mockResolvedValue({
       path: '/data/backups/ingenic_1-1',
+      quality: 'complete',
       files: 12,
       skipped: [{ path: 'mnt', reason: 'private' }],
       redacted: 1,
@@ -173,16 +174,18 @@ describe('DeviceScreen', () => {
       device: info({ firmware: 'compas', player_version: '1.2.0' }),
       candidates: [],
       freshness: 'up_to_date',
+      rebooted: true,
+      confirmed: true,
     });
     renderScreen();
 
     const install = await screen.findByRole('button', { name: 'Install the latest firmware' });
     expect(install).toBeDisabled();
-    expect(screen.getByText(/Back up the player first/)).toBeInTheDocument();
+    expect(screen.getByText(/Copy the player’s settings first/)).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Back up now' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Copy now' }));
     expect(
-      await screen.findByText(/Backup saved to \/data\/backups\/ingenic_1-1/),
+      await screen.findByText(/Settings copy saved to \/data\/backups\/ingenic_1-1/),
     ).toBeInTheDocument();
     expect(screen.getByText(/12 files copied, 1 left out on purpose/)).toBeInTheDocument();
 
@@ -196,12 +199,7 @@ describe('DeviceScreen', () => {
     expect(dialog).toHaveTextContent(/reboot into recovery and install/);
     await userEvent.click(screen.getByRole('button', { name: 'Install and reboot' }));
     expect(await screen.findByText(/Installed. The player now runs 1.2.0/)).toBeInTheDocument();
-    expect(installOnDevice).toHaveBeenCalledWith(
-      'ingenic_1',
-      'full_image',
-      'r1',
-      expect.any(Function),
-    );
+    expect(installOnDevice).toHaveBeenCalledWith('ingenic_1', 'full_image', expect.any(Function));
   });
 
   it('lets a Compás device update without a backup and offers player-only', async () => {
@@ -232,11 +230,57 @@ describe('DeviceScreen', () => {
     expect(screen.getByText(/hold Power \+ Play\/Pause/)).toBeInTheDocument();
   });
 
-  it('asks for the model when the screen size did not identify it', async () => {
+  it('refuses to install on a player whose model is not recognised', async () => {
     vi.mocked(listDevices).mockResolvedValue([view({ board: null, firmware: 'compas' })]);
     renderScreen();
-    expect(await screen.findByLabelText('Which model is your player?')).toBeInTheDocument();
+    expect(
+      await screen.findByText('This player model is not recognised, so nothing can be installed.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('Which model is your player?')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeDisabled();
+  });
+
+  it('does not call an unconfirmed install installed, and keeps the update file', async () => {
+    vi.mocked(listDevices).mockResolvedValue([
+      view({ firmware: 'compas', player_version: 'v1.3.0' }),
+    ]);
+    vi.mocked(installOnDevice).mockResolvedValue({
+      remote_path: '/data/mnt/sd_0/r1.upt',
+      device: info({ firmware: 'compas', player_version: 'v1.3.0' }),
+      candidates: [],
+      freshness: 'up_to_date',
+      rebooted: false,
+      confirmed: false,
+    });
+    renderScreen();
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Install the latest firmware' }),
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'Install and reboot' }));
+    expect(await screen.findByText(/The install is not confirmed/)).toBeInTheDocument();
+    expect(screen.queryByText(/Installed\./)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Delete the update file from the player' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('blocks the first install after an unusable settings copy until the user insists', async () => {
+    vi.mocked(backupDevice).mockResolvedValue({
+      quality: 'unusable',
+      path: '/data/backups/x',
+      files: 0,
+      skipped: [{ path: 'theme_overrides/icon.bin', reason: 'binary' }],
+      redacted: 0,
+    });
+    renderScreen();
+    const install = await screen.findByRole('button', { name: 'Install the latest firmware' });
+    await userEvent.click(screen.getByRole('button', { name: 'Copy now' }));
+    expect(await screen.findByText(/this copy is not usable/)).toBeInTheDocument();
+    expect(install).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Install without a settings copy' }));
+    await waitFor(() => {
+      expect(install).toBeEnabled();
+    });
   });
 
   it('shows exactly what the log report contains before saving it', async () => {
@@ -325,6 +369,8 @@ describe('DeviceScreen', () => {
       device: info({ firmware: 'compas', player_version: '1.2.0' }),
       candidates: [],
       freshness: 'up_to_date',
+      rebooted: true,
+      confirmed: true,
     });
     vi.mocked(removeUpdateFile).mockResolvedValue(null);
     renderScreen();
@@ -356,6 +402,8 @@ describe('DeviceScreen', () => {
       device: null,
       candidates: [info({ serial: 'ingenic_a' }), info({ serial: 'ingenic_b' })],
       freshness: 'unknown',
+      rebooted: false,
+      confirmed: false,
     });
     renderScreen();
     await userEvent.click(

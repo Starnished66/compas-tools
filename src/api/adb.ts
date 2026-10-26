@@ -5,7 +5,6 @@ import type {
   DeviceView,
   InstallReport,
   LogBundle,
-  Model,
   Progress,
   ReleaseKind,
   ToolsStatus,
@@ -23,12 +22,8 @@ export const listDevices = () => call<DeviceView[]>('adb_devices');
 export const backupDevice = (serial: string, onProgress: OnProgress) =>
   callWithProgress<BackupReport>('adb_backup', { serial }, onProgress);
 
-export const installOnDevice = (
-  serial: string,
-  kind: ReleaseKind,
-  model: Model,
-  onProgress: OnProgress,
-) => callWithProgress<InstallReport>('adb_install', { serial, kind, model }, onProgress);
+export const installOnDevice = (serial: string, kind: ReleaseKind, onProgress: OnProgress) =>
+  callWithProgress<InstallReport>('adb_install', { serial, kind }, onProgress);
 
 export const collectLogs = (serial: string, onProgress: OnProgress) =>
   callWithProgress<LogBundle>('adb_collect_logs', { serial }, onProgress);

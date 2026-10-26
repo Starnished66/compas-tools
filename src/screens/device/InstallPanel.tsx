@@ -9,13 +9,11 @@ import type {
   DeviceInfo,
   InstallReport,
   LatestRelease,
-  Model,
   ReleaseKind,
 } from '../../api/types';
 import { Button } from '../../components/Button';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ErrorBanner } from '../../components/ErrorBanner';
-import { ModelPicker } from '../../components/ModelPicker';
 import { Notice } from '../../components/Notice';
 import { ProgressBar } from '../../components/ProgressBar';
 import { useOperation } from '../../hooks/useOperation';
@@ -42,7 +40,7 @@ const SKIP_TEXT = {
 
 export function InstallPanel({ device, onFinished, onChoose }: Props) {
   const operation = useOperation();
-  const [chosen, setChosen] = useState<Model | null>(null);
+  const [override, setOverride] = useState(false);
   const [backup, setBackup] = useState<BackupReport | null>(null);
   const [report, setReport] = useState<InstallReport | null>(null);
   const [failed, setFailed] = useState(false);
@@ -53,7 +51,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
   const [latest, setLatest] = useState<LatestRelease | null>(null);
   const [releaseError, setReleaseError] = useState<string | null>(null);
 
-  const model = device.board ?? chosen;
+  const model = device.board;
   // An update is copied to the SD card first, so there has to be one.
   const noCard = !device.sd_mounted;
   // The V1's way of installing Compás over the vendor's system is not confirmed yet.
@@ -79,7 +77,9 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
   const gate = releaseGate(latest, model);
   const downgrade = latest && gate.downgrade ? downgradeText(installedVersion, latest) : null;
   // The first install replaces the vendor's system; take the user's settings along first.
-  const needsBackup = device.firmware !== 'compas' && backup === null;
+  const needsBackup =
+    device.firmware !== 'compas' &&
+    (backup === null || (backup.quality === 'unusable' && !override));
 
   const runBackup = async () => {
     setReport(null);
@@ -92,7 +92,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
     if (!model) return;
     setReport(null);
     setRemoved(false);
-    const result = await operation.run((p) => installOnDevice(device.serial, kind, model, p));
+    const result = await operation.run((p) => installOnDevice(device.serial, kind, p));
     setFailed(result === undefined);
     if (result) setReport(result);
     onFinished();
@@ -112,28 +112,43 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
         {firmwareLabel(device.firmware)}
         {device.player_version ? ` · ${device.player_version}` : ''}
       </p>
-      {!device.board && <ModelPicker value={chosen} onChange={setChosen} />}
+      {!device.board && (
+        <Notice tone="warning">
+          <p>{t('This player model is not recognised, so nothing can be installed.')}</p>
+        </Notice>
+      )}
 
       <div className="stack">
-        <h3>{t('1. Back up the player')}</h3>
+        <h3>{t('1. Copy the player’s settings and logs')}</h3>
         <p>
           {t(
-            'Copies the player’s own settings and logs to this computer. Your music, account tokens, server passwords, Wi-Fi details and the remote-control PIN are never copied, and anything that looks secret is masked before it is saved.',
+            'Copies the player’s own settings and logs to this computer, for reference. This is not a full backup that can restore the player. Your music, account tokens, server passwords, Wi-Fi details and the remote-control PIN are never copied, and anything that looks secret is masked before it is saved.',
           )}
         </p>
         <div>
           <Button disabled={operation.busy} onClick={() => void runBackup()}>
-            {t('Back up now')}
+            {t('Copy now')}
           </Button>
         </div>
         {backup && <BackupResult backup={backup} />}
+        {backup?.quality === 'unusable' && !override && (
+          <div>
+            <Button
+              onClick={() => {
+                setOverride(true);
+              }}
+            >
+              {t('Install without a settings copy')}
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="stack">
         <h3>{t('2. Install')}</h3>
         {needsBackup && (
           <p className="muted">
-            {t('Back up the player first; installing is available after that.')}
+            {t('Copy the player’s settings first; installing is available after that.')}
           </p>
         )}
         <div className="row">
@@ -290,8 +305,18 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
 
 function BackupResult({ backup }: { backup: BackupReport }) {
   return (
-    <Notice tone="success">
-      <p>{t('Backup saved to {path}', { path: backup.path })}</p>
+    <Notice tone={backup.quality === 'unusable' ? 'warning' : 'success'}>
+      <p>{t('Settings copy saved to {path}', { path: backup.path })}</p>
+      {backup.quality === 'partial' && (
+        <p>{t('Only some files could be copied, but the settings are included.')}</p>
+      )}
+      {backup.quality === 'unusable' && (
+        <p>
+          {t(
+            'The settings could not be copied, so this copy is not usable. Install only if you accept going without one.',
+          )}
+        </p>
+      )}
       <p className="muted">
         {t('{count} files copied, {skipped} left out on purpose.', {
           count: backup.files,
@@ -363,17 +388,15 @@ function InstallResult({ report, removed, busy, onChoose, onRemove }: ResultProp
     );
   }
   const version = report.device.player_version ?? t('unknown');
-  const confirmed = report.freshness === 'up_to_date';
+  const confirmed = report.confirmed;
   return (
     <Notice tone={confirmed ? 'success' : 'warning'}>
       <p>
         {confirmed
           ? t('Installed. The player now runs {version}.', { version })
           : t(
-              'The player is back and reports version {version}, which is not the new release yet.',
-              {
-                version,
-              },
+              'The install is not confirmed: the player was not seen restarting on the new version (it reports {version}). The update file stays on the player.',
+              { version },
             )}
       </p>
       <p className="muted">{t('Copied to {path} on the player.', { path: report.remote_path })}</p>

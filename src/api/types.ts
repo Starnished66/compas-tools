@@ -4,7 +4,8 @@ export type Model = 'r1' | 'r3proii' | 'r3ii_2025' | 'tempotec_v1';
 
 export interface Device {
   schema: number;
-  model: Model;
+  /** Null for a board this app does not know. */
+  model: Model | null;
   player_version: string;
   plugin_api: number;
   database_format: number | null;
@@ -211,7 +212,11 @@ export interface ToolsStatus {
   download_version: string;
 }
 
+export type BackupQuality = 'complete' | 'partial' | 'unusable';
+
 export interface BackupReport {
+  /** A reference copy of settings and logs, not a restorable backup. */
+  quality: BackupQuality;
   path: string;
   files: number;
   skipped: {
@@ -227,6 +232,10 @@ export interface InstallReport {
   /** Several players of the same board answered; the user says which is theirs. */
   candidates: DeviceInfo[];
   freshness: Freshness;
+  /** The player was seen restarting (its boot id changed). */
+  rebooted: boolean;
+  /** Restarted, the same board and the release's version: only then is it installed. */
+  confirmed: boolean;
 }
 
 export interface LogFile {

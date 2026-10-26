@@ -71,8 +71,22 @@ pub struct Skipped {
     pub reason: SkipReason,
 }
 
+/// How much of the player's settings and logs the copy holds. It is a diagnostic copy of text
+/// files, never a full restore: themes and other binaries are not in it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BackupQuality {
+    /// The settings file and every readable file that is allowed.
+    Complete,
+    /// The settings file is there, but some files could not be copied.
+    Partial,
+    /// No settings were captured: this copy cannot stand in for anything.
+    Unusable,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct BackupReport {
+    pub quality: BackupQuality,
     pub path: PathBuf,
     pub files: u64,
     pub skipped: Vec<Skipped>,
@@ -141,6 +155,7 @@ pub async fn backup_user_data(
     fs::create_dir_all(&dir).at(&dir)?;
 
     let (mut copied, mut redacted, mut skipped) = (0, 0, Vec::new());
+    let mut settings_copied = false;
     let total = files.len() as u64;
     for (i, rel) in files.iter().enumerate() {
         on_progress(Progress {
@@ -198,6 +213,7 @@ pub async fn backup_user_data(
         }
         fs::write(&target, masked.text).at(&target)?;
         copied += 1;
+        settings_copied |= rel == ".compas/settings.txt";
         redacted += masked.count;
     }
     on_progress(Progress {
@@ -211,7 +227,15 @@ pub async fn backup_user_data(
             "none of the expected files were found in {USER_DATA}"
         )));
     }
+    let quality = if copied == 0 || !settings_copied {
+        BackupQuality::Unusable
+    } else if skipped.iter().any(|s| s.reason != SkipReason::Private) {
+        BackupQuality::Partial
+    } else {
+        BackupQuality::Complete
+    };
     Ok(BackupReport {
+        quality,
         path: dir,
         files: copied,
         skipped,
@@ -380,8 +404,52 @@ mod tests {
                 .await
                 .unwrap();
             assert_eq!(report.files, 2);
+            assert_eq!(report.quality, BackupQuality::Complete);
             assert!(report.path.join(".compas/settings.txt").exists());
             assert!(!report.path.join(".compas/plugins").exists());
+        }
+
+        #[tokio::test]
+        async fn a_copy_without_settings_is_unusable_and_one_with_skips_is_partial() {
+            // Only a binary theme file: nothing is copied, yet the listing was not empty.
+            let dir = tempfile::tempdir().unwrap();
+            let fake = FakeAdb::new(dir.path(), "s1", "480,800", PS_COMPAS);
+            fake.write_remote("/usr/data/theme_overrides/icon.bin", "x");
+            std::fs::write(
+                fake.remote("/usr/data/theme_overrides/icon.bin"),
+                [0u8, 159, 146, 150],
+            )
+            .unwrap();
+            let out = tempfile::tempdir().unwrap();
+            let report = backup_user_data(&fake.adb(), "s1", out.path(), &|_| {})
+                .await
+                .unwrap();
+            assert_eq!(report.files, 0);
+            assert_eq!(report.quality, BackupQuality::Unusable);
+
+            // Logs alone are not the settings either.
+            let dir = tempfile::tempdir().unwrap();
+            let fake = FakeAdb::new(dir.path(), "s2", "480,800", PS_COMPAS);
+            fake.write_remote("/usr/data/player_exit.log", "exit 0\n");
+            let report = backup_user_data(&fake.adb(), "s2", out.path(), &|_| {})
+                .await
+                .unwrap();
+            assert_eq!(report.quality, BackupQuality::Unusable);
+
+            // Settings plus a skipped binary: usable, but partial.
+            let dir = tempfile::tempdir().unwrap();
+            let fake = FakeAdb::new(dir.path(), "s3", "480,800", PS_COMPAS);
+            fake.write_remote("/usr/data/.compas/settings.txt", "volume=7\n");
+            fake.write_remote("/usr/data/theme_overrides/icon.bin", "x");
+            std::fs::write(
+                fake.remote("/usr/data/theme_overrides/icon.bin"),
+                [0u8, 159, 146, 150],
+            )
+            .unwrap();
+            let report = backup_user_data(&fake.adb(), "s3", out.path(), &|_| {})
+                .await
+                .unwrap();
+            assert_eq!(report.quality, BackupQuality::Partial);
         }
 
         #[tokio::test]

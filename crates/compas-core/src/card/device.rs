@@ -65,11 +65,20 @@ impl Model {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Device {
     pub schema: u32,
-    pub model: Model,
+    /// `None` for a board this app does not know; the rest of the file stays usable.
+    #[serde(deserialize_with = "lenient_model")]
+    pub model: Option<Model>,
     pub player_version: String,
     pub plugin_api: u32,
     pub database_format: Option<u32>,
     pub art_cache: Option<String>,
+}
+
+fn lenient_model<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<Model>, D::Error> {
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(value.as_str().and_then(Model::from_board))
 }
 
 /// A missing or unreadable-as-schema-1 file means the device is unknown.
@@ -111,9 +120,22 @@ mod tests {
             br#"{"schema":1,"model":"r3ii_2025","player_version":"1.2.0","plugin_api":17,"database_format":3,"art_cache":"v4"}"#,
         );
         let device = card.device().unwrap().unwrap();
-        assert_eq!(device.model, Model::R3II2025);
+        assert_eq!(device.model, Some(Model::R3II2025));
         assert_eq!(device.plugin_api, 17);
         assert_eq!(device.art_cache.as_deref(), Some("v4"));
+    }
+
+    #[test]
+    fn an_unknown_board_keeps_the_rest_of_the_file() {
+        let (dir, card) = fake_card();
+        write_file(
+            dir.path(),
+            ".compas/device.json",
+            br#"{"schema":1,"model":"future_board","player_version":"v2.0.0","plugin_api":21,"database_format":4}"#,
+        );
+        let device = card.device().unwrap().unwrap();
+        assert_eq!(device.model, None);
+        assert_eq!((device.plugin_api, device.database_format), (21, Some(4)));
     }
 
     #[test]

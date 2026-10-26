@@ -41,7 +41,7 @@ export function CardDetails({ card, model, onChooseModel }: Props) {
         {device && (
           <>
             <dt>{t('Model')}</dt>
-            <dd>{MODEL_NAMES[device.model]}</dd>
+            <dd>{device.model ? MODEL_NAMES[device.model] : t('Unknown model')}</dd>
             <dt>{t('Player version')}</dt>
             <dd>{device.player_version}</dd>
             <dt>{t('Plugin API')}</dt>

@@ -18,7 +18,7 @@ use tokio::process::Command;
 
 use crate::error::{Error, Result};
 
-pub use backup::{backup_user_data, BackupReport, SkipReason, Skipped};
+pub use backup::{backup_user_data, BackupQuality, BackupReport, SkipReason, Skipped};
 pub use identify::{identify, DeviceInfo, Firmware};
 pub use install::{
     install_full_image, install_player_only, remove_staged_image, InstallReport, InstallRequest,
