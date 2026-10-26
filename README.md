@@ -1,7 +1,7 @@
 # Compás Tools
 
 Desktop companion for [Compás](https://github.com/Starnished66/compas-player) players,
-built with Tauri 2 (Linux AppImage, macOS, Windows). It manages the SD card of a
+built with Tauri 2 (Linux AppImage, macOS on Apple Silicon, Windows). It manages the SD card of a
 player: browse and install plugins, layouts and themes from the catalog, and place
 player updates on the card.
 

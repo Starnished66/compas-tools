@@ -4,13 +4,13 @@ Nothing here has been run yet: the repository has no remote, and no signing key 
 
 ## What the CI builds
 
-`.github/workflows/build.yml` makes unsigned installers: an AppImage (Ubuntu 22.04), a universal
-`.dmg` (macOS) and an NSIS `.exe` plus `.msi` (Windows). Each one bundles `compas-sdtool`,
+`.github/workflows/build.yml` makes unsigned installers: an AppImage (Ubuntu 22.04), an Apple Silicon
+`.dmg` (macOS, arm64 only, 11.0 or newer) and an NSIS `.exe` plus `.msi` (Windows). Each one bundles `compas-sdtool`,
 built from the player's sources (`PLAYER_REPO` at `PLAYER_REF`):
 
 - Linux: `make sdtool`.
 - Windows: cross-built with MinGW-w64 on a Linux runner (the way the player documents it).
-- macOS: built natively for x86_64 and arm64, then joined with `lipo`.
+- macOS: built natively on an arm64 runner (`macos-14`); Intel Macs are not supported.
 
 Before the first run, move `PLAYER_REF` to a tag or commit of compas-player that contains
 `compas-sdtool` (the Makefile clones the vendored libraries itself). Check the workflow with

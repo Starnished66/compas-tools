@@ -1,4 +1,4 @@
-# Unsigned builds of Compás Tools: an AppImage, a universal macOS .dmg and a Windows
+# Unsigned builds of Compás Tools: an AppImage, an Apple Silicon macOS .dmg and a Windows
 # installer. Each bundles compas-sdtool, built here from the player's sources at a pinned ref.
 # Written for when the repository has a remote; it has not run yet.
 name: Build
@@ -32,7 +32,6 @@ jobs:
               triple: x86_64-pc-windows-msvc,
               make_args: SDTOOL_TARGET=windows,
             }
-          - { name: macos-x64, os: macos-15-intel, triple: x86_64-apple-darwin }
           - { name: macos-arm64, os: macos-14, triple: aarch64-apple-darwin }
     steps:
       - uses: actions/checkout@v4
@@ -88,8 +87,8 @@ jobs:
             bundles: target/release/bundle/appimage/*.AppImage
           - name: macos
             os: macos-14
-            build: npx tauri build --target universal-apple-darwin --bundles dmg
-            bundles: target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            build: npx tauri build --target aarch64-apple-darwin --bundles dmg
+            bundles: target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
           - name: windows
             os: windows-2022
             build: npx tauri build --bundles nsis,msi
@@ -110,12 +109,6 @@ jobs:
           mkdir -p src-tauri/binaries
           cp "$RUNNER_TEMP"/sdtool/compas-sdtool-* src-tauri/binaries/
           chmod +x src-tauri/binaries/compas-sdtool-* || true
-          if [ "${{ matrix.name }}" = macos ]; then
-            # A universal app needs the two architectures joined into one sidecar.
-            lipo -create src-tauri/binaries/compas-sdtool-x86_64-apple-darwin \
-                         src-tauri/binaries/compas-sdtool-aarch64-apple-darwin \
-                 -output src-tauri/binaries/compas-sdtool-universal-apple-darwin
-          fi
           ls -l src-tauri/binaries
 
       - uses: actions/setup-node@v4
@@ -125,7 +118,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-          targets: ${{ matrix.name == 'macos' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.name == 'macos' && 'aarch64-apple-darwin' || '' }}
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: '. -> target'
