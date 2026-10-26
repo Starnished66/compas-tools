@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import {
@@ -13,15 +13,7 @@ import {
   saveLogs,
 } from '../../api/adb';
 import { latestRelease } from '../../api/releases';
-import type {
-  DeviceInfo,
-  DeviceView,
-  LatestRelease,
-  LogBundle,
-  ToolsStatus,
-} from '../../api/types';
-import { OperationProvider } from '../../hooks/useOperation';
-import { DeviceScreen } from './DeviceScreen';
+import { bundle, info, latest, renderScreen, tools, view } from '../../test/deviceScreen';
 
 vi.mock('../../api/adb');
 vi.mock('../../api/releases');
@@ -29,84 +21,6 @@ vi.mock('@tauri-apps/plugin-opener', () => ({ openUrl: vi.fn(), revealItemInDir:
 vi.mock('@tauri-apps/plugin-dialog', () => ({
   save: vi.fn(() => Promise.resolve('/home/me/logs.zip')),
 }));
-
-const tools: ToolsStatus = {
-  found: true,
-  source: 'system',
-  version: 'Android Debug Bridge 1.0.41',
-  platform: 'linux',
-  download_version: '37.0.1',
-};
-
-function latest(
-  freshness: LatestRelease['freshness'],
-  boards: string[] = ['r1', 'r3proii', 'r3ii_2025'],
-): LatestRelease {
-  return {
-    freshness,
-    release: {
-      tag: 'v1.3.0',
-      name: 'Compás',
-      notes: '',
-      published_at: '',
-      url: '',
-      player_only_boards: boards,
-    },
-  };
-}
-
-function info(overrides: Partial<DeviceInfo> = {}): DeviceInfo {
-  return {
-    serial: 'ingenic_1',
-    board: 'r1',
-    firmware: 'stock',
-    player_version: null,
-    plugin_api: null,
-    sd_mounted: true,
-    ...overrides,
-  };
-}
-
-function view(overrides: Partial<DeviceInfo> = {}): DeviceView {
-  return {
-    serial: 'ingenic_1',
-    state: 'device',
-    product: 'mako',
-    model: 'Nexus_4',
-    likely_player: true,
-    info: info(overrides),
-  };
-}
-
-const bundle: LogBundle = {
-  summary: 'Board: r1',
-  files: [
-    {
-      name: 'usr_data/player_crash.log',
-      source: '/usr/data/player_crash.log',
-      content: 'pin=<redacted>',
-      bytes: 14,
-      redactions: 1,
-      missing: false,
-    },
-    {
-      name: 'sd/usb_dac_bridge.log',
-      source: 'x',
-      content: '',
-      bytes: 0,
-      redactions: 0,
-      missing: true,
-    },
-  ],
-};
-
-function renderScreen() {
-  return render(
-    <OperationProvider>
-      <DeviceScreen />
-    </OperationProvider>,
-  );
-}
 
 describe('DeviceScreen', () => {
   beforeEach(() => {
@@ -413,114 +327,5 @@ describe('DeviceScreen', () => {
     expect(await screen.findByText(/Which one is yours/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'ingenic_a' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'ingenic_b' })).toBeInTheDocument();
-  });
-  it('warns before an install would go back to an older version', async () => {
-    vi.mocked(listDevices).mockResolvedValue([
-      view({ firmware: 'compas', player_version: 'v1.3.1' }),
-    ]);
-    vi.mocked(latestRelease).mockResolvedValue(latest('newer'));
-    renderScreen();
-    expect(
-      await screen.findByText(/newer than the latest release v1\.3\.0\. Installing/),
-    ).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Install the latest firmware' }));
-    expect(await screen.findByText('Go back to the older version?')).toBeInTheDocument();
-    expect(installOnDevice).not.toHaveBeenCalled();
-    expect(latestRelease).toHaveBeenCalledWith(false, 'v1.3.1');
-  });
-
-  it('keeps reinstalling possible when the player is up to date', async () => {
-    vi.mocked(listDevices).mockResolvedValue([
-      view({ firmware: 'compas', player_version: 'v1.3.0' }),
-    ]);
-    vi.mocked(latestRelease).mockResolvedValue(latest('up_to_date'));
-    renderScreen();
-    expect(await screen.findByText(/already has v1\.3\.0, the latest release/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeEnabled();
-  });
-
-  it('disables player-only for a firmware-only release and says why', async () => {
-    vi.mocked(listDevices).mockResolvedValue([
-      view({ firmware: 'compas', player_version: 'v1.2.0' }),
-    ]);
-    vi.mocked(latestRelease).mockResolvedValue(latest('update_available', []));
-    renderScreen();
-    expect(await screen.findByText(/full firmware update only/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Update only the player' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeEnabled();
-  });
-  it('offers the v1.3.0 firmware as the normal update for a v1.2.0 player', async () => {
-    vi.mocked(listDevices).mockResolvedValue([
-      view({ firmware: 'compas', player_version: 'v1.2.0' }),
-    ]);
-    vi.mocked(latestRelease).mockResolvedValue(latest('update_available', []));
-    renderScreen();
-    const install = await screen.findByRole('button', { name: 'Install the latest firmware' });
-    await waitFor(() => {
-      expect(install).toBeEnabled();
-    });
-    expect(screen.getAllByText(/v1\.2\.0/).length).toBeGreaterThan(0);
-    expect(latestRelease).toHaveBeenCalledWith(false, 'v1.2.0');
-    expect(screen.queryByText(/goes back to the older version/)).not.toBeInTheDocument();
-    expect(install.className).toContain('button--primary');
-    expect(screen.getByRole('button', { name: 'Update only the player' })).toBeDisabled();
-    await userEvent.click(install);
-    expect(await screen.findByRole('button', { name: 'Install and reboot' })).toBeInTheDocument();
-  });
-
-  it('does not guess a version: unknown is not a downgrade and not "older"', async () => {
-    vi.mocked(listDevices).mockResolvedValue([view({ firmware: 'compas', player_version: null })]);
-    vi.mocked(latestRelease).mockResolvedValue(latest('unknown'));
-    renderScreen();
-    const install = await screen.findByRole('button', { name: 'Install the latest firmware' });
-    await waitFor(() => {
-      expect(install).toBeEnabled();
-    });
-    expect(latestRelease).toHaveBeenCalledWith(false, '');
-    expect(screen.queryByText(/goes back to the older version/)).not.toBeInTheDocument();
-  });
-
-  it('asks for an SD card and blocks both installs until one is mounted', async () => {
-    vi.mocked(listDevices).mockResolvedValue([
-      view({ firmware: 'compas', player_version: 'v1.2.0', sd_mounted: false }),
-    ]);
-    renderScreen();
-    expect(await screen.findByText('Please insert an SD card to upgrade.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Update only the player' })).toBeDisabled();
-  });
-
-  it('keeps installing disabled until the latest release is known', async () => {
-    vi.mocked(listDevices).mockResolvedValue([
-      view({ firmware: 'compas', player_version: 'v1.2.0' }),
-    ]);
-    vi.mocked(latestRelease).mockRejectedValue({ code: 'network', message: 'offline' });
-    renderScreen();
-    expect(await screen.findByText(/offline/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Update only the player' })).toBeDisabled();
-  });
-  it('names a TempoTec V1, offers its firmware and explains the stock case', async () => {
-    vi.mocked(listDevices).mockResolvedValue([
-      view({ board: 'tempotec_v1', firmware: 'compas', player_version: 'v1.2.0' }),
-    ]);
-    vi.mocked(latestRelease).mockResolvedValue(latest('update_available', []));
-    renderScreen();
-    expect((await screen.findAllByText(/TempoTec Variations V1/)).length).toBeGreaterThan(0);
-    const install = await screen.findByRole('button', { name: 'Install the latest firmware' });
-    await waitFor(() => {
-      expect(install).toBeEnabled();
-    });
-    await userEvent.click(install);
-    expect(await screen.findByText(/v1\.upt/)).toBeInTheDocument();
-  });
-
-  it('does not offer to install Compás on a stock TempoTec V1', async () => {
-    vi.mocked(listDevices).mockResolvedValue([view({ board: 'tempotec_v1', firmware: 'stock' })]);
-    renderScreen();
-    expect(
-      await screen.findByText(/stock TempoTec Variations V1 is not supported yet/),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeDisabled();
   });
 });
