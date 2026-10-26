@@ -21,7 +21,7 @@ exec podman run --rm -i "${tty[@]}" \
   -e CARGO_TARGET_DIR=/cache/target \
   -e npm_config_cache=/cache/npm \
   -e HOME=/cache/home \
-  -v "$PWD":/work:Z \
+  -v "$PWD":/work:z \
   -v compas-tools-cache:/cache:z \
   -w /work \
   "${extra[@]}" \
