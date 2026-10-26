@@ -7,3 +7,5 @@ src-tauri/gen/
 src-tauri/binaries/
 .cache/
 build/
+src-tauri/licenses-sdtool/*
+!src-tauri/licenses-sdtool/README.txt
