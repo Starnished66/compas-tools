@@ -230,7 +230,7 @@ pub async fn remove_staged_image(adb: &Adb, serial: &str, remote: &str) -> Resul
     let name = remote.trim_start_matches(SD_ROOT).trim_start_matches('/');
     if !name.to_ascii_lowercase().ends_with(".upt") || name.contains(['/', '\'', ' ', '"', '\\']) {
         return Err(Error::Rejected(format!(
-            "{remote} is not an update image at the player's root"
+            "{remote} is not an update image at the top of the player's storage"
         )));
     }
     adb.shell(serial, &format!("rm -f '{remote}'"))
@@ -261,7 +261,7 @@ impl<'a> InstallRequest<'a> {
     }
 }
 
-/// Full firmware image: staged at the player's root, installed from recovery.
+/// Full firmware image: staged at the top of the player's storage, installed from recovery.
 pub async fn install_full_image(
     adb: &Adb,
     serial: &str,

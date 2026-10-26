@@ -55,7 +55,10 @@ export function CardScreen() {
 
   const chooseFolder = () =>
     guard(async () => {
-      const folder = await open({ directory: true, title: t('Choose the player folder') });
+      const folder = await open({
+        directory: true,
+        title: t("Choose the player's drive or folder"),
+      });
       if (folder) await select(folder);
     });
 

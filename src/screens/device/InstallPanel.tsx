@@ -158,7 +158,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
           open
           title={t('Delete the update file?')}
           message={t(
-            '{path} will be deleted from {serial}. The installed player is not affected.',
+            '{path} will be deleted from the player ({serial}). The installed player is not affected.',
             { path: deleting, serial: device.serial },
           )}
           confirmLabel={t('Delete')}

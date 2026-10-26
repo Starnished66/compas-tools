@@ -208,7 +208,7 @@ describe('DeviceScreen', () => {
   it('asks for the model when the screen size did not identify it', async () => {
     vi.mocked(listDevices).mockResolvedValue([view({ board: null, firmware: 'compas' })]);
     renderScreen();
-    expect(await screen.findByLabelText('Which player is this?')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Which model is your player?')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeDisabled();
   });
 

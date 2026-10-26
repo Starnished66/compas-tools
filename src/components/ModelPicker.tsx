@@ -15,7 +15,7 @@ interface Props {
 export function ModelPicker({ value, onChange }: Props) {
   return (
     <label className="stack">
-      <span>{t('Which player is this?')}</span>
+      <span>{t('Which model is your player?')}</span>
       <select
         className="field"
         value={value ?? ''}
