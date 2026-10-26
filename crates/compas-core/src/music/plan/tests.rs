@@ -32,6 +32,7 @@ fn folders_and_files_land_under_the_chosen_folder() {
 }
 
 #[test]
+#[cfg(unix)] // Windows cannot create the badly named source files
 fn clutter_links_and_bad_names_are_handled() {
     let (_card_dir, card) = fake_card();
     let src = tempfile::tempdir().unwrap();
@@ -50,6 +51,7 @@ fn clutter_links_and_bad_names_are_handled() {
 }
 
 #[test]
+#[cfg(unix)] // Windows cannot create the badly named source files
 fn size_name_length_path_length_and_conflicts_keep_files_out() {
     let (_card_dir, card) = fake_card();
     let src = tempfile::tempdir().unwrap();
