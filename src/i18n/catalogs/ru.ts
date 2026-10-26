@@ -273,4 +273,11 @@ export const ru: Record<string, TranslationValue> = {
   "Or simply restart the player; it finds the new file on its own.": "Или просто перезапустите плеер; он сам найдёт новый файл.",
   "On the player, open Settings > Updates > Firmware Update > Install from SD card.": "На плеере откройте «Настройки» > «Обновления» > «Обновление прошивки» > «Установить с SD-карты».",
   "If the player does not start, use recovery: hold {keys}.": "Если плеер не запускается, используйте режим восстановления: удерживайте {keys}.",
+  "This release is a full firmware update only. Use the full firmware option instead.": "Этот выпуск — только полное обновление прошивки. Используйте вариант полной прошивки.",
+  "Your player has {version}, newer than the latest release {release}. Installing the release goes back to the older version.": "На вашем плеере версия {version}, новее последнего выпуска {release}. Установка вернёт старую версию.",
+  "Go back to the older version?": "Вернуться к старой версии?",
+  "Install anyway": "Всё равно установить",
+  "Your player already has {version}, the latest release. Reinstalling is possible if you need it.": "На вашем плеере уже версия {version}, последний выпуск. При необходимости можно переустановить.",
+  "This player is older than {version}; an update is available.": "Этот плеер старше версии {version}; доступно обновление.",
+  "older than {version}": "старше {version}",
 };

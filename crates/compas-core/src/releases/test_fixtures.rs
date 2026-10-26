@@ -9,9 +9,17 @@ use crate::test_support::{sha256_hex, TestServer};
 pub const R1_PLAYER: &[u8] = b"player r1";
 
 pub async fn release(tag: &str) -> (TestServer, Release) {
-    let mut files: Vec<(String, Vec<u8>)> = vec![("compas_player".into(), R1_PLAYER.to_vec())];
+    release_with(tag, true).await
+}
+
+/// `player_only: false` is a firmware-only release: just the `<board>.upt` images.
+pub async fn release_with(tag: &str, player_only: bool) -> (TestServer, Release) {
+    let mut files: Vec<(String, Vec<u8>)> = Vec::new();
+    if player_only {
+        files.push(("compas_player".into(), R1_PLAYER.to_vec()));
+    }
     for board in ["r1", "r3proii", "r3ii_2025"] {
-        if board != "r1" {
+        if board != "r1" && player_only {
             files.push((
                 format!("compas_player_{board}"),
                 format!("player {board}").into_bytes(),

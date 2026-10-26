@@ -14,6 +14,7 @@ import { useCard } from '../../state/CardContext';
 import { AppUpdatePanel } from './AppUpdatePanel';
 import { PlaceAction } from './PlaceAction';
 import { ReleaseSummary } from './ReleaseSummary';
+import { downgradeText, firmwareOnlyText, releaseGate } from './releaseGate';
 
 interface Props {
   onChooseCard: () => void;
@@ -75,6 +76,9 @@ export function UpdatesScreen({ onChooseCard }: Props) {
     if (file) setPlaced({ kind, file });
   };
   const strayCount = strays.length;
+  const gate = releaseGate(latest, model);
+  const installed = card.device?.player_version ?? null;
+  const downgradeMessage = latest && gate.downgrade ? downgradeText(installed, latest) : null;
 
   return (
     <section className="screen">
@@ -89,9 +93,7 @@ export function UpdatesScreen({ onChooseCard }: Props) {
       {operation.error && (
         <ErrorBanner message={operation.error} onDismiss={operation.clearError} />
       )}
-      {latest && (
-        <ReleaseSummary latest={latest} installedVersion={card.device?.player_version ?? null} />
-      )}
+      {latest && <ReleaseSummary latest={latest} installedVersion={installed} />}
       {!card.device && (
         <Notice tone="warning">
           <p>
@@ -122,6 +124,9 @@ export function UpdatesScreen({ onChooseCard }: Props) {
           disabled={!latest || !model || operation.busy}
           busy={operation.busy && activeKind === 'player_only'}
           progress={operation.progress}
+          recommended={gate.recommended}
+          downgradeMessage={downgradeMessage}
+          unavailable={gate.playerOnlyAvailable ? null : firmwareOnlyText()}
           placed={placed?.kind === 'player_only' ? placed.file : null}
           onPlace={() => void place('player_only')}
         />
@@ -135,6 +140,8 @@ export function UpdatesScreen({ onChooseCard }: Props) {
           disabled={!latest || !model || operation.busy}
           busy={operation.busy && activeKind === 'full_image'}
           progress={operation.progress}
+          recommended={gate.recommended}
+          downgradeMessage={downgradeMessage}
           placed={placed?.kind === 'full_image' ? placed.file : null}
           onPlace={() => void place('full_image')}
         />

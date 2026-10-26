@@ -48,7 +48,8 @@ pub async fn fetch_latest_from(api_base: &str) -> Result<Release> {
         .ok_or_else(|| Error::InvalidRelease(format!("{} has no SHA256SUMS", api.tag_name)))?;
     let sums = get_bytes(&sums.browser_download_url, SUMS_LIMIT).await?;
 
-    Ok(Release {
+    let mut release = Release {
+        player_only_boards: Vec::new(),
         name: api
             .name
             .filter(|n| !n.is_empty())
@@ -67,7 +68,9 @@ pub async fn fetch_latest_from(api_base: &str) -> Result<Release> {
             })
             .collect(),
         checksums: parse_sums(&String::from_utf8_lossy(&sums)),
-    })
+    };
+    release.list_player_only_boards();
+    Ok(release)
 }
 
 /// `sha256sum` output: `<64 hex>  <name>` (or `<hex> *<name>` in binary mode).

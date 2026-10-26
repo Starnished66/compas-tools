@@ -25,6 +25,9 @@ pub struct DeviceInfo {
     /// From `.compas/device.json` on the card, when the player has written one.
     pub player_version: Option<String>,
     pub plugin_api: Option<u32>,
+    /// Set when Compás runs but wrote no `device.json`: the player is older than this release
+    /// (v1.2.0 and earlier), so its version cannot be read but is known to be lower.
+    pub older_than: Option<String>,
 }
 
 /// `adb devices` output: a header, then `<serial>\t<state>` lines.
@@ -108,12 +111,16 @@ pub async fn identify(adb: &Adb, serial: &str) -> Result<DeviceInfo> {
         .unwrap_or_default();
     let device: Option<Device> = serde_json::from_str(device_json.trim()).ok();
 
+    let firmware = firmware_from_processes(&processes);
+
     Ok(DeviceInfo {
         serial: serial.to_string(),
         board: board_from_size(&size).or(device.as_ref().map(|d| d.model)),
-        firmware: firmware_from_processes(&processes),
+        firmware,
         player_version: device.as_ref().map(|d| d.player_version.clone()),
         plugin_api: device.as_ref().map(|d| d.plugin_api),
+        older_than: (firmware == Firmware::Compas && device_json.trim().is_empty())
+            .then(|| crate::releases::DEVICE_INFO_SINCE.to_string()),
     })
 }
 

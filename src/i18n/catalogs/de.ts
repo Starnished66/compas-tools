@@ -273,4 +273,11 @@ export const de: Record<string, TranslationValue> = {
   "Or simply restart the player; it finds the new file on its own.": "Oder starten Sie den Player einfach neu; er findet die neue Datei von selbst.",
   "On the player, open Settings > Updates > Firmware Update > Install from SD card.": "Öffnen Sie am Player Einstellungen > Updates > Firmware-Update > Von SD-Karte installieren.",
   "If the player does not start, use recovery: hold {keys}.": "Wenn der Player nicht startet, nutzen Sie den Recovery-Modus: {keys} gedrückt halten.",
+  "This release is a full firmware update only. Use the full firmware option instead.": "Dieses Release ist nur ein vollständiges Firmware-Update. Verwenden Sie stattdessen die Option für die vollständige Firmware.",
+  "Your player has {version}, newer than the latest release {release}. Installing the release goes back to the older version.": "Ihr Player hat {version}, neuer als das neueste Release {release}. Beim Installieren kehren Sie zur älteren Version zurück.",
+  "Go back to the older version?": "Zur älteren Version zurückkehren?",
+  "Install anyway": "Trotzdem installieren",
+  "Your player already has {version}, the latest release. Reinstalling is possible if you need it.": "Ihr Player hat bereits {version}, das neueste Release. Eine Neuinstallation ist möglich, falls nötig.",
+  "This player is older than {version}; an update is available.": "Dieser Player ist älter als {version}; ein Update ist verfügbar.",
+  "older than {version}": "älter als {version}",
 };

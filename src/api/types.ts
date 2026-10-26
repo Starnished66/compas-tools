@@ -83,6 +83,8 @@ export interface Release {
   notes: string;
   published_at: string;
   url: string;
+  /** Boards this release ships a player-only file for; empty for a firmware-only release. */
+  player_only_boards: string[];
 }
 
 export interface LatestRelease {
@@ -189,6 +191,8 @@ export interface DeviceInfo {
   firmware: Firmware;
   player_version: string | null;
   plugin_api: number | null;
+  /** Compás runs but wrote no device.json: older than this release, version unreadable. */
+  older_than: string | null;
 }
 
 export interface DeviceView {

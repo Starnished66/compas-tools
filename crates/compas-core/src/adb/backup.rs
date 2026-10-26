@@ -367,6 +367,23 @@ mod tests {
             }
         }
 
+        /// v1.2.0 keeps only some of the allowlisted files in `/usr/data` and has no device.json.
+        #[tokio::test]
+        async fn a_v1_2_0_layout_with_few_files_backs_up() {
+            let dir = tempfile::tempdir().unwrap();
+            let fake = FakeAdb::new(dir.path(), "ingenic_1", "480,800", PS_STOCK);
+            fake.write_remote("/usr/data/.compas/settings.txt", "volume=7\nname=Old\n");
+            fake.write_remote("/usr/data/player_exit.log", "exit 0\n");
+            fake.write_remote("/usr/data/.compas/plugins/x.json", "{\"token\":\"T\"}");
+            let out = tempfile::tempdir().unwrap();
+            let report = backup_user_data(&fake.adb(), "ingenic_1", out.path(), &|_| {})
+                .await
+                .unwrap();
+            assert_eq!(report.files, 2);
+            assert!(report.path.join(".compas/settings.txt").exists());
+            assert!(!report.path.join(".compas/plugins").exists());
+        }
+
         #[tokio::test]
         async fn a_linked_entry_is_not_followed_off_the_allowlist() {
             let dir = tempfile::tempdir().unwrap();

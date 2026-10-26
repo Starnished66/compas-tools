@@ -75,6 +75,43 @@ async fn the_version_comes_from_device_json_on_the_card() {
     let info = identify(&fake.adb(), "s1").await.unwrap();
     assert_eq!(info.player_version.as_deref(), Some("1.2.0"));
     assert_eq!(info.plugin_api, Some(17));
+    assert!(info.older_than.is_none());
+}
+
+#[tokio::test]
+async fn a_v_prefixed_version_is_kept_as_the_player_wrote_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let fake = FakeAdb::new(dir.path(), "s1", "480,800", PS_COMPAS);
+    fake.write_remote(
+        "/data/mnt/sd_0/.compas/device.json",
+        r#"{"schema":1,"model":"r1","player_version":"v1.3.0","plugin_api":17}"#,
+    );
+    let info = identify(&fake.adb(), "s1").await.unwrap();
+    assert_eq!(info.player_version.as_deref(), Some("v1.3.0"));
+    assert!(info.older_than.is_none());
+}
+
+/// v1.2.0 runs `compas_player` but writes no `device.json`: the version cannot be read, yet
+/// the player is known to be older than the first release that writes the file.
+#[tokio::test]
+async fn a_v1_2_0_player_is_recognised_by_running_compas_without_device_json() {
+    let dir = tempfile::tempdir().unwrap();
+    let fake = FakeAdb::new(dir.path(), "s1", "480,800", PS_COMPAS);
+    fake.write_remote("/usr/data/.compas/settings.txt", "volume=12\n");
+    let info = identify(&fake.adb(), "s1").await.unwrap();
+    assert_eq!(info.firmware, Firmware::Compas);
+    assert_eq!(info.board, Some(Model::R1));
+    assert!(info.player_version.is_none());
+    assert_eq!(info.older_than.as_deref(), Some("v1.3.0"));
+
+    // The vendor's firmware has no device.json either, and is not "older Compás".
+    let stock = tempfile::tempdir().unwrap();
+    let fake = FakeAdb::new(stock.path(), "s2", "480,800", PS_STOCK);
+    assert!(identify(&fake.adb(), "s2")
+        .await
+        .unwrap()
+        .older_than
+        .is_none());
 }
 
 use crate::card::Model;

@@ -1,8 +1,16 @@
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { backupDevice, installOnDevice, removeUpdateFile } from '../../api/adb';
-import type { BackupReport, DeviceInfo, InstallReport, Model, ReleaseKind } from '../../api/types';
+import { latestRelease } from '../../api/releases';
+import type {
+  BackupReport,
+  DeviceInfo,
+  InstallReport,
+  LatestRelease,
+  Model,
+  ReleaseKind,
+} from '../../api/types';
 import { Button } from '../../components/Button';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -12,6 +20,7 @@ import { ProgressBar } from '../../components/ProgressBar';
 import { useOperation } from '../../hooks/useOperation';
 import { t } from '../../i18n';
 import { recoveryKeys } from '../updates/instructions';
+import { downgradeText, firmwareOnlyText, releaseGate } from '../updates/releaseGate';
 import { BOARD_NAMES, firmwareLabel, releaseFileName } from './labels';
 
 interface Props {
@@ -40,7 +49,28 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
   const [removed, setRemoved] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
+  const [latest, setLatest] = useState<LatestRelease | null>(null);
+
   const model = device.board ?? chosen;
+  const installedVersion = device.player_version;
+  const olderThan = device.older_than;
+  // Compared with the version read over adb, not with any selected player.
+  useEffect(() => {
+    const live = { current: true };
+    void (async () => {
+      try {
+        const found = await latestRelease(false, installedVersion ?? '', olderThan !== null);
+        if (live.current) setLatest(found);
+      } catch {
+        if (live.current) setLatest(null);
+      }
+    })();
+    return () => {
+      live.current = false;
+    };
+  }, [installedVersion, olderThan]);
+  const gate = releaseGate(latest, model);
+  const downgrade = latest && gate.downgrade ? downgradeText(installedVersion, latest) : null;
   // The first install replaces the vendor's system; take the user's settings along first.
   const needsBackup = device.firmware !== 'compas' && backup === null;
 
@@ -74,6 +104,9 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
         {device.board ? BOARD_NAMES[device.board] : t('Unknown model')} ·{' '}
         {firmwareLabel(device.firmware)}
         {device.player_version ? ` · ${device.player_version}` : ''}
+        {!device.player_version && olderThan
+          ? ` · ${t('older than {version}', { version: olderThan })}`
+          : ''}
       </p>
       {!device.board && <ModelPicker value={chosen} onChange={setChosen} />}
 
@@ -101,7 +134,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
         )}
         <div className="row">
           <Button
-            variant="primary"
+            variant={gate.recommended ? 'primary' : 'secondary'}
             disabled={operation.busy || needsBackup || !model}
             onClick={() => {
               setAsking('full_image');
@@ -111,7 +144,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
           </Button>
           {device.firmware === 'compas' && (
             <Button
-              disabled={operation.busy || !model}
+              disabled={operation.busy || !model || !gate.playerOnlyAvailable}
               onClick={() => {
                 setAsking('player_only');
               }}
@@ -120,6 +153,24 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
             </Button>
           )}
         </div>
+        {device.firmware === 'compas' && !gate.playerOnlyAvailable && (
+          <p className="muted">{firmwareOnlyText()}</p>
+        )}
+        {downgrade && (
+          <Notice tone="warning">
+            <p>{downgrade}</p>
+          </Notice>
+        )}
+        {latest?.freshness === 'up_to_date' && (
+          <p className="muted">
+            {t(
+              'Your player already has {version}, the latest release. Reinstalling is possible if you need it.',
+              {
+                version: installedVersion ?? '',
+              },
+            )}
+          </p>
+        )}
         <p className="muted">
           {t(
             'Firmware: the image is copied to the player, which restarts into recovery and installs it, and this app checks the version afterwards. Player only: just the player program is replaced and the player restarts. Keep the cable connected and do not switch the player off.',
@@ -172,8 +223,12 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
       {asking && model && (
         <ConfirmDialog
           open
-          title={t('Install on {serial}?', { serial: device.serial })}
-          message={
+          title={
+            downgrade
+              ? t('Go back to the older version?')
+              : t('Install on {serial}?', { serial: device.serial })
+          }
+          message={`${downgrade ? `${downgrade} ` : ''}${
             asking === 'full_image'
               ? t(
                   '{file} will be copied to {board} ({serial}). The player will then reboot into recovery and install it. Do not disconnect it or switch it off.',
@@ -191,8 +246,14 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
                     serial: device.serial,
                   },
                 )
+          }`}
+          confirmLabel={
+            downgrade
+              ? t('Install anyway')
+              : asking === 'full_image'
+                ? t('Install and reboot')
+                : t('Update and restart')
           }
-          confirmLabel={asking === 'full_image' ? t('Install and reboot') : t('Update and restart')}
           onConfirm={() => void install(asking)}
           onCancel={() => {
             setAsking(null);

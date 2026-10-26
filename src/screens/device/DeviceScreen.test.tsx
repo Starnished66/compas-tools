@@ -12,11 +12,19 @@ import {
   removeUpdateFile,
   saveLogs,
 } from '../../api/adb';
-import type { DeviceInfo, DeviceView, LogBundle, ToolsStatus } from '../../api/types';
+import { latestRelease } from '../../api/releases';
+import type {
+  DeviceInfo,
+  DeviceView,
+  LatestRelease,
+  LogBundle,
+  ToolsStatus,
+} from '../../api/types';
 import { OperationProvider } from '../../hooks/useOperation';
 import { DeviceScreen } from './DeviceScreen';
 
 vi.mock('../../api/adb');
+vi.mock('../../api/releases');
 vi.mock('@tauri-apps/plugin-opener', () => ({ openUrl: vi.fn(), revealItemInDir: vi.fn() }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({
   save: vi.fn(() => Promise.resolve('/home/me/logs.zip')),
@@ -30,6 +38,23 @@ const tools: ToolsStatus = {
   download_version: '37.0.1',
 };
 
+function latest(
+  freshness: LatestRelease['freshness'],
+  boards: string[] = ['r1', 'r3proii', 'r3ii_2025'],
+): LatestRelease {
+  return {
+    freshness,
+    release: {
+      tag: 'v1.3.0',
+      name: 'Compás',
+      notes: '',
+      published_at: '',
+      url: '',
+      player_only_boards: boards,
+    },
+  };
+}
+
 function info(overrides: Partial<DeviceInfo> = {}): DeviceInfo {
   return {
     serial: 'ingenic_1',
@@ -37,6 +62,7 @@ function info(overrides: Partial<DeviceInfo> = {}): DeviceInfo {
     firmware: 'stock',
     player_version: null,
     plugin_api: null,
+    older_than: null,
     ...overrides,
   };
 }
@@ -338,5 +364,56 @@ describe('DeviceScreen', () => {
     expect(await screen.findByText(/Which one is yours/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'ingenic_a' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'ingenic_b' })).toBeInTheDocument();
+  });
+  it('warns before an install would go back to an older version', async () => {
+    vi.mocked(listDevices).mockResolvedValue([
+      view({ firmware: 'compas', player_version: 'v1.3.1' }),
+    ]);
+    vi.mocked(latestRelease).mockResolvedValue(latest('newer'));
+    renderScreen();
+    expect(
+      await screen.findByText(/newer than the latest release v1\.3\.0\. Installing/),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Install the latest firmware' }));
+    expect(await screen.findByText('Go back to the older version?')).toBeInTheDocument();
+    expect(installOnDevice).not.toHaveBeenCalled();
+    expect(latestRelease).toHaveBeenCalledWith(false, 'v1.3.1', false);
+  });
+
+  it('keeps reinstalling possible when the player is up to date', async () => {
+    vi.mocked(listDevices).mockResolvedValue([
+      view({ firmware: 'compas', player_version: 'v1.3.0' }),
+    ]);
+    vi.mocked(latestRelease).mockResolvedValue(latest('up_to_date'));
+    renderScreen();
+    expect(await screen.findByText(/already has v1\.3\.0, the latest release/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeEnabled();
+  });
+
+  it('disables player-only for a firmware-only release and says why', async () => {
+    vi.mocked(listDevices).mockResolvedValue([
+      view({ firmware: 'compas', player_version: 'v1.2.0' }),
+    ]);
+    vi.mocked(latestRelease).mockResolvedValue(latest('update_available', []));
+    renderScreen();
+    expect(await screen.findByText(/full firmware update only/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Update only the player' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeEnabled();
+  });
+  it('treats a v1.2.0 player (Compás, no device.json) as older and offers the v1.3.0 firmware', async () => {
+    vi.mocked(listDevices).mockResolvedValue([
+      view({ firmware: 'compas', player_version: null, older_than: 'v1.3.0' }),
+    ]);
+    vi.mocked(latestRelease).mockResolvedValue(latest('update_available', []));
+    renderScreen();
+    const install = await screen.findByRole('button', { name: 'Install the latest firmware' });
+    expect((await screen.findAllByText(/older than v1\.3\.0/)).length).toBeGreaterThan(0);
+    expect(latestRelease).toHaveBeenCalledWith(false, '', true);
+    // Not a downgrade: no warning, the firmware is the highlighted action.
+    expect(screen.queryByText(/goes back to the older version/)).not.toBeInTheDocument();
+    expect(install.className).toContain('button--primary');
+    expect(screen.getByRole('button', { name: 'Update only the player' })).toBeDisabled();
+    await userEvent.click(install);
+    expect(await screen.findByRole('button', { name: 'Install and reboot' })).toBeInTheDocument();
   });
 });

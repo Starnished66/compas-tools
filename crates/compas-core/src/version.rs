@@ -2,6 +2,11 @@
 
 use std::cmp::Ordering;
 
+/// Drops the leading `v`/`V` that release tags and `device.json` may carry (`v1.3.0`).
+pub fn strip_v(version: &str) -> &str {
+    version.trim().trim_start_matches(['v', 'V'])
+}
+
 /// One to four numeric groups, under 32 characters (`store_version_valid`).
 pub fn is_valid(version: &str) -> bool {
     let groups: Vec<&str> = version.split('.').collect();

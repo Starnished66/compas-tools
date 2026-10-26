@@ -17,6 +17,8 @@ pub enum Model {
 }
 
 impl Model {
+    pub const ALL: [Model; 3] = [Model::R1, Model::R3ProII, Model::R3II2025];
+
     /// Name used for update files on the card and in the player's releases.
     pub fn board(self) -> &'static str {
         match self {

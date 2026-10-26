@@ -29,6 +29,8 @@ pub struct PlacedFile {
 pub async fn releases_latest(
     state: State<'_, AppState>,
     refresh: bool,
+    installed: Option<String>,
+    without_device_info: Option<bool>,
 ) -> CommandResult<LatestRelease> {
     let release = match state.recent_release() {
         Some(release) if !refresh => release,
@@ -38,12 +40,26 @@ pub async fn releases_latest(
             release
         }
     };
-    let device = state
-        .selected_card()
-        .map(|card| card.device())
-        .transpose()?
-        .flatten();
-    let freshness = release.freshness(device.as_ref().map(|d| d.player_version.as_str()));
+    let freshness = if installed.is_some() {
+        // The Device screen passes what it read over adb; no selected player is consulted.
+        match installed.as_deref().filter(|v| !v.is_empty()) {
+            Some(version) => release.freshness(Some(version)),
+            None if without_device_info == Some(true) => release.freshness_without_device_info(),
+            None => Freshness::Unknown,
+        }
+    } else {
+        match state.selected_card() {
+            None => Freshness::Unknown,
+            Some(card) => match card.device()? {
+                Some(device) => release.freshness(Some(&device.player_version)),
+                // A player that runs without writing device.json predates the file.
+                None if !card.compas_dir().join("device.json").exists() => {
+                    release.freshness_without_device_info()
+                }
+                None => Freshness::Unknown,
+            },
+        }
+    };
     Ok(LatestRelease {
         release: (*release).clone(),
         freshness,

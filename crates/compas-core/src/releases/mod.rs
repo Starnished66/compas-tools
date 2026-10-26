@@ -14,6 +14,10 @@ use crate::version;
 pub use github::{fetch_latest, fetch_latest_from, API_BASE};
 pub use place::{other_upts, place};
 
+/// The first player release that writes `.compas/device.json`. A player that has run
+/// without writing one is older than this (v1.2.0 and earlier).
+pub const DEVICE_INFO_SINCE: &str = "v1.3.0";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
@@ -57,6 +61,8 @@ pub struct Release {
     pub notes: String,
     pub published_at: String,
     pub url: String,
+    /// Boards this release ships a player-only file for; a firmware-only release has none.
+    pub player_only_boards: Vec<String>,
     #[serde(skip)]
     assets: Vec<Asset>,
     #[serde(skip)]
@@ -72,6 +78,20 @@ impl Release {
             (Kind::PlayerOnly, other) => format!("compas_player_{}", other.board()),
             (Kind::FullImage, other) => format!("{}.upt", other.board()),
         }
+    }
+
+    /// Whether the release ships a file of this kind for the model.
+    pub fn supports(&self, kind: Kind, model: Model) -> bool {
+        let name = Self::asset_name(kind, model);
+        self.assets.iter().any(|a| a.name == name)
+    }
+
+    pub(crate) fn list_player_only_boards(&mut self) {
+        self.player_only_boards = Model::ALL
+            .into_iter()
+            .filter(|m| self.supports(Kind::PlayerOnly, *m))
+            .map(|m| m.board().to_string())
+            .collect();
     }
 
     pub fn file(&self, kind: Kind, model: Model) -> Result<ReleaseFile> {
@@ -93,18 +113,34 @@ impl Release {
         })
     }
 
+    /// For a player that has no `device.json` although it runs: it predates the file, so it is
+    /// older than any release from [`DEVICE_INFO_SINCE`] on. Older releases say nothing.
+    pub fn freshness_without_device_info(&self) -> Freshness {
+        let since = version::strip_v(DEVICE_INFO_SINCE);
+        let latest = version::strip_v(&self.tag);
+        if version::is_valid(latest) && version::compare(latest, since).is_ge() {
+            Freshness::UpdateAvailable
+        } else {
+            Freshness::Unknown
+        }
+    }
+
     /// Compares the player version on the card with this release.
     pub fn freshness(&self, installed: Option<&str>) -> Freshness {
-        let latest = self.tag.trim_start_matches('v');
+        let latest = version::strip_v(&self.tag);
         match installed {
-            Some(installed) if version::is_valid(installed) && version::is_valid(latest) => {
+            Some(installed) => {
+                let installed = version::strip_v(installed);
+                if !version::is_valid(installed) || !version::is_valid(latest) {
+                    return Freshness::Unknown;
+                }
                 match version::compare(installed, latest) {
                     std::cmp::Ordering::Less => Freshness::UpdateAvailable,
                     std::cmp::Ordering::Equal => Freshness::UpToDate,
                     std::cmp::Ordering::Greater => Freshness::Newer,
                 }
             }
-            _ => Freshness::Unknown,
+            None => Freshness::Unknown,
         }
     }
 }
@@ -114,7 +150,7 @@ pub(crate) mod test_fixtures;
 
 #[cfg(test)]
 mod tests {
-    use super::test_fixtures::release;
+    use super::test_fixtures::{release, release_with};
     use super::*;
 
     #[test]
@@ -167,5 +203,47 @@ mod tests {
         assert_eq!(release.freshness(Some("1.1.9")), Freshness::UpdateAvailable);
         assert_eq!(release.freshness(Some("1.2.0")), Freshness::UpToDate);
         assert_eq!(release.freshness(Some("1.10")), Freshness::Newer);
+    }
+
+    #[tokio::test]
+    async fn a_leading_v_on_either_side_is_ignored() {
+        let (_server, release) = release("v1.3.0").await;
+        assert_eq!(release.freshness(Some("v1.3.0")), Freshness::UpToDate);
+        assert_eq!(release.freshness(Some("V1.3.0")), Freshness::UpToDate);
+        assert_eq!(release.freshness(Some("1.3.0")), Freshness::UpToDate);
+        assert_eq!(
+            release.freshness(Some("v1.2.0")),
+            Freshness::UpdateAvailable
+        );
+        assert_eq!(release.freshness(Some("v1.3.1")), Freshness::Newer);
+        assert_eq!(release.freshness(Some("v")), Freshness::Unknown);
+        assert_eq!(release.freshness(Some("vdev")), Freshness::Unknown);
+    }
+
+    #[tokio::test]
+    async fn a_player_without_device_json_is_older_than_the_file_itself() {
+        let (_server, firmware_only) = release_with("v1.3.0", false).await;
+        assert_eq!(
+            firmware_only.freshness_without_device_info(),
+            Freshness::UpdateAvailable
+        );
+        let (_server, older) = release("v1.2.0").await;
+        assert_eq!(older.freshness_without_device_info(), Freshness::Unknown);
+    }
+
+    #[tokio::test]
+    async fn a_firmware_only_release_is_valid_without_player_files() {
+        let (_server, release) = release_with("v1.3.0", false).await;
+        assert!(release.player_only_boards.is_empty());
+        assert!(!release.supports(Kind::PlayerOnly, Model::R1));
+        assert!(release.supports(Kind::FullImage, Model::R1));
+        assert!(release.file(Kind::FullImage, Model::R3ProII).is_ok());
+    }
+
+    #[tokio::test]
+    async fn a_release_with_player_files_lists_its_boards() {
+        let (_server, release) = release("v1.2.0").await;
+        assert_eq!(release.player_only_boards, ["r1", "r3proii", "r3ii_2025"]);
+        assert!(release.supports(Kind::PlayerOnly, Model::R3ProII));
     }
 }

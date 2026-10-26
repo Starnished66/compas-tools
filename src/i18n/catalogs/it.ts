@@ -273,4 +273,11 @@ export const it: Record<string, TranslationValue> = {
   "Or simply restart the player; it finds the new file on its own.": "Oppure riavvia semplicemente il lettore; trova da solo il nuovo file.",
   "On the player, open Settings > Updates > Firmware Update > Install from SD card.": "Sul lettore, apri Impostazioni > Aggiornamenti > Aggiornamento firmware > Installa da scheda SD.",
   "If the player does not start, use recovery: hold {keys}.": "Se il lettore non si avvia, usa il ripristino: tieni premuto {keys}.",
+  "This release is a full firmware update only. Use the full firmware option instead.": "Questa versione è solo un aggiornamento completo del firmware. Usa invece l'opzione del firmware completo.",
+  "Your player has {version}, newer than the latest release {release}. Installing the release goes back to the older version.": "Il tuo lettore ha la versione {version}, più recente dell'ultima release {release}. Installandola tornerai alla versione precedente.",
+  "Go back to the older version?": "Tornare alla versione precedente?",
+  "Install anyway": "Installa comunque",
+  "Your player already has {version}, the latest release. Reinstalling is possible if you need it.": "Il tuo lettore ha già la versione {version}, l'ultima release. Se serve, puoi reinstallarla.",
+  "This player is older than {version}; an update is available.": "Questo lettore è precedente a {version}; è disponibile un aggiornamento.",
+  "older than {version}": "precedente a {version}",
 };
