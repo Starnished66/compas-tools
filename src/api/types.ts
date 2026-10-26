@@ -138,9 +138,12 @@ export interface LibraryUpdate {
 /** What happened to the library after a copy. `failed` leaves the copied files in place. */
 export type LibraryOutcome =
   | { status: 'skipped' }
-  | { status: 'unsupported' }
+  | { status: 'unsupported'; support: Exclude<LibrarySupport, 'ready'> }
   | ({ status: 'updated' } & LibraryUpdate)
   | { status: 'failed'; message: string };
+
+/** How the card's player relates to the database format this app writes. */
+export type LibrarySupport = 'ready' | 'player_older' | 'player_newer';
 
 export interface LibraryStatus {
   sdtool_version: string;
@@ -148,8 +151,8 @@ export interface LibraryStatus {
   /** 0 when the card has no library yet. */
   generation: number;
   songs: number;
-  /** False when the player builds the library itself (its database format differs or is unknown). */
-  library_ready: boolean;
+  /** Anything but `ready` leaves the library to the player. */
+  support: LibrarySupport;
 }
 
 export interface ScanDone {

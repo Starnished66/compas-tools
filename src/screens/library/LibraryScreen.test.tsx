@@ -13,7 +13,7 @@ const status = {
   database_format: 5,
   generation: 12,
   songs: 4032,
-  library_ready: true,
+  support: 'ready' as const,
 };
 
 describe('LibraryScreen', () => {
@@ -27,13 +27,24 @@ describe('LibraryScreen', () => {
   });
 
   it('explains why the buttons are off when the player builds the library', async () => {
-    vi.mocked(libraryStatus).mockResolvedValue({ ...status, generation: 0, library_ready: false });
+    vi.mocked(libraryStatus).mockResolvedValue({
+      ...status,
+      generation: 0,
+      support: 'player_older',
+    });
     render(<LibraryScreen onChooseCard={vi.fn()} />);
     expect(await screen.findByText('No library on this card yet.')).toBeInTheDocument();
     expect(screen.getByText(/built by the player on its next start/)).toBeInTheDocument();
     for (const name of ['Update library', 'Re-read all tags', 'Build album art']) {
       expect(screen.getByRole('button', { name })).toBeDisabled();
     }
+  });
+
+  it('tells the user to update Compás Tools when the player is newer', async () => {
+    vi.mocked(libraryStatus).mockResolvedValue({ ...status, support: 'player_newer' });
+    render(<LibraryScreen onChooseCard={vi.fn()} />);
+    expect(await screen.findByText(/newer than this version of Compás Tools/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Build album art' })).toBeDisabled();
   });
 
   it('reports the counts of a scan, failures and the time shift', async () => {

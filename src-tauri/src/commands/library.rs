@@ -2,7 +2,9 @@ use serde::Serialize;
 use tauri::ipc::Channel;
 use tauri::State;
 
-use compas_core::sdtool::{library_ready, ArtDone, LibraryInfo, ScanDone, ScanOptions};
+use compas_core::sdtool::{
+    library_support, ArtDone, LibraryInfo, LibrarySupport, ScanDone, ScanOptions,
+};
 use compas_core::Progress;
 
 use super::reporter;
@@ -14,9 +16,9 @@ use crate::state::AppState;
 pub struct LibraryStatus {
     #[serde(flatten)]
     info: LibraryInfo,
-    /// The card's player writes the database layout this tool writes; otherwise
-    /// the player builds the library itself.
-    library_ready: bool,
+    /// Whether the card's player writes the database layout this tool writes;
+    /// otherwise the player builds the library itself.
+    support: LibrarySupport,
 }
 
 #[tauri::command]
@@ -24,7 +26,7 @@ pub async fn library_info(state: State<'_, AppState>) -> CommandResult<LibrarySt
     let card = state.card()?;
     let info = sdtool().info(&card).await?;
     Ok(LibraryStatus {
-        library_ready: library_ready(&card, &info)?,
+        support: library_support(&card, &info)?,
         info,
     })
 }

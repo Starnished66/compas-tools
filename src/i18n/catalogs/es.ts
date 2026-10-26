@@ -205,6 +205,7 @@ export const es: Record<string, TranslationValue> = {
   "No library on this card yet.": "Esta tarjeta aún no tiene biblioteca.",
   "{count} songs, library generation {generation}.": { one: "{count} canción, generación {generation} de la biblioteca.", other: "{count} canciones, generación {generation} de la biblioteca." },
   "The library will be built by the player on its next start. Updating the player (Updates screen) lets Compás Tools build it on this computer.": "El reproductor creará la biblioteca en su próximo inicio. Si actualizas el reproductor (pantalla Actualizaciones), Compás Tools podrá crearla en este ordenador.",
+  "The player on this card is newer than this version of Compás Tools. Update Compás Tools so it can build the library on this computer; until then the player builds it on its next start.": "El reproductor de esta tarjeta es más reciente que esta versión de Compás Tools. Actualiza Compás Tools para que pueda crear la biblioteca en este ordenador; hasta entonces la crea el reproductor en su próximo inicio.",
   "Library information is not available: {problem}": "La información de la biblioteca no está disponible: {problem}",
   "Reading the library…": "Leyendo la biblioteca…",
   "Result": "Resultado",

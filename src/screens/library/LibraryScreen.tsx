@@ -41,7 +41,7 @@ export function LibraryScreen({ onChooseCard }: Props) {
     );
   }
 
-  const ready = status?.library_ready === true;
+  const ready = status?.support === 'ready';
 
   const run = async (task: Parameters<typeof operation.run<Result>>[0]) => {
     setResult(null);

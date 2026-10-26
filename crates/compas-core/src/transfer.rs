@@ -7,7 +7,7 @@ use serde::Serialize;
 use crate::card::Card;
 use crate::music::CopyReport;
 use crate::progress::OnProgress;
-use crate::sdtool::{library_ready, LibraryUpdate, SdTool};
+use crate::sdtool::{library_support, LibrarySupport, LibraryUpdate, SdTool};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
@@ -16,7 +16,9 @@ pub enum LibraryOutcome {
     Skipped,
     /// The player on the card does not write this tool's database format, so
     /// the player builds the library on its next start.
-    Unsupported,
+    Unsupported {
+        support: LibrarySupport,
+    },
     Updated(LibraryUpdate),
     /// The copied files stay; only the library update has to be repeated.
     Failed {
@@ -37,14 +39,14 @@ pub async fn update_after_copy(
     }
     let update = async {
         let info = tool.info(card).await?;
-        if !library_ready(card, &info)? {
-            return Ok(None);
+        match library_support(card, &info)? {
+            LibrarySupport::Ready => tool.update_library(card, on_progress).await.map(Ok),
+            support => Ok(Err(support)),
         }
-        tool.update_library(card, on_progress).await.map(Some)
     };
     match update.await {
-        Ok(Some(update)) => LibraryOutcome::Updated(update),
-        Ok(None) => LibraryOutcome::Unsupported,
+        Ok(Ok(update)) => LibraryOutcome::Updated(update),
+        Ok(Err(support)) => LibraryOutcome::Unsupported { support },
         Err(error) => LibraryOutcome::Failed {
             message: error.to_string(),
         },
@@ -257,19 +259,30 @@ echo '{"event":"error","code":"art_failed","message":"one cover"}'; exit 1"#;
 
     #[tokio::test]
     async fn a_card_without_device_json_or_with_another_format_skips_the_library() {
-        let older = card_with_format(Some(3));
-        let missing = fake_card();
-        for (_dir, card) in [older, missing] {
+        let cases = [
+            (card_with_format(Some(3)), LibrarySupport::PlayerOlder),
+            (fake_card(), LibrarySupport::PlayerOlder),
+            (card_with_format(Some(9)), LibrarySupport::PlayerNewer),
+        ];
+        for ((_dir, card), expected) in cases {
             let tools = tempfile::tempdir().unwrap();
             let tool = script_tool(tools.path(), &working());
 
             let outcome = update_after_copy(&tool, &card, &copied(2, 0), &|_| {}).await;
-            assert!(
-                matches!(outcome, LibraryOutcome::Unsupported),
-                "{outcome:?}"
-            );
+            let LibraryOutcome::Unsupported { support } = outcome else {
+                panic!("{outcome:?}")
+            };
+            assert_eq!(support, expected);
             assert_eq!(calls(tools.path()), ["info"], "no scan and no art");
-            assert!(tool.ensure_library_ready(&card).await.is_err());
+            let message = tool
+                .ensure_library_ready(&card)
+                .await
+                .unwrap_err()
+                .to_string();
+            assert_eq!(
+                message.contains("Update Compás Tools"),
+                expected == LibrarySupport::PlayerNewer
+            );
         }
     }
 

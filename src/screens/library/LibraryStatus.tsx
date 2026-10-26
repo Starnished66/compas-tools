@@ -24,7 +24,7 @@ export function LibraryStatus({ status, problem, heading = true }: Props) {
               })}
         </p>
       )}
-      {status && !status.library_ready && <LibraryNotReady />}
+      {status && status.support !== 'ready' && <LibraryNotReady support={status.support} />}
       {problem && (
         <p className="muted">{t('Library information is not available: {problem}', { problem })}</p>
       )}

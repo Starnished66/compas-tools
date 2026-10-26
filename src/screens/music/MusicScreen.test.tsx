@@ -161,7 +161,7 @@ describe('MusicScreen', () => {
     vi.mocked(copyTransfer).mockResolvedValue({
       ...result,
       failed: [],
-      library: { status: 'unsupported' },
+      library: { status: 'unsupported', support: 'player_older' },
     });
     await copyOnce();
     expect(await screen.findByText(/built by the player on its next start/)).toBeInTheDocument();

@@ -18,7 +18,7 @@ use crate::error::{Error, Result};
 use crate::progress::{OnProgress, Progress};
 
 pub use events::{ArtDone, LibraryInfo, LibraryUpdate, ScanDone};
-pub use guard::library_ready;
+pub use guard::{library_support, LibrarySupport};
 
 /// Last stderr lines kept to explain a crash.
 const STDERR_TAIL: usize = 5;

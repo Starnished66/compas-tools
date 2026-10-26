@@ -50,7 +50,7 @@ export function CopyResult({ result, busy, onRetryLibrary }: Props) {
       {library.status === 'skipped' && (
         <p className="muted">{t('Nothing changed on the card, so the library was not updated.')}</p>
       )}
-      {library.status === 'unsupported' && <LibraryNotReady />}
+      {library.status === 'unsupported' && <LibraryNotReady support={library.support} />}
       {library.status === 'updated' && (
         <>
           <ScanResult done={library.scan} />

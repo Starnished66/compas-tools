@@ -205,6 +205,7 @@ export const ru: Record<string, TranslationValue> = {
   "No library on this card yet.": "На этой карте пока нет медиатеки.",
   "{count} songs, library generation {generation}.": { one: "{count} трек, поколение медиатеки {generation}.", few: "{count} трека, поколение медиатеки {generation}.", many: "{count} треков, поколение медиатеки {generation}.", other: "{count} трека, поколение медиатеки {generation}." },
   "The library will be built by the player on its next start. Updating the player (Updates screen) lets Compás Tools build it on this computer.": "Плеер сам создаст медиатеку при следующем запуске. После обновления плеера (экран «Обновления») Compás Tools сможет создать её на этом компьютере.",
+  "The player on this card is newer than this version of Compás Tools. Update Compás Tools so it can build the library on this computer; until then the player builds it on its next start.": "Плеер на этой карте новее этой версии Compás Tools. Обновите Compás Tools, чтобы оно могло создать медиатеку на этом компьютере; до тех пор её создаст плеер при следующем запуске.",
   "Library information is not available: {problem}": "Сведения о медиатеке недоступны: {problem}",
   "Reading the library…": "Чтение медиатеки…",
   "Result": "Результат",
