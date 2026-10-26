@@ -7,3 +7,5 @@ src-tauri/icons
 package-lock.json
 # Shared verbatim with compas-app.
 src/i18n/translate.ts
+# Translation tables: one entry per line, kept as written.
+src/i18n/catalogs/

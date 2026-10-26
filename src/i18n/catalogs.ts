@@ -1,12 +1,17 @@
+import { de } from './catalogs/de';
+import { es } from './catalogs/es';
+import { fr } from './catalogs/fr';
+import { it } from './catalogs/it';
+import { ru } from './catalogs/ru';
+
 export type Language = 'en' | 'es' | 'de' | 'fr' | 'it' | 'ru';
 
 export type TranslationValue = string | Partial<Record<Intl.LDMLPluralRule, string>>;
 
-/** English source strings are the keys; only plurals need an entry. Other languages come in phase 4. */
+/** English source strings are the keys; English only needs entries for plurals. */
 export const catalogs: Record<Language, Record<string, TranslationValue>> = {
   en: {
     '{count} plugin': { one: '{count} plugin', other: '{count} plugins' },
-    '{count} file': { one: '{count} file', other: '{count} files' },
     '{count} update installed': {
       one: '{count} update installed',
       other: '{count} updates installed',
@@ -78,9 +83,9 @@ export const catalogs: Record<Language, Record<string, TranslationValue>> = {
       other: '{count} other .upt files on the card',
     },
   },
-  es: {},
-  de: {},
-  fr: {},
-  it: {},
-  ru: {},
+  es,
+  de,
+  fr,
+  it,
+  ru,
 };
