@@ -17,7 +17,7 @@ export function LibraryStatus({ status, problem, heading = true }: Props) {
       {status && (
         <p>
           {status.generation === 0
-            ? t('No library on this card yet.')
+            ? t('No library on this player yet.')
             : t('{count} songs, library generation {generation}.', {
                 count: status.songs,
                 generation: status.generation,

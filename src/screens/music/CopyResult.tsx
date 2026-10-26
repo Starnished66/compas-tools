@@ -48,7 +48,9 @@ export function CopyResult({ result, busy, onRetryLibrary }: Props) {
         )}
       </Notice>
       {library.status === 'skipped' && (
-        <p className="muted">{t('Nothing changed on the card, so the library was not updated.')}</p>
+        <p className="muted">
+          {t('Nothing changed on the player, so the library was not updated.')}
+        </p>
       )}
       {library.status === 'unsupported' && <LibraryNotReady support={library.support} />}
       {library.status === 'updated' && (
@@ -70,7 +72,7 @@ export function CopyResult({ result, busy, onRetryLibrary }: Props) {
       {library.status === 'failed' && (
         <>
           <ErrorBanner message={library.message} />
-          <p>{t('The copied files are on the card. Only the library still needs updating.')}</p>
+          <p>{t('The copied files are on the player. Only the library still needs updating.')}</p>
           <div>
             <Button variant="primary" icon="refresh" disabled={busy} onClick={onRetryLibrary}>
               {t('Try again')}

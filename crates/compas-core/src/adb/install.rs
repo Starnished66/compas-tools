@@ -56,7 +56,9 @@ fn ensure_on_card(remote: &str) -> Result<()> {
     if remote.starts_with(&format!("{SD_ROOT}/")) {
         Ok(())
     } else {
-        Err(Error::Rejected(format!("{remote} is not on the SD card")))
+        Err(Error::Rejected(format!(
+            "{remote} is not on the player's storage"
+        )))
     }
 }
 
@@ -103,7 +105,7 @@ impl Job<'_> {
         let df = adb.shell(serial, &format!("df -k {SD_ROOT}")).await?;
         let free_kb = parse_free_kb(&df).ok_or_else(|| {
             Error::Adb(format!(
-                "could not read the free space on the player's card, so nothing was copied (df said: {})",
+                "could not read the free space on the player, so nothing was copied (df said: {})",
                 df.trim()
             ))
         })?;
@@ -228,7 +230,7 @@ pub async fn remove_staged_image(adb: &Adb, serial: &str, remote: &str) -> Resul
     let name = remote.trim_start_matches(SD_ROOT).trim_start_matches('/');
     if !name.to_ascii_lowercase().ends_with(".upt") || name.contains(['/', '\'', ' ', '"', '\\']) {
         return Err(Error::Rejected(format!(
-            "{remote} is not an update image at the card's root"
+            "{remote} is not an update image at the player's root"
         )));
     }
     adb.shell(serial, &format!("rm -f '{remote}'"))
@@ -259,7 +261,7 @@ impl<'a> InstallRequest<'a> {
     }
 }
 
-/// Full firmware image: staged at the card's root, installed from recovery.
+/// Full firmware image: staged at the player's root, installed from recovery.
 pub async fn install_full_image(
     adb: &Adb,
     serial: &str,

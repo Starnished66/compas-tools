@@ -28,10 +28,10 @@ export function MusicScreen({ onChooseCard }: Props) {
     return (
       <section className="screen">
         <h1>{t('Music')}</h1>
-        <EmptyState title={t('Choose your card first')}>
-          <p className="muted">{t('Music is copied onto the SD card of your player.')}</p>
+        <EmptyState title={t('Choose your player first')}>
+          <p className="muted">{t('Music is copied to your player.')}</p>
           <Button variant="primary" onClick={onChooseCard}>
-            {t('Go to Card')}
+            {t('Go to Player')}
           </Button>
         </EmptyState>
       </section>
@@ -58,7 +58,7 @@ export function MusicScreen({ onChooseCard }: Props) {
       />
       <div className="panel stack">
         <label className="stack">
-          <span>{t('Folder on the card (leave empty for the top level)')}</span>
+          <span>{t('Folder on the player (leave empty for the top level)')}</span>
           <input
             className="field"
             value={transfer.destDir}
@@ -79,7 +79,7 @@ export function MusicScreen({ onChooseCard }: Props) {
             }}
           />
           <span>
-            {t('Mirror a folder: also remove files from the card that are no longer in it')}
+            {t('Mirror a folder: also remove files from the player that are no longer in it')}
           </span>
         </label>
       </div>
@@ -110,7 +110,7 @@ export function MusicScreen({ onChooseCard }: Props) {
             else start();
           }}
         >
-          {t('Copy to card')}
+          {t('Copy to player')}
         </Button>
       </div>
       {transfer.result && (
@@ -122,8 +122,8 @@ export function MusicScreen({ onChooseCard }: Props) {
       )}
       <ConfirmDialog
         open={confirming}
-        title={t('Remove files from the card?')}
-        message={t('{count} files on the card are not in the folder and will be deleted.', {
+        title={t('Remove files from the player?')}
+        message={t('{count} files on the player are not in the folder and will be deleted.', {
           count: removing,
         })}
         confirmLabel={t('Copy and remove')}

@@ -88,12 +88,12 @@ describe('MusicScreen', () => {
 
   it('previews the plan for the chosen folder and shows what is left out', async () => {
     renderScreen();
-    expect(screen.getByRole('button', { name: 'Copy to card' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Copy to player' })).toBeDisabled();
 
     await userEvent.click(screen.getByRole('button', { name: 'Add folders…' }));
     expect(await screen.findByTitle('/music/Album')).toBeInTheDocument();
     expect(await screen.findByText(/3 files, 3\.0 MB/)).toBeInTheDocument();
-    expect(screen.getByText(/Too big for a FAT32 card/)).toBeInTheDocument();
+    expect(screen.getByText(/Too big for the player/)).toBeInTheDocument();
     expect(screen.getByText(/AC:DC.flac → AC_DC.flac/)).toBeInTheDocument();
     expect(screen.getByText(/2 hidden files, macOS leftovers/)).toBeInTheDocument();
   });
@@ -102,13 +102,13 @@ describe('MusicScreen', () => {
     vi.mocked(planTransfer).mockResolvedValue({ ...plan, deletions_blocked: true });
     renderScreen();
     await userEvent.click(screen.getByRole('button', { name: 'Add folders…' }));
-    expect(await screen.findByText(/Nothing will be removed from the card/)).toBeInTheDocument();
+    expect(await screen.findByText(/Nothing will be removed from the player/)).toBeInTheDocument();
   });
 
   it('copies and reports the result with eject advice', async () => {
     renderScreen();
     await userEvent.click(screen.getByRole('button', { name: 'Add folders…' }));
-    const copy = screen.getByRole('button', { name: 'Copy to card' });
+    const copy = screen.getByRole('button', { name: 'Copy to player' });
     await waitFor(() => {
       expect(copy).toBeEnabled();
     });
@@ -127,7 +127,7 @@ describe('MusicScreen', () => {
   async function copyOnce() {
     renderScreen();
     await userEvent.click(screen.getByRole('button', { name: 'Add folders…' }));
-    const copy = screen.getByRole('button', { name: 'Copy to card' });
+    const copy = screen.getByRole('button', { name: 'Copy to player' });
     await waitFor(() => {
       expect(copy).toBeEnabled();
     });
@@ -153,7 +153,7 @@ describe('MusicScreen', () => {
       library: { status: 'skipped' },
     });
     await copyOnce();
-    expect(await screen.findByText(/Nothing changed on the card/)).toBeInTheDocument();
+    expect(await screen.findByText(/Nothing changed on the player/)).toBeInTheDocument();
     expect(screen.queryByText(/Library updated/)).not.toBeInTheDocument();
   });
 
@@ -193,14 +193,14 @@ describe('MusicScreen', () => {
     renderScreen();
     await userEvent.click(screen.getByRole('button', { name: 'Add folders…' }));
     await userEvent.click(screen.getByRole('checkbox'));
-    const copy = screen.getByRole('button', { name: 'Copy to card' });
+    const copy = screen.getByRole('button', { name: 'Copy to player' });
     await waitFor(() => {
       expect(copy).toBeEnabled();
     });
     await userEvent.click(copy);
 
     expect(
-      await screen.findByRole('dialog', { name: 'Remove files from the card?' }),
+      await screen.findByRole('dialog', { name: 'Remove files from the player?' }),
     ).toBeVisible();
     expect(copyTransfer).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'Copy and remove' }));

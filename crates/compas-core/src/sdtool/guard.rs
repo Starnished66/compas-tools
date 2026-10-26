@@ -31,17 +31,19 @@ impl SdTool {
     /// Fails unless the formats match; for commands that build the library on request.
     pub async fn ensure_library_ready(&self, card: &Card) -> Result<()> {
         let info = self.info(card).await?;
-        Err(Error::Rejected(match library_support(card, &info)? {
-            LibrarySupport::Ready => return Ok(()),
-            LibrarySupport::PlayerOlder => {
-                "The player builds this card's library itself on its next start. Update the player \
+        Err(Error::Rejected(
+            match library_support(card, &info)? {
+                LibrarySupport::Ready => return Ok(()),
+                LibrarySupport::PlayerOlder => {
+                    "The player builds its library itself on its next start. Update the player \
                  first if Compás Tools should build it on this computer."
-            }
-            LibrarySupport::PlayerNewer => {
-                "The player on this card is newer than this version of Compás Tools. Update \
+                }
+                LibrarySupport::PlayerNewer => {
+                    "Your player is newer than this version of Compás Tools. Update \
                  Compás Tools to build the library on this computer."
+                }
             }
-        }
-        .into()))
+            .into(),
+        ))
     }
 }

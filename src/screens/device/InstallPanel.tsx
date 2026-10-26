@@ -81,7 +81,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
         <h3>{t('1. Back up the player')}</h3>
         <p>
           {t(
-            'Copies the player’s own settings and logs to this computer. The SD card, account tokens, server passwords, Wi-Fi details and the remote-control PIN are never copied, and anything that looks secret is masked before it is saved.',
+            'Copies the player’s own settings and logs to this computer. Your music, account tokens, server passwords, Wi-Fi details and the remote-control PIN are never copied, and anything that looks secret is masked before it is saved.',
           )}
         </p>
         <div>
@@ -122,7 +122,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
         </div>
         <p className="muted">
           {t(
-            'Firmware: the image goes to the SD card, the player restarts into recovery and installs it, and this app checks the version afterwards. Player only: just the player program on the card is replaced and the player restarts. Keep the cable connected and do not switch the player off.',
+            'Firmware: the image is copied to the player, which restarts into recovery and installs it, and this app checks the version afterwards. Player only: just the player program is replaced and the player restarts. Keep the cable connected and do not switch the player off.',
           )}
         </p>
       </div>
@@ -158,7 +158,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
           open
           title={t('Delete the update file?')}
           message={t(
-            '{path} will be deleted from the SD card of {serial}. The installed player is not affected.',
+            '{path} will be deleted from {serial}. The installed player is not affected.',
             { path: deleting, serial: device.serial },
           )}
           confirmLabel={t('Delete')}
@@ -176,7 +176,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
           message={
             asking === 'full_image'
               ? t(
-                  '{file} will be copied to the SD card of {board} ({serial}). The player will then reboot into recovery and install it. Do not disconnect it or switch it off.',
+                  '{file} will be copied to {board} ({serial}). The player will then reboot into recovery and install it. Do not disconnect it or switch it off.',
                   {
                     file: releaseFileName(asking, model),
                     board: BOARD_NAMES[model],
@@ -184,7 +184,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
                   },
                 )
               : t(
-                  '{file} will replace the player program on the SD card of {board} ({serial}). The player will then restart.',
+                  '{file} will replace the player program on {board} ({serial}). The player will then restart.',
                   {
                     file: releaseFileName(asking, model),
                     board: BOARD_NAMES[model],
@@ -291,10 +291,10 @@ function InstallResult({ report, removed, busy, onChoose, onRemove }: ResultProp
               },
             )}
       </p>
-      <p className="muted">{t('Copied to {path} on the card.', { path: report.remote_path })}</p>
+      <p className="muted">{t('Copied to {path} on the player.', { path: report.remote_path })}</p>
       {confirmed && report.remote_path.toLowerCase().endsWith('.upt') && !removed && (
         <div className="stack">
-          <p>{t('The update file is still on the card. It is not needed any more.')}</p>
+          <p>{t('The update file is still on the player. It is not needed any more.')}</p>
           <div>
             <Button
               disabled={busy}
@@ -302,12 +302,12 @@ function InstallResult({ report, removed, busy, onChoose, onRemove }: ResultProp
                 onRemove(report.remote_path);
               }}
             >
-              {t('Delete the update file from the card')}
+              {t('Delete the update file from the player')}
             </Button>
           </div>
         </div>
       )}
-      {removed && <p>{t('The update file was deleted from the card.')}</p>}
+      {removed && <p>{t('The update file was deleted from the player.')}</p>}
     </Notice>
   );
 }

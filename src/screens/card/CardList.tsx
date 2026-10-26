@@ -14,13 +14,13 @@ export function CardList({ cards, selectedRoot, scanning, onSelect }: Props) {
     return (
       <p className="muted">
         {scanning
-          ? t('Looking for cards…')
-          : t('No Compás card found. Insert the SD card, or choose its folder.')}
+          ? t('Looking for players…')
+          : t('No player found. Connect your player, or choose its folder.')}
       </p>
     );
   }
   return (
-    <ul className="card-list" aria-label={t('Detected cards')}>
+    <ul className="card-list" aria-label={t('Connected players')}>
       {cards.map((card) => {
         const selected = card.root === selectedRoot;
         return (
@@ -40,7 +40,7 @@ export function CardList({ cards, selectedRoot, scanning, onSelect }: Props) {
                 onSelect(card);
               }}
             >
-              {selected ? t('In use') : t('Use this card')}
+              {selected ? t('In use') : t('Use this player')}
             </Button>
           </li>
         );

@@ -25,14 +25,14 @@ pub enum Error {
     InvalidIndex(String),
     #[error("invalid release: {0}")]
     InvalidRelease(String),
-    #[error("not a Compás card: {0}")]
+    #[error("not a Compás player: {0}")]
     InvalidCard(String),
     #[error("not enough free space: {needed} bytes needed, {available} available")]
     NoSpace { needed: u64, available: u64 },
     #[error("not found: {0}")]
     NotFound(String),
     #[error(
-        "The plugin record on this card is damaged (more than {limit} entries). \
+        "The plugin record on this player is damaged (more than {limit} entries). \
          Move the record aside to start over; installed files stay in place."
     )]
     RecordDamaged { limit: usize },

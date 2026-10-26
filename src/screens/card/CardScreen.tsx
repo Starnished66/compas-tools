@@ -55,14 +55,14 @@ export function CardScreen() {
 
   const chooseFolder = () =>
     guard(async () => {
-      const folder = await open({ directory: true, title: t('Choose the card folder') });
+      const folder = await open({ directory: true, title: t('Choose the player folder') });
       if (folder) await select(folder);
     });
 
   return (
     <section className="screen">
       <div className="screen__header">
-        <h1>{t('Card')}</h1>
+        <h1>{t('Player')}</h1>
         <div className="row">
           <Button icon="refresh" onClick={() => void scan()} disabled={scanning}>
             {t('Scan again')}

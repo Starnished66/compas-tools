@@ -23,7 +23,7 @@ export function CardDetails({ card, model, onChooseModel }: Props) {
   const { device } = card;
   const library = useLibraryStatus();
   return (
-    <section className="panel stack" aria-label={t('Card details')}>
+    <section className="panel stack" aria-label={t('Player details')}>
       <h2>{card.label}</h2>
       <dl className="details-list">
         <dt>{t('Location')}</dt>
@@ -52,7 +52,7 @@ export function CardDetails({ card, model, onChooseModel }: Props) {
         <Notice tone="info">
           <p>
             {t(
-              'This card has no device information yet. Update the player once, or tell Compás Tools which player it is for.',
+              'Your player has no device information yet. Update the player once, or tell Compás Tools which player it is.',
             )}
           </p>
           <ModelPicker value={model} onChange={onChooseModel} />

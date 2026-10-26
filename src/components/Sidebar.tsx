@@ -13,7 +13,7 @@ interface Props {
 
 export function Sidebar({ current, cardLabel, onNavigate }: Props) {
   const items: { id: ScreenId; label: string }[] = [
-    { id: 'card', label: t('Card') },
+    { id: 'card', label: t('Player') },
     { id: 'device', label: t('Device') },
     { id: 'music', label: t('Music') },
     { id: 'library', label: t('Library') },
@@ -39,7 +39,7 @@ export function Sidebar({ current, cardLabel, onNavigate }: Props) {
           {item.label}
         </button>
       ))}
-      <p className="sidebar__card">{cardLabel ?? t('No card selected')}</p>
+      <p className="sidebar__card">{cardLabel ?? t('No player selected')}</p>
       <LanguagePicker />
     </nav>
   );

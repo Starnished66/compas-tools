@@ -24,7 +24,7 @@ export function SetupGuide({ platform }: { platform: string }) {
         </ol>
         <p>
           {t(
-            'ADB and USB storage share the same USB port. While ADB is on, the card does not show up as a drive on your computer; to copy music as a drive, turn ADB off again (and the other way round).',
+            'ADB and USB storage share the same USB port. While ADB is on, the player does not show up as a drive on your computer; to copy music as a drive, turn ADB off again (and the other way round).',
           )}
         </p>
         <p className="muted">

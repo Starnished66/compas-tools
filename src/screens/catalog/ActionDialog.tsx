@@ -11,13 +11,13 @@ export function ActionDialog() {
   const name = entries.find((e) => e.id === dialog?.id)?.name ?? '';
 
   let title = t('Replace a local file?');
-  let message = t('{name} would replace a file on the card that the store did not install.', {
+  let message = t('{name} would replace a file on the player that the store did not install.', {
     name,
   });
   let confirmLabel = t('Replace');
   if (dialog?.type === 'remove') {
     title = t('Remove this plugin?');
-    message = t('{name} and its files will be removed from the card.', { name });
+    message = t('{name} and its files will be removed from the player.', { name });
     confirmLabel = t('Remove');
   } else if (dialog?.kind === 'update') {
     message = t('Updating {name} would replace a file you changed.', { name });

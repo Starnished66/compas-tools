@@ -20,7 +20,7 @@ export function ScanResult({ done }: { done: ScanDone }) {
               count: done.songs,
               generation: done.generation,
             })
-          : t('The library was already up to date; the card was not changed.')}
+          : t('The library was already up to date; the player was not changed.')}
       </p>
       <dl className="details-list">
         <dt>{t('Files found')}</dt>

@@ -56,10 +56,10 @@ export function UpdatesScreen({ onChooseCard }: Props) {
       <section className="screen">
         <h1>{t('Updates')}</h1>
         <AppUpdatePanel />
-        <EmptyState title={t('Choose your card first')}>
-          <p className="muted">{t('Updates are copied onto the SD card of your player.')}</p>
+        <EmptyState title={t('Choose your player first')}>
+          <p className="muted">{t('Updates are copied to your player.')}</p>
           <Button variant="primary" onClick={onChooseCard}>
-            {t('Go to Card')}
+            {t('Go to Player')}
           </Button>
         </EmptyState>
       </section>
@@ -96,7 +96,7 @@ export function UpdatesScreen({ onChooseCard }: Props) {
         <Notice tone="warning">
           <p>
             {model
-              ? t('The model comes from your choice, because the card has no device information.')
+              ? t('The model comes from your choice, because the player has no device information.')
               : t('Choose the player model to pick the right update file.')}
           </p>
           <ModelPicker value={model} onChange={chooseModel} />
@@ -104,9 +104,11 @@ export function UpdatesScreen({ onChooseCard }: Props) {
       )}
       {strayCount > 0 && (
         <Notice tone="warning">
-          <p>{t('{count} other .upt file on the card', { count: strayCount })}</p>
+          <p>{t('{count} other .upt file on the player', { count: strayCount })}</p>
           <p>{strays.join(', ')}</p>
-          <p>{t('Only the image you mean to install should be on the card. Delete the others.')}</p>
+          <p>
+            {t('Only the image you mean to install should be on the player. Delete the others.')}
+          </p>
         </Notice>
       )}
       <div className="action-grid">

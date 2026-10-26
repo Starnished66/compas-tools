@@ -6,7 +6,7 @@ import { t } from '../../i18n';
 function issueText(kind: IssueKind): string {
   switch (kind) {
     case 'too_large_for_fat':
-      return t('Too big for a FAT32 card (limit 4 GiB per file)');
+      return t('Too big for the player (limit 4 GiB per file)');
     case 'name_too_long':
       return t('A name is longer than 255 characters');
     case 'path_too_long':
@@ -28,7 +28,7 @@ export function PlanPreview({ plan }: { plan: PlanView }) {
     <section className="panel stack" aria-label={t('What will be copied')}>
       <h2>{t('What will be copied')}</h2>
       <p>
-        {t('{count} files, {size}; {free} free on the card.', {
+        {t('{count} files, {size}; {free} free on the player.', {
           count: plan.files,
           size: formatBytes(plan.total_bytes),
           free: formatBytes(plan.free_bytes),
@@ -37,7 +37,7 @@ export function PlanPreview({ plan }: { plan: PlanView }) {
       {plan.existing > 0 && (
         <p className="muted">
           {t(
-            '{count} already on the card. Identical files are skipped; different ones are replaced.',
+            '{count} already on the player. Identical files are skipped; different ones are replaced.',
             {
               count: plan.existing,
             },
@@ -86,13 +86,15 @@ export function PlanPreview({ plan }: { plan: PlanView }) {
       )}
       {plan.deletions_blocked && (
         <Notice tone="warning">
-          <p>{t('Nothing will be removed from the card, because some files could not be read.')}</p>
+          <p>
+            {t('Nothing will be removed from the player, because some files could not be read.')}
+          </p>
         </Notice>
       )}
       {plan.deletions.length > 0 && (
         <Notice tone="warning">
           <p>
-            {t('{count} files on the card are not in the folder and will be removed:', {
+            {t('{count} files on the player are not in the folder and will be removed:', {
               count: plan.deletions.length,
             })}
           </p>

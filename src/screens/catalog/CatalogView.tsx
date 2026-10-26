@@ -43,10 +43,10 @@ export function CatalogView({ view, onChooseCard }: Props) {
     return (
       <section className="screen">
         <h1>{title}</h1>
-        <EmptyState title={t('Choose your card first')}>
-          <p className="muted">{t('Plugins are installed onto the SD card of your player.')}</p>
+        <EmptyState title={t('Choose your player first')}>
+          <p className="muted">{t('Plugins are installed on your player.')}</p>
           <button type="button" className="button button--primary" onClick={onChooseCard}>
-            {t('Go to Card')}
+            {t('Go to Player')}
           </button>
         </EmptyState>
       </section>
@@ -74,7 +74,7 @@ export function CatalogView({ view, onChooseCard }: Props) {
         <Notice tone="info">
           <p>
             {t(
-              'Compatibility cannot be checked yet: no released player writes device.json. Newer player versions record it on the card automatically.',
+              'Compatibility cannot be checked yet: no released player writes device.json. Newer player versions record it automatically.',
             )}
           </p>
         </Notice>
@@ -88,7 +88,7 @@ export function CatalogView({ view, onChooseCard }: Props) {
         </div>
       )}
       {actions.busy && !shown.some((e) => e.id === actions.activeId) && (
-        <ProgressBar progress={actions.progress} label={t('Working on the card')} />
+        <ProgressBar progress={actions.progress} label={t('Working on the player')} />
       )}
       {actions.error && <ErrorBanner message={actions.error} onDismiss={actions.clearError} />}
       {actions.report && (

@@ -107,7 +107,7 @@ async fn tool_errors_become_friendly_messages() {
         matches!(&error, Error::Sdtool { code, .. } if code == "no_music_found"),
         "{error:?}"
     );
-    assert_eq!(error.to_string(), "No music was found on the card.");
+    assert_eq!(error.to_string(), "No music was found on the player.");
 }
 
 #[tokio::test]

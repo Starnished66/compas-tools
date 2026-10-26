@@ -33,7 +33,7 @@ describe('LibraryScreen', () => {
       support: 'player_older',
     });
     render(<LibraryScreen onChooseCard={vi.fn()} />);
-    expect(await screen.findByText('No library on this card yet.')).toBeInTheDocument();
+    expect(await screen.findByText('No library on this player yet.')).toBeInTheDocument();
     expect(screen.getByText(/built by the player on its next start/)).toBeInTheDocument();
     for (const name of ['Update library', 'Re-read all tags', 'Build album art']) {
       expect(screen.getByRole('button', { name })).toBeDisabled();
@@ -72,7 +72,7 @@ describe('LibraryScreen', () => {
   it('shows the friendly error when the tool fails, and builds album art', async () => {
     vi.mocked(scanLibrary).mockRejectedValue({
       code: 'sdtool',
-      message: 'No music was found on the card.',
+      message: 'No music was found on the player.',
     });
     vi.mocked(buildArt).mockResolvedValue({
       board: 'r1',
@@ -85,7 +85,7 @@ describe('LibraryScreen', () => {
     render(<LibraryScreen onChooseCard={vi.fn()} />);
     await screen.findByText(/4032 songs/);
     await userEvent.click(screen.getByRole('button', { name: 'Re-read all tags' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('No music was found on the card.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('No music was found on the player.');
 
     await userEvent.click(screen.getByRole('button', { name: 'Build album art' }));
     expect(await screen.findByText(/Album art checked for 20 albums/)).toBeInTheDocument();

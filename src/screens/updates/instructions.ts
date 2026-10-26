@@ -9,13 +9,13 @@ export function recoveryKeys(model: Model): string {
 export function finishingSteps(kind: ReleaseKind, model: Model | null): string[] {
   if (kind === 'player_only') {
     return [
-      t('Safely eject the card and put it back in the player.'),
+      t('Safely eject the player before unplugging it.'),
       t('On the player, open Settings > Updates > Player Update > Install from SD card.'),
       t('Or simply restart the player; it finds the new file on its own.'),
     ];
   }
   return [
-    t('Safely eject the card and put it back in the player.'),
+    t('Safely eject the player before unplugging it.'),
     t('On the player, open Settings > Updates > Firmware Update > Install from SD card.'),
     ...(model
       ? [

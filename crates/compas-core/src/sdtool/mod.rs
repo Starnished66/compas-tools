@@ -202,15 +202,17 @@ pub fn friendly_message(code: &str, message: &str) -> String {
     let text = match code {
         "missing_tool" => "The library tool (compas-sdtool) could not be started.",
         "crashed" => {
-            "The library tool stopped unexpectedly. The card was not changed by this step."
+            "The library tool stopped unexpectedly. The player was not changed by this step."
         }
         "usage" => "The library tool was called with the wrong arguments.",
-        "card_not_found" => "The card folder was not found. Is the card still connected?",
-        "database_open_failed" => "The library database on the card could not be opened.",
-        "walk_failed" => "The folders on the card could not be read.",
-        "no_music_found" => "No music was found on the card.",
+        "card_not_found" => "The player folder was not found. Is the player still connected?",
+        "database_open_failed" => "The library database on the player could not be opened.",
+        "walk_failed" => "The folders on the player could not be read.",
+        "no_music_found" => "No music was found on the player.",
         "worker_failed" => "The tag reader could not run, so the library was left unchanged.",
-        "write_failed" => "The library could not be written. Is the card full or write-protected?",
+        "write_failed" => {
+            "The library could not be written. Is the player full or write-protected?"
+        }
         "bad_board" => "That player model is not known to the library tool.",
         "art_failed" => "Some album covers could not be written; the others were.",
         "out_of_memory" => "The computer ran out of memory.",

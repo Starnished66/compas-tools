@@ -14,17 +14,17 @@ interface Props {
 function freshnessText(freshness: Freshness, installed: string | null): string {
   switch (freshness) {
     case 'up_to_date':
-      return t('The player on this card is up to date ({version}).', { version: installed ?? '' });
+      return t('Your player is up to date ({version}).', { version: installed ?? '' });
     case 'update_available':
-      return t('The card has player {version}; an update is available.', {
+      return t('Your player has {version}; an update is available.', {
         version: installed ?? '',
       });
     case 'newer':
-      return t('The card has player {version}, newer than the latest release.', {
+      return t('Your player has {version}, newer than the latest release.', {
         version: installed ?? '',
       });
     case 'unknown':
-      return t('The player version on this card is not known yet.');
+      return t('The player version is not known yet.');
   }
 }
 

@@ -31,10 +31,10 @@ export function LibraryScreen({ onChooseCard }: Props) {
     return (
       <section className="screen">
         <h1>{t('Library')}</h1>
-        <EmptyState title={t('Choose your card first')}>
-          <p className="muted">{t('The library is built on the SD card of your player.')}</p>
+        <EmptyState title={t('Choose your player first')}>
+          <p className="muted">{t('The library is built on your player.')}</p>
           <Button variant="primary" onClick={onChooseCard}>
-            {t('Go to Card')}
+            {t('Go to Player')}
           </Button>
         </EmptyState>
       </section>

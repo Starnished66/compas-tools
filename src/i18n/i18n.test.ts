@@ -30,11 +30,11 @@ describe('t', () => {
       'Album art checked for 1 album.',
     );
     expect(
-      t('{count} files, {size}; {free} free on the card.', {
+      t('{count} files, {size}; {free} free on the player.', {
         count: 1,
         size: '1 KB',
         free: '2 GB',
       }),
-    ).toBe('1 file, 1 KB; 2 GB free on the card.');
+    ).toBe('1 file, 1 KB; 2 GB free on the player.');
   });
 });

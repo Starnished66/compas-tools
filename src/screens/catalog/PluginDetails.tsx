@@ -54,7 +54,7 @@ export function PluginDetails({
         <dd>{entry.version}</dd>
         {entry.installed_version && (
           <>
-            <dt>{t('On the card')}</dt>
+            <dt>{t('On the player')}</dt>
             <dd>{entry.installed_version}</dd>
           </>
         )}

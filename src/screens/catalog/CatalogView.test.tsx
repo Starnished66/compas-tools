@@ -149,7 +149,7 @@ describe('CatalogView', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Start other operation' }));
     expect(screen.getByRole('button', { name: 'Install Alpha' })).toBeDisabled();
-    expect(screen.getByRole('progressbar', { name: 'Working on the card' })).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Working on the player' })).toBeInTheDocument();
 
     finish();
     await waitFor(() => {

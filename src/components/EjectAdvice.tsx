@@ -7,7 +7,7 @@ export function EjectAdvice() {
     <Notice tone="info" icon="eject">
       <p>
         {t(
-          'Before removing the card, eject it in your system (or use Safely Remove) so every change is written to it.',
+          'Before unplugging the player, eject it in your system (or use Safely Remove) so every change is written to it.',
         )}
       </p>
     </Notice>

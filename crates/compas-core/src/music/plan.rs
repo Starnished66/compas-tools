@@ -131,7 +131,7 @@ pub fn plan(card: &Card, sources: &[PathBuf], options: &PlanOptions) -> Result<P
         .collect();
     if reserved_destination(&base) {
         return Err(Error::Rejected(format!(
-            "The card folder \"{}\" is hidden or belongs to the player.",
+            "The folder \"{}\" is hidden or belongs to the player.",
             options.dest_dir
         )));
     }

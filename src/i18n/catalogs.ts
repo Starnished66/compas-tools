@@ -16,14 +16,14 @@ export const catalogs: Record<Language, Record<string, TranslationValue>> = {
       one: '{count} update installed',
       other: '{count} updates installed',
     },
-    '{count} files, {size}; {free} free on the card.': {
-      one: '{count} file, {size}; {free} free on the card.',
-      other: '{count} files, {size}; {free} free on the card.',
+    '{count} files, {size}; {free} free on the player.': {
+      one: '{count} file, {size}; {free} free on the player.',
+      other: '{count} files, {size}; {free} free on the player.',
     },
-    '{count} already on the card. Identical files are skipped; different ones are replaced.': {
-      one: '{count} is already on the card. An identical file is skipped; a different one is replaced.',
+    '{count} already on the player. Identical files are skipped; different ones are replaced.': {
+      one: '{count} is already on the player. An identical file is skipped; a different one is replaced.',
       other:
-        '{count} already on the card. Identical files are skipped; different ones are replaced.',
+        '{count} already on the player. Identical files are skipped; different ones are replaced.',
     },
     '{count} hidden files, macOS leftovers and firmware images are left out.': {
       one: '{count} hidden file, macOS leftover or firmware image is left out.',
@@ -41,9 +41,9 @@ export const catalogs: Record<Language, Record<string, TranslationValue>> = {
       one: 'Cleaned up {count} macOS leftover.',
       other: 'Cleaned up {count} macOS leftovers.',
     },
-    '{count} files on the card are not in the folder and will be deleted.': {
-      one: '{count} file on the card is not in the folder and will be deleted.',
-      other: '{count} files on the card are not in the folder and will be deleted.',
+    '{count} files on the player are not in the folder and will be deleted.': {
+      one: '{count} file on the player is not in the folder and will be deleted.',
+      other: '{count} files on the player are not in the folder and will be deleted.',
     },
     '{count} songs, library generation {generation}.': {
       one: '{count} song, library generation {generation}.',
@@ -65,9 +65,9 @@ export const catalogs: Record<Language, Record<string, TranslationValue>> = {
       one: '{count} file will not be copied:',
       other: '{count} files will not be copied:',
     },
-    '{count} files on the card are not in the folder and will be removed:': {
-      one: '{count} file on the card is not in the folder and will be removed:',
-      other: '{count} files on the card are not in the folder and will be removed:',
+    '{count} files on the player are not in the folder and will be removed:': {
+      one: '{count} file on the player is not in the folder and will be removed:',
+      other: '{count} files on the player are not in the folder and will be removed:',
     },
     '{count} files failed:': { one: '{count} file failed:', other: '{count} files failed:' },
     '{count} files were not on this player and are left out.': {
@@ -78,9 +78,9 @@ export const catalogs: Record<Language, Record<string, TranslationValue>> = {
       one: '{count} file copied, {skipped} left out on purpose.',
       other: '{count} files copied, {skipped} left out on purpose.',
     },
-    '{count} other .upt file on the card': {
-      one: '{count} other .upt file on the card',
-      other: '{count} other .upt files on the card',
+    '{count} other .upt file on the player': {
+      one: '{count} other .upt file on the player',
+      other: '{count} other .upt files on the player',
     },
   },
   es,

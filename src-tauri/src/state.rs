@@ -34,7 +34,7 @@ impl AppState {
     pub fn card(&self) -> CommandResult<Card> {
         lock(&self.card)
             .clone()
-            .ok_or_else(|| CommandError::new("no_card", "No card selected."))
+            .ok_or_else(|| CommandError::new("no_card", "No player selected."))
     }
 
     pub fn selected_card(&self) -> Option<Card> {

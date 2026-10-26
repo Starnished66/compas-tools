@@ -208,7 +208,7 @@ describe('DeviceScreen', () => {
   it('asks for the model when the screen size did not identify it', async () => {
     vi.mocked(listDevices).mockResolvedValue([view({ board: null, firmware: 'compas' })]);
     renderScreen();
-    expect(await screen.findByLabelText('Which player is this card for?')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Which player is this?')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeDisabled();
   });
 
@@ -306,7 +306,7 @@ describe('DeviceScreen', () => {
     );
     await userEvent.click(await screen.findByRole('button', { name: 'Install and reboot' }));
     await userEvent.click(
-      await screen.findByRole('button', { name: 'Delete the update file from the card' }),
+      await screen.findByRole('button', { name: 'Delete the update file from the player' }),
     );
     expect(removeUpdateFile).not.toHaveBeenCalled();
     const confirm = await screen.findByRole('dialog', { name: 'Delete the update file?' });
