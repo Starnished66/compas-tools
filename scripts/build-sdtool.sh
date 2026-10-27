@@ -8,7 +8,6 @@
 #   scripts/build-sdtool.sh                       Linux, inside the build container
 #   SDTOOL_TARGET=windows scripts/build-sdtool.sh Windows .exe (MinGW, in the container)
 #   SDTOOL_SRC=/path/to/compas-player scripts/build-sdtool.sh
-#   SDTOOL_TEST=1 scripts/build-sdtool.sh         also run the end-to-end test (Linux)
 #
 # On macOS it builds natively; the Windows and macOS binaries are untested here.
 set -euo pipefail
@@ -57,7 +56,6 @@ else
 fi
 
 goals=sdtool
-[ -n "${SDTOOL_TEST:-}" ] && [ "$TARGET" != windows ] && goals="sdtool test-sdtool"
 DEV_PODMAN_ARGS="--security-opt label=disable -v $SRC:/player" scripts/dev.sh bash -c "
   make -C /player -j$JOBS -f Makefile -f /work/$MK $goals SDTOOL_BUILD_ID=$BUILD_ID $make_args"
 cp "$built" "$OUT/compas-sdtool-$triple$suffix"

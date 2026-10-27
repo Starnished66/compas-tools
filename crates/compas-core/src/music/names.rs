@@ -50,37 +50,4 @@ pub fn player_path_fits(relative: &str) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn forbidden_characters_and_endings_are_fixed() {
-        assert_eq!(
-            fat_safe_name("AC/DC: Back in Black?.flac"),
-            "AC_DC_ Back in Black_.flac"
-        );
-        assert_eq!(fat_safe_name("Album. "), "Album");
-        assert_eq!(fat_safe_name("tab\there"), "tab_here");
-        assert_eq!(fat_safe_name("..."), "_");
-        assert_eq!(fat_safe_name(".."), "_");
-        assert_eq!(fat_safe_name("Ünï cödé ♪.mp3"), "Ünï cödé ♪.mp3");
-    }
-
-    #[test]
-    fn reserved_names_are_prefixed() {
-        assert_eq!(fat_safe_name("con"), "_con");
-        assert_eq!(fat_safe_name("NUL.txt"), "_NUL.txt");
-        assert_eq!(fat_safe_name("COM1.flac"), "_COM1.flac");
-        assert_eq!(fat_safe_name("console.flac"), "console.flac");
-    }
-
-    #[test]
-    fn lengths_are_counted_the_way_fat_and_the_player_do() {
-        assert!(!name_too_long(&"a".repeat(255)));
-        assert!(name_too_long(&"a".repeat(256)));
-        assert!(!name_too_long(&"é".repeat(255)), "units, not bytes");
-        assert!(player_path_fits(&"a".repeat(584)));
-        assert!(!player_path_fits(&"a".repeat(585)));
-        assert!(!player_path_fits(&"é".repeat(293)), "bytes: 586");
-    }
-}
+mod tests;

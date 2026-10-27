@@ -102,31 +102,4 @@ impl Card {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::test_support::fake_card;
-
-    #[test]
-    fn open_requires_compas_folder() {
-        let dir = tempfile::tempdir().unwrap();
-        assert!(matches!(Card::open(dir.path()), Err(Error::InvalidCard(_))));
-        std::fs::create_dir(dir.path().join(".compas")).unwrap();
-        assert!(Card::open(dir.path()).is_ok());
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn open_refuses_a_symlinked_compas_folder() {
-        let (dir, outside) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
-        std::os::unix::fs::symlink(outside.path(), dir.path().join(".compas")).unwrap();
-        assert!(matches!(Card::open(dir.path()), Err(Error::InvalidCard(_))));
-    }
-
-    #[test]
-    fn info_without_device_json_is_unknown_not_an_error() {
-        let (dir, card) = fake_card();
-        let info = card.info().unwrap();
-        assert!(info.device.is_none());
-        assert_eq!(info.root, dir.path());
-    }
-}
+mod tests;

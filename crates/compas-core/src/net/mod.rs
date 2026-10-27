@@ -75,29 +75,4 @@ pub async fn get_bytes(url: &str, limit: usize) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn headers(remaining: &str, reset: &str) -> HeaderMap {
-        let mut map = HeaderMap::new();
-        map.insert("x-ratelimit-remaining", remaining.parse().unwrap());
-        map.insert("x-ratelimit-reset", reset.parse().unwrap());
-        map
-    }
-
-    #[test]
-    fn exhausted_rate_limit_reports_the_wait() {
-        let error = rate_limit_error(StatusCode::FORBIDDEN, &headers("0", "1060"), 1000).unwrap();
-        assert!(matches!(error, Error::RateLimited { retry_in_secs: 60 }));
-        assert!(
-            rate_limit_error(StatusCode::TOO_MANY_REQUESTS, &headers("0", "900"), 1000).is_some()
-        );
-    }
-
-    #[test]
-    fn other_failures_are_plain_status_errors() {
-        assert!(rate_limit_error(StatusCode::FORBIDDEN, &headers("5", "1060"), 1000).is_none());
-        assert!(rate_limit_error(StatusCode::NOT_FOUND, &headers("0", "1060"), 1000).is_none());
-        assert!(rate_limit_error(StatusCode::FORBIDDEN, &HeaderMap::new(), 1000).is_none());
-    }
-}
+mod tests;

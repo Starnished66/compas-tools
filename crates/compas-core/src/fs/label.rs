@@ -46,13 +46,4 @@ fn unescape(name: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn decodes_udev_escapes() {
-        assert_eq!(unescape("MY\\x20CARD"), "MY CARD");
-        assert_eq!(unescape("plain"), "plain");
-        assert_eq!(unescape("bad\\xZZ"), "bad\\xZZ");
-    }
-}
+mod tests;

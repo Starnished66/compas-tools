@@ -16,8 +16,6 @@ use crate::releases::{Freshness, Kind, Release};
 
 mod card;
 mod wait;
-#[cfg(all(test, unix))]
-use card::parse_free_kb;
 use card::{is_plain_name, recovery_partition_ok, shell_quote, verify_card, RECOVERY_FLAG};
 use wait::{wait_for_return, Returned};
 

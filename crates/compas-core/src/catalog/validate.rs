@@ -26,31 +26,4 @@ pub fn is_safe_text(s: &str, max: usize, allow_empty: bool) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn ids() {
-        assert!(is_id("example.ab_repeat"));
-        assert!(is_id("0a"));
-        assert!(!is_id(""));
-        assert!(!is_id("-a"));
-        assert!(!is_id("A"));
-        assert!(!is_id(&"a".repeat(64)));
-        assert!(is_id(&"a".repeat(63)));
-    }
-
-    #[test]
-    fn tokens_hashes_text() {
-        assert!(is_token("a-B_c.1", 10));
-        assert!(!is_token("a b", 10));
-        assert!(!is_token("abcdef", 5));
-        assert!(is_sha256(&"a".repeat(64)));
-        assert!(!is_sha256(&"A".repeat(64)));
-        assert!(!is_sha256("abc"));
-        assert!(is_safe_text("", 5, true));
-        assert!(!is_safe_text("", 5, false));
-        assert!(!is_safe_text("a\nb", 5, true));
-        assert!(!is_safe_text("abcdef", 5, true));
-    }
-}
+mod tests;

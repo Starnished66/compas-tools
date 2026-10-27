@@ -31,27 +31,4 @@ fn is_valid(path: &Path, preview: &Preview) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::super::test_fixtures::{publish, spec};
-    use super::*;
-
-    #[tokio::test]
-    async fn downloads_once_and_repairs_a_corrupt_cache_file() {
-        let image = b"\xff\xd8 pretend jpeg \xff\xd9".to_vec();
-        let s = spec("p", "1.0", &[(".plugins/P.lua", "x", false)]).with_preview(&image);
-        let (_server, catalog) = publish(&[s]).await;
-
-        let cache = tempfile::tempdir().unwrap();
-        let path = ensure_preview(&catalog, "p", cache.path()).await.unwrap();
-        assert_eq!(fs::read(&path).unwrap(), image);
-
-        fs::write(&path, b"corrupt").unwrap();
-        let path = ensure_preview(&catalog, "p", cache.path()).await.unwrap();
-        assert_eq!(fs::read(&path).unwrap(), image);
-
-        assert!(matches!(
-            ensure_preview(&catalog, "missing", cache.path()).await,
-            Err(Error::NotFound(_))
-        ));
-    }
-}
+mod tests;

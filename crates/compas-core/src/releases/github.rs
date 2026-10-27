@@ -87,18 +87,4 @@ fn parse_sums(text: &str) -> HashMap<String, String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_sha256sum_lines() {
-        let sha = "a".repeat(64);
-        let sums = parse_sums(&format!(
-            "{sha}  one\n{sha} *two\nnot a line\n{}  bad\n",
-            "g".repeat(64)
-        ));
-        assert_eq!(sums.len(), 2);
-        assert_eq!(sums["one"], sha);
-        assert_eq!(sums["two"], sha);
-    }
-}
+mod tests;

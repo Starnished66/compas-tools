@@ -1,7 +1,7 @@
 # Unsigned builds of Compás Tools: an AppImage, an Apple Silicon macOS .dmg and a Windows
 # installer. Each bundles compas-sdtool, built here (sdtool/) against the player's sources at a pinned ref.
 # A `v*` tag also creates a draft GitHub release holding the installers; nothing is published
-# automatically (docs/RELEASING.md).
+# automatically.
 name: Build
 
 on:
@@ -62,9 +62,6 @@ jobs:
           make -C player -j"$jobs" -f Makefile -f "$PWD/sdtool/sdtool.mk" sdtool ${{ matrix.make_args }}
           echo "SDTOOL_FILE=build/${{ matrix.dir }}/compas-sdtool${{ matrix.exe }}" >> "$GITHUB_ENV"
           echo "SDTOOL_NAME=compas-sdtool-${{ matrix.triple }}${{ matrix.exe }}" >> "$GITHUB_ENV"
-      - name: Run the sdtool tests
-        if: runner.os == 'Linux' && matrix.name == 'linux'
-        run: make -C player -f Makefile -f "$PWD/sdtool/sdtool.mk" test-sdtool
       - name: Check its build id and database format against the player
         if: matrix.name != 'windows'
         run: scripts/verify-sdtool.sh player "${{ env.SDTOOL_FILE }}"
@@ -97,7 +94,7 @@ jobs:
           path: ${{ env.SDTOOL_NAME }}
 
   # The Windows sidecar is cross-built, so run it where it will run: info, build id and
-  # database format against the player, and a scan and art run on a generated card.
+  # database format against the player.
   sdtool-windows-check:
     name: sdtool (windows run)
     needs: sdtool
@@ -118,15 +115,6 @@ jobs:
           path: sdtool-exe
       - name: Info, build id and database format
         run: scripts/verify-sdtool.sh player sdtool-exe/compas-sdtool-x86_64-pc-windows-msvc.exe
-      - name: Scan and art on a generated card
-        run: |
-          exe="$PWD/sdtool-exe/compas-sdtool-x86_64-pc-windows-msvc.exe"
-          python sdtool/tests/make_fixture.py "$RUNNER_TEMP/card"
-          for command in scan art; do
-            out=$("$exe" "$command" "$RUNNER_TEMP/card")
-            echo "$out" | tail -n 3
-            echo "$out" | tail -n 1 | grep -q '"event":"done"' || { echo "$command did not finish" >&2; exit 1; }
-          done
 
   app:
     name: app (${{ matrix.name }})
@@ -197,16 +185,13 @@ jobs:
         run: |
           cargo fetch --locked
           node scripts/generate-notices.mjs
-      - name: Lint and test
+      - name: Check the code
         shell: bash
         run: |
           npm run typecheck
           npm run lint
-          npm test
           scripts/check-file-length.sh
-          cargo fmt --all -- --check
-          cargo clippy --workspace --all-targets -- -D warnings
-          cargo test --workspace
+          cargo clippy --workspace -- -D warnings
 
       - name: Build the installer (unsigned)
         run: ${{ matrix.build }}

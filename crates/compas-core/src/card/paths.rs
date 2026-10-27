@@ -41,27 +41,4 @@ pub(super) fn resolve(root: &Path, dest: &str, create_parents: bool) -> Result<P
 }
 
 #[cfg(all(test, unix))]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn creates_parents_and_refuses_symlinks_and_escapes() {
-        let dir = tempfile::tempdir().unwrap();
-        let outside = tempfile::tempdir().unwrap();
-        let root = dir.path();
-
-        let path = resolve(root, "a/b/c.txt", true).unwrap();
-        assert!(root.join("a/b").is_dir());
-        assert_eq!(path, root.join("a/b/c.txt"));
-        assert_eq!(
-            resolve(root, "x/y.txt", false).unwrap(),
-            root.join("x/y.txt")
-        );
-        assert!(!root.join("x").exists());
-
-        std::os::unix::fs::symlink(outside.path(), root.join("link")).unwrap();
-        assert!(resolve(root, "link/f.txt", true).is_err());
-        assert!(resolve(root, "../f.txt", true).is_err());
-        assert!(resolve(root, "/etc/passwd", true).is_err());
-    }
-}
+mod tests;

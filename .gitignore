@@ -11,3 +11,18 @@ src-tauri/licenses-sdtool/*
 !src-tauri/licenses-sdtool/README.txt
 src-tauri/licenses-generated/*
 !src-tauri/licenses-generated/README.txt
+
+# Tests, test support and developer documents stay on the maintainer's disk (see local/).
+local/
+*.test.ts
+*.test.tsx
+src/test/
+**/tests.rs
+**/tests/
+**/split_tests.rs
+**/test_support.rs
+**/test_fixtures.rs
+**/fixtures/
+crates/compas-core/src/adb/fake.rs
+sdtool/tests/
+scripts/fake-adb.sh

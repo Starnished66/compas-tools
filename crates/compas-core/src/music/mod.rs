@@ -31,16 +31,4 @@ fn fat32_limit(file_system: &str) -> Option<u64> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn only_fat_file_systems_have_the_4_gib_limit() {
-        for fs in ["vfat", "FAT32", "fat", "msdos", "MSDOS"] {
-            assert_eq!(fat32_limit(fs), Some(u32::MAX as u64), "{fs}");
-        }
-        for fs in ["exfat", "exFAT", "ntfs", "btrfs", "ext4", "apfs", ""] {
-            assert_eq!(fat32_limit(fs), None, "{fs}");
-        }
-    }
-}
+mod tests;

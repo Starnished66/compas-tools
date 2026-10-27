@@ -69,20 +69,4 @@ pub(super) fn parse(bytes: &[u8]) -> serde_json::Result<Value> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_duplicate_wins_at_every_level() {
-        let value = parse(br#"{"a":1,"a":2,"b":[{"c":"x","c":"y"}],"d":15.0,"e":null}"#).unwrap();
-        assert_eq!(value["a"], 1);
-        assert_eq!(value["b"][0]["c"], "x");
-        assert_eq!(value["d"].as_f64(), Some(15.0));
-        assert!(value["e"].is_null());
-    }
-
-    #[test]
-    fn rejects_malformed_json() {
-        assert!(parse(b"{").is_err());
-    }
-}
+mod tests;

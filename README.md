@@ -20,21 +20,7 @@ SDTOOL_SRC=/path/to/compas-player scripts/build-sdtool.sh   # default: ../compas
 scripts/build-appimage.sh        # writes artifacts/*.AppImage
 ```
 
-For development, `npm run dev` runs the interface in a browser without the backend. `cargo tauri dev` runs the full app on Linux if the Tauri prerequisites are installed.
-
-Before sending a change, run the checks:
-
-```sh
-npm run typecheck && npm run lint && npm test
-scripts/dev.sh cargo fmt --all -- --check
-scripts/dev.sh cargo clippy --workspace --all-targets -- -D warnings
-scripts/dev.sh cargo test --workspace
-scripts/check-file-length.sh     # keeps every file under 500 lines
-```
-
-The tests never touch a real player: USB is simulated with a fake `adb`.
-
-How it fits together is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and how releases are made is in [docs/RELEASING.md](docs/RELEASING.md).
+For development, `npm run dev` runs the interface in a browser without the backend. `cargo tauri dev` runs the full app on Linux if the Tauri prerequisites are installed. `npm run typecheck` and `npm run lint` check the interface code.
 
 ## Licence
 

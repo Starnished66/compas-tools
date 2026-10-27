@@ -339,20 +339,7 @@ fn list_files(dir: &Path, prefix: &str, out: &mut Vec<String>) {
 }
 
 #[cfg(test)]
-mod split_tests {
-    use super::split_errors;
-
-    #[test]
-    fn every_failed_entry_is_counted() {
-        let entries: Vec<std::io::Result<u8>> = vec![
-            Ok(1),
-            Err(std::io::Error::other("lost")),
-            Ok(2),
-            Err(std::io::Error::other("lost again")),
-        ];
-        assert_eq!(split_errors(entries.into_iter()), (vec![1, 2], 2));
-    }
-}
+mod split_tests;
 
 #[cfg(test)]
 mod tests;

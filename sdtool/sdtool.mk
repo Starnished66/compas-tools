@@ -1,5 +1,5 @@
 # compas-sdtool: the Compás player's library code as a command-line tool for a
-# computer (see docs/SDTOOL.md). It builds against a compas-player checkout without
+# computer . It builds against a compas-player checkout without
 # changing it: run make in the player directory with the player Makefile first, which
 # supplies the vendored library variables and flags. All output goes under
 # SDTOOL_DIR in this repository.
@@ -8,7 +8,6 @@
 #                                native build -> build/sdtool/compas-sdtool
 #   ... sdtool SDTOOL_TARGET=windows
 #                                MinGW-w64 build -> build/sdtool-windows/compas-sdtool.exe
-#   ... test-sdtool              end-to-end test on a generated card
 #
 # SDTOOL_TARGET=windows expects x86_64-w64-mingw32-gcc and a mingw cmake
 # toolchain (or CMAKE_TOOLCHAIN_FILE in SDTOOL_CMAKE_EXTRA).
@@ -115,17 +114,3 @@ $(SDTOOL_DIR)/libsndfile/libsndfile.a: $(SNDFILE_DIR)/CMakeLists.txt $(SNDFILE_C
 	+cmake --build $(dir $@) --target sndfile
 
 -include $(SDTOOL_OBJS:.o=.d)
-
-.PHONY: test-sdtool
-# End to end on a generated card: scan, art, no-write rescans, the file-time rule.
-test-sdtool: $(SDTOOL_BIN)
-	sh $(SDTOOL_ROOT)/tests/run_sdtool_test.sh $(SDTOOL_BIN)
-
-ifeq ($(SDTOOL_TARGET),windows)
-# Windows only: the compat layer's folder pattern for drive roots (run under Wine).
-$(SDTOOL_DIR)/compat_pattern_test.exe: $(SDTOOL_ROOT)/tests/compat_pattern_test.c $(SDTOOL_DIR)/own/compat/compat.o \
-                                      $(SDTOOL_DIR)/own/compat/compat_dirs.o $(SDTOOL_DIR)/own/time/mtime.o
-	$(SDTOOL_CC) $(SDTOOL_CFLAGS) -o $@ $^ -static -lbcrypt -lpthread
-.PHONY: sdtool-compat-test
-sdtool-compat-test: $(SDTOOL_DIR)/compat_pattern_test.exe
-endif

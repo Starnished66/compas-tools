@@ -42,35 +42,4 @@ fn compare_group(a: &str, b: &str) -> Ordering {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn compares_numerically_not_lexically() {
-        assert_eq!(compare("1.10", "1.9"), Ordering::Greater);
-        assert_eq!(compare("1.2", "1.2.0"), Ordering::Equal);
-        assert_eq!(compare("1.2", "1.2.1"), Ordering::Less);
-        assert_eq!(compare("01.002", "1.2"), Ordering::Equal);
-        assert_eq!(
-            compare("99999999999999999999", "100000000000000000000"),
-            Ordering::Less
-        );
-    }
-
-    #[test]
-    fn strips_one_leading_v_only() {
-        assert_eq!(strip_v("v1.3.0"), "1.3.0");
-        assert_eq!(strip_v("V1.3.0"), "1.3.0");
-        assert_eq!(strip_v(" 1.3.0 "), "1.3.0");
-        assert!(!is_valid(strip_v("vv1.3.0")));
-    }
-
-    #[test]
-    fn validates_shape() {
-        assert!(is_valid("1.2.3.4"));
-        assert!(!is_valid("1.2.3.4.5"));
-        assert!(!is_valid("1..2"));
-        assert!(!is_valid("1.2a"));
-        assert!(!is_valid(""));
-    }
-}
+mod tests;

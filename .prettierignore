@@ -11,3 +11,4 @@ src/i18n/translate.ts
 src/i18n/catalogs/
 # Snapshot of the public plugin index, used by a test.
 crates/compas-core/src/catalog/fixtures
+local

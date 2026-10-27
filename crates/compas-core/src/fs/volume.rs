@@ -71,42 +71,4 @@ pub fn ensure_free(path: &Path, needed: u64) -> Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn finds_a_volume_and_rejects_absurd_sizes() {
-        let dir = tempfile::tempdir().unwrap();
-        assert!(volume_for(dir.path()).is_some());
-        assert!(ensure_free(dir.path(), 0).is_ok());
-        assert!(matches!(
-            ensure_free(dir.path(), u64::MAX / 2),
-            Err(Error::NoSpace { .. })
-        ));
-    }
-
-    fn volume(mount: &str) -> Volume {
-        Volume {
-            name: String::new(),
-            mount_point: mount.into(),
-            file_system: String::new(),
-            total_bytes: 0,
-            available_bytes: 0,
-        }
-    }
-
-    #[test]
-    fn picks_the_longest_mount_point() {
-        let all = vec![volume("/"), volume("/media/card"), volume("/media")];
-        let found = best_match(Path::new("/media/card/.plugins"), all).unwrap();
-        assert_eq!(found.mount_point, Path::new("/media/card"));
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn matches_verbatim_windows_paths() {
-        let all = vec![volume(r"C:\"), volume(r"E:\")];
-        let found = best_match(Path::new(r"\\?\E:\.plugins"), all).unwrap();
-        assert_eq!(found.mount_point, Path::new(r"E:\"));
-    }
-}
+mod tests;

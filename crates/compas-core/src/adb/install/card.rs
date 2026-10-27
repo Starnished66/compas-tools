@@ -15,11 +15,6 @@ pub(super) fn parse_df(df: &str) -> Option<(u64, String)> {
     Some((free, tokens.get(percent + 1)?.to_string()))
 }
 
-#[cfg(all(test, unix))]
-pub(super) fn parse_free_kb(df: &str) -> Option<u64> {
-    parse_df(df).map(|(free, _)| free)
-}
-
 /// Whether `/proc/mounts` shows the SD card as a block device mounted where the player keeps it.
 pub(super) fn sd_in_mounts(mounts: &str) -> bool {
     mounts.lines().any(|line| {

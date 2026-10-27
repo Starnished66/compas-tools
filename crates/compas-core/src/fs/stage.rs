@@ -52,34 +52,4 @@ impl Drop for StageDir {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn removed_on_drop_unless_kept() {
-        let dir = tempfile::tempdir().unwrap();
-        let parent = dir.path().join("store");
-        let stage = StageDir::create(&parent, "x").unwrap();
-        let path = stage.path().to_path_buf();
-        assert!(path.is_dir());
-        drop(stage);
-        assert!(!path.exists());
-        assert!(!parent.exists());
-
-        let stage = StageDir::create(&parent, "x").unwrap();
-        let path = stage.path().to_path_buf();
-        stage.keep();
-        assert!(path.is_dir());
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn refuses_a_symlinked_store_folder() {
-        let dir = tempfile::tempdir().unwrap();
-        let elsewhere = tempfile::tempdir().unwrap();
-        let parent = dir.path().join("store");
-        std::os::unix::fs::symlink(elsewhere.path(), &parent).unwrap();
-        assert!(StageDir::create(&parent, "x").is_err());
-        assert_eq!(fs::read_dir(elsewhere.path()).unwrap().count(), 0);
-    }
-}
+mod tests;

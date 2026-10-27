@@ -50,26 +50,4 @@ fn sync_parent(path: &Path) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn replaces_content_and_leaves_no_temp_files() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("a.txt");
-        write_atomic(&path, b"one").unwrap();
-        write_atomic(&path, b"two").unwrap();
-        assert_eq!(fs::read(&path).unwrap(), b"two");
-        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
-    }
-
-    #[test]
-    fn failure_keeps_the_old_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("a.txt");
-        write_atomic(&path, b"old").unwrap();
-        fs::create_dir(dir.path().join("sub")).unwrap();
-        assert!(write_atomic(&dir.path().join("sub"), b"x").is_err());
-        assert_eq!(fs::read(&path).unwrap(), b"old");
-    }
-}
+mod tests;

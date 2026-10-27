@@ -28,17 +28,4 @@ pub fn sha256_file(path: &Path) -> Result<String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn hashes_known_content() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("f");
-        std::fs::write(&path, b"abc").unwrap();
-        assert_eq!(
-            sha256_file(&path).unwrap(),
-            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-        );
-    }
-}
+mod tests;
