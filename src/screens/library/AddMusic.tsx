@@ -2,41 +2,21 @@ import { useState } from 'react';
 
 import { Button } from '../../components/Button';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { EmptyState } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ProgressBar } from '../../components/ProgressBar';
 import { useFileDrop } from '../../hooks/useFileDrop';
 import { t } from '../../i18n';
-import { useCard } from '../../state/CardContext';
 import { useMusic } from '../../state/MusicContext';
 import { CopyResult } from './CopyResult';
 import { PlanPreview } from './PlanPreview';
 import { SourcePicker } from './SourcePicker';
 
-interface Props {
-  onChooseCard: () => void;
-}
-
-export function MusicScreen({ onChooseCard }: Props) {
-  const { card } = useCard();
+/** The Add music panel: sources, destination, the plan and the copy. */
+export function AddMusic() {
   const transfer = useMusic();
   const [pickError, setPickError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const hovering = useFileDrop(transfer.add);
-
-  if (!card) {
-    return (
-      <section className="screen">
-        <h1>{t('Music')}</h1>
-        <EmptyState title={t('Choose your player first')}>
-          <p className="muted">{t('Music is copied to your player.')}</p>
-          <Button variant="primary" onClick={onChooseCard}>
-            {t('Go to Player')}
-          </Button>
-        </EmptyState>
-      </section>
-    );
-  }
 
   const { plan } = transfer;
   const removing = plan?.deletions.length ?? 0;
@@ -46,8 +26,8 @@ export function MusicScreen({ onChooseCard }: Props) {
   };
 
   return (
-    <section className="screen">
-      <h1>{t('Music')}</h1>
+    <section className="stack" aria-label={t('Add music')}>
+      <h2>{t('Add music')}</h2>
       <SourcePicker
         sources={transfer.sources}
         hovering={hovering}

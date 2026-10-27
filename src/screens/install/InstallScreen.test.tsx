@@ -13,7 +13,7 @@ import {
   saveLogs,
 } from '../../api/adb';
 import { latestRelease } from '../../api/releases';
-import { bundle, info, latest, renderScreen, tools, view } from '../../test/deviceScreen';
+import { bundle, info, latest, renderScreen, tools, view } from '../../test/installScreen';
 
 vi.mock('../../api/adb');
 vi.mock('../../api/releases');

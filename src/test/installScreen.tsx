@@ -2,7 +2,8 @@ import { render } from '@testing-library/react';
 
 import type { DeviceInfo, DeviceView, LatestRelease, LogBundle, ToolsStatus } from '../api/types';
 import { OperationProvider } from '../hooks/useOperation';
-import { DeviceScreen } from '../screens/device/DeviceScreen';
+import { CardProvider } from '../state/CardContext';
+import { InstallScreen } from '../screens/install/InstallScreen';
 
 export const tools: ToolsStatus = {
   found: true,
@@ -77,8 +78,10 @@ export const bundle: LogBundle = {
 
 export function renderScreen() {
   return render(
-    <OperationProvider>
-      <DeviceScreen />
-    </OperationProvider>,
+    <CardProvider>
+      <OperationProvider>
+        <InstallScreen />
+      </OperationProvider>
+    </CardProvider>,
   );
 }

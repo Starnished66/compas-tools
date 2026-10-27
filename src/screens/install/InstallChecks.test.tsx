@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 
 import { adbStatus, installOnDevice, listDevices } from '../../api/adb';
 import { latestRelease } from '../../api/releases';
-import { latest, renderScreen, tools, view } from '../../test/deviceScreen';
+import { latest, renderScreen, tools, view } from '../../test/installScreen';
 
 vi.mock('../../api/adb');
 vi.mock('../../api/releases');
@@ -24,9 +24,11 @@ describe('DeviceScreen install checks', () => {
     ]);
     vi.mocked(latestRelease).mockResolvedValue(latest('newer'));
     renderScreen();
-    expect(
-      await screen.findByText(/newer than the latest release v1\.3\.0\. Installing/),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/newer than the latest release v1\.3\.0\. Installing/),
+      ).toBeInTheDocument();
+    });
     await userEvent.click(screen.getByRole('button', { name: 'Install the latest firmware' }));
     expect(await screen.findByText('Go back to the older version?')).toBeInTheDocument();
     expect(installOnDevice).not.toHaveBeenCalled();
@@ -39,7 +41,9 @@ describe('DeviceScreen install checks', () => {
     ]);
     vi.mocked(latestRelease).mockResolvedValue(latest('up_to_date'));
     renderScreen();
-    expect(await screen.findByText(/already has v1\.3\.0, the latest release/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/already has v1\.3\.0, the latest release/)).toBeInTheDocument();
+    });
     expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeEnabled();
   });
 
@@ -49,7 +53,7 @@ describe('DeviceScreen install checks', () => {
     ]);
     vi.mocked(latestRelease).mockResolvedValue(latest('update_available', []));
     renderScreen();
-    expect(await screen.findByText(/full firmware update only/)).toBeInTheDocument();
+    expect(await screen.findByText(/Use the full firmware option instead/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Update only the player' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeEnabled();
   });
@@ -100,7 +104,9 @@ describe('DeviceScreen install checks', () => {
     ]);
     vi.mocked(latestRelease).mockRejectedValue({ code: 'network', message: 'offline' });
     renderScreen();
-    expect(await screen.findByText(/offline/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/offline/)).toBeInTheDocument();
+    });
     expect(screen.getByRole('button', { name: 'Install the latest firmware' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Update only the player' })).toBeDisabled();
   });

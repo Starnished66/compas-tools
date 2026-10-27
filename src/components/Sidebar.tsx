@@ -1,28 +1,25 @@
 import { t } from '../i18n';
 import { Icon } from './Icon';
-import { SupportLink } from './SupportLink';
 import { LanguagePicker } from './LanguagePicker';
+import { SupportLink } from './SupportLink';
 
-export type ScreenId =
-  'card' | 'device' | 'music' | 'library' | 'plugins' | 'layouts' | 'themes' | 'updates' | 'about';
+export type ScreenId = 'install' | 'library' | 'plugins' | 'layouts' | 'themes' | 'about';
 
 interface Props {
   current: ScreenId;
-  cardLabel: string | null;
+  /** The player in use and how it is connected, e.g. "HiBy R1 · ADB mode". */
+  playerLabel: string | null;
   onNavigate: (screen: ScreenId) => void;
 }
 
-export function Sidebar({ current, cardLabel, onNavigate }: Props) {
-  const items: { id: ScreenId; label: string }[] = [
-    { id: 'device', label: t('Device') },
-    { id: 'card', label: t('Player') },
-    { id: 'music', label: t('Music') },
-    { id: 'library', label: t('Library') },
-    { id: 'plugins', label: t('Plugins') },
-    { id: 'layouts', label: t('Layouts') },
-    { id: 'themes', label: t('Themes') },
-    { id: 'updates', label: t('Updates') },
-    { id: 'about', label: t('About') },
+export function Sidebar({ current, playerLabel, onNavigate }: Props) {
+  const items: { id: ScreenId; label: string; icon: 'updates' | 'library' | ScreenId }[] = [
+    { id: 'install', label: t('Installation and Updates'), icon: 'updates' },
+    { id: 'library', label: t('Music Library'), icon: 'library' },
+    { id: 'plugins', label: t('Plugins'), icon: 'plugins' },
+    { id: 'layouts', label: t('Layouts'), icon: 'layouts' },
+    { id: 'themes', label: t('Themes'), icon: 'themes' },
+    { id: 'about', label: t('About'), icon: 'about' },
   ];
   return (
     <nav className="sidebar" aria-label={t('Main')}>
@@ -37,11 +34,11 @@ export function Sidebar({ current, cardLabel, onNavigate }: Props) {
             onNavigate(item.id);
           }}
         >
-          <Icon name={item.id} />
+          <Icon name={item.icon} />
           {item.label}
         </button>
       ))}
-      <p className="sidebar__card">{cardLabel ?? t('No player selected')}</p>
+      <p className="sidebar__card">{playerLabel ?? t('No player selected')}</p>
       <SupportLink className="sidebar__support" />
       <LanguagePicker />
     </nav>

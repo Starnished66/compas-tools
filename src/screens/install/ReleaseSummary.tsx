@@ -2,11 +2,31 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 
 import type { LatestRelease } from '../../api/types';
 import { Button } from '../../components/Button';
+import { Notice } from '../../components/Notice';
 import { formatDate } from '../../format';
 import { t } from '../../i18n';
 
 interface Props {
   latest: LatestRelease;
+  /** A player is connected over ADB, so its version (or its absence) can be compared. */
+  hasPlayer: boolean;
+  /** The version read from the player over ADB. */
+  installedVersion: string | null;
+  onCheckAgain: () => void;
+}
+
+function freshnessText(latest: LatestRelease, installed: string | null): string {
+  const version = installed ?? '';
+  switch (latest.freshness) {
+    case 'up_to_date':
+      return t('Your player is up to date ({version}).', { version });
+    case 'update_available':
+      return t('Your player has {version}; an update is available.', { version });
+    case 'newer':
+      return t('Your player has {version}, newer than the latest release.', { version });
+    case 'unknown':
+      return t('The player version is not known yet.');
+  }
 }
 
 /** Which kinds of update the release offers: a firmware-only release ships no player file. */
@@ -16,7 +36,7 @@ export function releaseKindText(latest: LatestRelease): string {
     : t('This release is a full firmware update only.');
 }
 
-export function ReleaseSummary({ latest }: Props) {
+export function ReleaseSummary({ latest, hasPlayer, installedVersion, onCheckAgain }: Props) {
   const { release } = latest;
   const date = formatDate(release.published_at);
   return (
@@ -28,6 +48,11 @@ export function ReleaseSummary({ latest }: Props) {
           {date && ` · ${date}`}
         </span>
       </div>
+      {hasPlayer && (
+        <Notice tone={latest.freshness === 'update_available' ? 'warning' : 'info'}>
+          <p>{freshnessText(latest, installedVersion)}</p>
+        </Notice>
+      )}
       <p>{releaseKindText(latest)}</p>
       {release.notes && (
         <details>
@@ -35,7 +60,10 @@ export function ReleaseSummary({ latest }: Props) {
           <pre className="release-notes">{release.notes}</pre>
         </details>
       )}
-      <div>
+      <div className="row">
+        <Button icon="refresh" onClick={onCheckAgain}>
+          {t('Check again')}
+        </Button>
         <Button
           onClick={() => {
             void openUrl(release.url);

@@ -1,112 +1,66 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 
-import { buildArt, libraryStatus, scanLibrary } from '../../api/library';
+import type { CardInfo, DeviceInfo } from '../../api/types';
 import { card } from '../../test/fixtures';
 import { LibraryScreen } from './LibraryScreen';
 
-vi.mock('../../api/library');
-vi.mock('../../state/CardContext', () => ({ useCard: () => ({ card }) }));
+let current: CardInfo | null = null;
+let adbPlayers: DeviceInfo[] = [];
+let cards: CardInfo[] = [];
 
-const status = {
-  sdtool_version: '1.0.0',
-  database_format: 5,
-  generation: 12,
-  songs: 4032,
-  support: 'ready' as const,
-};
+vi.mock('../../state/CardContext', () => ({
+  useCard: () => ({ card: current, select: vi.fn() }),
+}));
+vi.mock('../../state/ModeContext', () => ({
+  useMode: () => ({ cards, adbPlayers, scanning: false, rescan: vi.fn() }),
+}));
+vi.mock('./PlayerPanel', () => ({ PlayerPanel: () => <p>player panel</p> }));
+vi.mock('./AddMusic', () => ({ AddMusic: () => <p>add music</p> }));
+
+const adbPlayer = { serial: 'ingenic_1', board: 'r1' } as DeviceInfo;
 
 describe('LibraryScreen', () => {
   beforeEach(() => {
-    vi.mocked(libraryStatus).mockResolvedValue(status);
+    current = null;
+    adbPlayers = [];
+    cards = [];
   });
 
-  it('shows the library status of the card', async () => {
-    render(<LibraryScreen onChooseCard={vi.fn()} />);
-    expect(await screen.findByText('4032 songs, library generation 12.')).toBeInTheDocument();
+  it('shows the player and the music panel when the player is a drive', () => {
+    current = card;
+    render(<LibraryScreen />);
+    expect(screen.getByRole('heading', { name: 'Music Library' })).toBeInTheDocument();
+    expect(screen.getByText('player panel')).toBeInTheDocument();
+    expect(screen.getByText('add music')).toBeInTheDocument();
   });
 
-  it('explains why the buttons are off when the player builds the library', async () => {
-    vi.mocked(libraryStatus).mockResolvedValue({
-      ...status,
-      generation: 0,
-      support: 'player_older',
-    });
-    render(<LibraryScreen onChooseCard={vi.fn()} />);
-    expect(await screen.findByText('No library on this player yet.')).toBeInTheDocument();
-    expect(screen.getByText(/built by the player on its next start/)).toBeInTheDocument();
-    for (const name of ['Update library', 'Re-read all tags', 'Build album art']) {
-      expect(screen.getByRole('button', { name })).toBeDisabled();
-    }
+  it('explains ADB mode instead of saying no player was found', () => {
+    adbPlayers = [adbPlayer];
+    render(<LibraryScreen />);
+    expect(
+      screen.getByText(
+        'Your player is connected in ADB mode. Put it in Storage mode to manage music and the library.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText('How to switch')).toBeInTheDocument();
+    expect(screen.queryByText(/No player found/)).not.toBeInTheDocument();
+    expect(screen.queryByText('add music')).not.toBeInTheDocument();
   });
 
-  it('tells the user to update Compás Tools when the player is newer', async () => {
-    vi.mocked(libraryStatus).mockResolvedValue({ ...status, support: 'player_newer' });
-    render(<LibraryScreen onChooseCard={vi.fn()} />);
-    expect(await screen.findByText(/newer than this version of Compás Tools/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Build album art' })).toBeDisabled();
+  it('offers to find the player when nothing is connected', () => {
+    render(<LibraryScreen />);
+    expect(screen.getByRole('button', { name: 'Scan again' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Choose folder…' })).toBeInTheDocument();
+    expect(
+      screen.getByText('No player found. Connect your player, or choose its folder.'),
+    ).toBeInTheDocument();
   });
 
-  it('reports the counts of a scan, failures and the time shift', async () => {
-    vi.mocked(scanLibrary).mockResolvedValue({
-      files: 10,
-      parsed: 8,
-      unchanged: 0,
-      failed: 2,
-      skipped: 0,
-      songs: 8,
-      generation: 13,
-      written: true,
-      mtime_offset: 3600,
-    });
-    render(<LibraryScreen onChooseCard={vi.fn()} />);
-    await screen.findByText(/4032 songs/);
-    await userEvent.click(screen.getByRole('button', { name: 'Update library' }));
-
-    expect(await screen.findByText(/Library updated: 8 songs, generation 13/)).toBeInTheDocument();
-    expect(screen.getByText('Failed').nextSibling).toHaveTextContent('2');
-    expect(screen.getByText(/shifted by 3600 seconds/)).toBeInTheDocument();
-    expect(scanLibrary).toHaveBeenCalledWith(false, expect.any(Function));
-  });
-
-  it('shows the friendly error when the tool fails, and builds album art', async () => {
-    vi.mocked(scanLibrary).mockRejectedValue({
-      code: 'sdtool',
-      message: 'No music was found on the player.',
-    });
-    vi.mocked(buildArt).mockResolvedValue({
-      board: 'r1',
-      albums: 20,
-      written: 18,
-      unchanged: 0,
-      no_art: 2,
-      mtime_offset: 0,
-    });
-    render(<LibraryScreen onChooseCard={vi.fn()} />);
-    await screen.findByText(/4032 songs/);
-    await userEvent.click(screen.getByRole('button', { name: 'Re-read all tags' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('No music was found on the player.');
-
-    await userEvent.click(screen.getByRole('button', { name: 'Build album art' }));
-    expect(await screen.findByText(/Album art checked for 20 albums/)).toBeInTheDocument();
-    expect(screen.queryByText(/shifted by/)).not.toBeInTheDocument();
-  });
-
-  it('shows partial album art counts together with the warning', async () => {
-    vi.mocked(buildArt).mockResolvedValue({
-      board: 'r1',
-      albums: 10,
-      written: 8,
-      unchanged: 1,
-      no_art: 1,
-      mtime_offset: 0,
-      warning: 'Some album covers could not be written; the others were.',
-    });
-    render(<LibraryScreen onChooseCard={vi.fn()} />);
-    await screen.findByText(/4032 songs/);
-    await userEvent.click(screen.getByRole('button', { name: 'Build album art' }));
-    expect(await screen.findByText(/Album art checked for 10 albums/)).toBeInTheDocument();
-    expect(screen.getByText(/Some album covers could not be written/)).toBeInTheDocument();
-    expect(screen.getByText('Written').nextSibling).toHaveTextContent('8');
+  it('still finds a drive when a player is also seen over ADB', () => {
+    adbPlayers = [adbPlayer];
+    cards = [card];
+    render(<LibraryScreen />);
+    expect(screen.getByRole('button', { name: 'Use COMPAS' })).toBeInTheDocument();
+    expect(screen.queryByText(/connected in ADB mode/)).not.toBeInTheDocument();
   });
 });

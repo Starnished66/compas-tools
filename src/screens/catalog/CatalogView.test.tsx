@@ -33,7 +33,7 @@ function tree(withView = true, other?: Promise<void>) {
   return (
     <OperationProvider>
       <CatalogProvider>
-        {withView && <CatalogView view="plugins" onChooseCard={vi.fn()} />}
+        {withView && <CatalogView view="plugins" />}
         <ActionDialog />
         {other && <OtherScreen release={other} />}
       </CatalogProvider>

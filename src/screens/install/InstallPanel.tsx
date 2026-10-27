@@ -1,9 +1,7 @@
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { backupDevice, installOnDevice, removeUpdateFile } from '../../api/adb';
-import { errorMessage } from '../../api/invoke';
-import { latestRelease } from '../../api/releases';
 import type {
   BackupReport,
   DeviceInfo,
@@ -18,8 +16,8 @@ import { Notice } from '../../components/Notice';
 import { ProgressBar } from '../../components/ProgressBar';
 import { useOperation } from '../../hooks/useOperation';
 import { t } from '../../i18n';
-import { recoveryKeys } from '../updates/instructions';
-import { downgradeText, firmwareOnlyText, noImageText, releaseGate } from '../updates/releaseGate';
+import { recoveryKeys } from './instructions';
+import { downgradeText, firmwareOnlyText, noImageText, releaseGate } from './releaseGate';
 import { BOARD_NAMES, firmwareLabel, releaseFileName } from './labels';
 
 interface Props {
@@ -28,6 +26,9 @@ interface Props {
   onFinished: () => void;
   /** Several players answered after the install; the user picks theirs. */
   onChoose: (serial: string) => void;
+  /** The latest release compared with this player's version; `null` while it loads. */
+  latest: LatestRelease | null;
+  releaseError: string | null;
 }
 
 const SKIP_TEXT = {
@@ -38,7 +39,7 @@ const SKIP_TEXT = {
   unsupported_name: () => t('its name cannot be copied safely'),
 };
 
-export function InstallPanel({ device, onFinished, onChoose }: Props) {
+export function InstallPanel({ device, onFinished, onChoose, latest, releaseError }: Props) {
   const operation = useOperation();
   const [override, setOverride] = useState(false);
   const [backup, setBackup] = useState<BackupReport | null>(null);
@@ -48,34 +49,13 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
   const [removed, setRemoved] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  const [latest, setLatest] = useState<LatestRelease | null>(null);
-  const [releaseError, setReleaseError] = useState<string | null>(null);
-
   const model = device.board;
   // An update is copied to the SD card first, so there has to be one.
   const noCard = !device.sd_mounted;
   // The V1's way of installing Compás over the vendor's system is not confirmed yet.
   const stockV1 = model === 'tempotec_v1' && device.firmware !== 'compas';
-  const installedVersion = device.player_version;
-  // Compared with the version read over adb, not with any selected player.
-  useEffect(() => {
-    const live = { current: true };
-    setLatest(null);
-    setReleaseError(null);
-    void (async () => {
-      try {
-        const found = await latestRelease(false, installedVersion ?? '');
-        if (live.current) setLatest(found);
-      } catch (failure) {
-        if (live.current) setReleaseError(errorMessage(failure));
-      }
-    })();
-    return () => {
-      live.current = false;
-    };
-  }, [installedVersion]);
   const gate = releaseGate(latest, model);
-  const downgrade = latest && gate.downgrade ? downgradeText(installedVersion, latest) : null;
+  const downgrade = latest && gate.downgrade ? downgradeText(device.player_version, latest) : null;
   // The first install replaces the vendor's system; take the user's settings along first.
   const needsBackup =
     device.firmware !== 'compas' &&
@@ -210,7 +190,7 @@ export function InstallPanel({ device, onFinished, onChoose }: Props) {
             {t(
               'Your player already has {version}, the latest release. Reinstalling is possible if you need it.',
               {
-                version: installedVersion ?? '',
+                version: device.player_version ?? '',
               },
             )}
           </p>

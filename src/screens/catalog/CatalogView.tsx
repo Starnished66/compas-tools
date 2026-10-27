@@ -4,6 +4,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { Button } from '../../components/Button';
 import { Notice } from '../../components/Notice';
+import { StorageGate } from '../../components/StorageGate';
 import { ProgressBar } from '../../components/ProgressBar';
 import { t } from '../../i18n';
 import { useCard } from '../../state/CardContext';
@@ -16,10 +17,9 @@ import { UpdateAllReport } from './UpdateAllReport';
 
 interface Props {
   view: View;
-  onChooseCard: () => void;
 }
 
-export function CatalogView({ view, onChooseCard }: Props) {
+export function CatalogView({ view }: Props) {
   const { card } = useCard();
   const { entries, loading, error, recordDamaged, load, actions } = useCatalog();
   const [query, setQuery] = useState('');
@@ -43,12 +43,7 @@ export function CatalogView({ view, onChooseCard }: Props) {
     return (
       <section className="screen">
         <h1>{title}</h1>
-        <EmptyState title={t('Choose your player first')}>
-          <p className="muted">{t('Plugins are installed on your player.')}</p>
-          <button type="button" className="button button--primary" onClick={onChooseCard}>
-            {t('Go to Player')}
-          </button>
-        </EmptyState>
+        <StorageGate need="plugins">{null}</StorageGate>
       </section>
     );
   }

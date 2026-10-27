@@ -6,12 +6,12 @@ import { copyTransfer, planTransfer, updateLibrary } from '../../api/music';
 import type { CopyView, LibraryUpdate, PlanView } from '../../api/types';
 import { card } from '../../test/fixtures';
 import { MusicProvider } from '../../state/MusicContext';
-import { MusicScreen } from './MusicScreen';
+import { AddMusic } from './AddMusic';
 
 function renderScreen() {
   return render(
     <MusicProvider>
-      <MusicScreen onChooseCard={vi.fn()} />
+      <AddMusic />
     </MusicProvider>,
   );
 }
@@ -78,7 +78,7 @@ describe('MusicScreen', () => {
     rerender(<MusicProvider>{null}</MusicProvider>);
     rerender(
       <MusicProvider>
-        <MusicScreen onChooseCard={vi.fn()} />
+        <AddMusic />
       </MusicProvider>,
     );
     expect(screen.getByTitle('/music/Album')).toBeInTheDocument();
