@@ -14,12 +14,12 @@ use crate::net::download_verified;
 use crate::progress::{OnProgress, Phase, Progress};
 use crate::version;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Outcome {
     Done,
-    /// A local file would be replaced; call again with `force` once the user agrees.
-    NeedsConfirmation,
+    /// These local files would be replaced; call again with `force` once the user agrees.
+    NeedsConfirmation(Vec<String>),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -75,8 +75,11 @@ async fn apply(
         }
         _ => {}
     }
-    if !force && commit::conflict(card, plugin, &record)? {
-        return Ok(Outcome::NeedsConfirmation);
+    if !force {
+        let files = commit::conflicts(card, plugin, &record)?;
+        if !files.is_empty() {
+            return Ok(Outcome::NeedsConfirmation(files));
+        }
     }
 
     let wanted: Vec<(usize, &PluginFile)> = plugin
@@ -180,7 +183,7 @@ mod tests {
 
         assert_eq!(
             install(&card, &catalog, "p", false, NOOP).await.unwrap(),
-            Outcome::NeedsConfirmation
+            Outcome::NeedsConfirmation(vec![".plugins/P.lua".into()])
         );
         assert_eq!(read(&dir, ".plugins/P.lua"), "mine");
         assert!(Record::read(&card).unwrap().plugins.is_empty());
@@ -190,6 +193,56 @@ mod tests {
             Outcome::Done
         );
         assert_eq!(read(&dir, ".plugins/P.lua"), "store");
+    }
+
+    #[tokio::test]
+    async fn identical_files_are_taken_over_without_asking_and_ownership_is_recorded() {
+        let (dir, card) = fake_card();
+        // The same bytes the catalog ships, put there by hand or by another package.
+        write_file(dir.path(), "Themes/T.theme", b"colours");
+        write_file(dir.path(), ".plugins/Bundle.lua", b"bundle");
+        let bundle = spec(
+            "bundle",
+            "1.0",
+            &[
+                (".plugins/Bundle.lua", "bundle", false),
+                ("Themes/T.theme", "colours", false),
+            ],
+        );
+        let (_s, bundled) = publish(&[bundle]).await;
+        install(&card, &bundled, "bundle", true, NOOP)
+            .await
+            .unwrap();
+
+        let single = spec(
+            "t",
+            "1.0",
+            &[
+                (".plugins/T.lua", "s", false),
+                ("Themes/T.theme", "colours", false),
+            ],
+        );
+        let (_server, catalog) = publish(&[single]).await;
+        assert_eq!(
+            install(&card, &catalog, "t", false, NOOP).await.unwrap(),
+            Outcome::Done,
+            "nothing is lost when the bytes are the same"
+        );
+        let record = Record::read(&card).unwrap();
+        assert!(record.tracks(
+            "t",
+            "Themes/T.theme",
+            &crate::test_support::sha256_hex(b"colours")
+        ));
+        assert!(
+            !record
+                .get("bundle")
+                .unwrap()
+                .files
+                .iter()
+                .any(|f| f.dest == "Themes/T.theme"),
+            "the single theme owns the file now"
+        );
     }
 
     #[tokio::test]

@@ -12,8 +12,9 @@ export const installPlugin = (pluginId: string, force: boolean, onProgress: OnPr
 export const updatePlugin = (pluginId: string, force: boolean, onProgress: OnProgress) =>
   callWithProgress<Outcome>('catalog_update', { pluginId, force }, onProgress);
 
-export const updateAllPlugins = (onProgress: OnProgress) =>
-  callWithProgress<UpdateAllReport>('catalog_update_all', {}, onProgress);
+/** With `confirmed` ids, only those are updated and may replace local files. */
+export const updateAllPlugins = (confirmed: string[], onProgress: OnProgress) =>
+  callWithProgress<UpdateAllReport>('catalog_update_all', { confirmed }, onProgress);
 
 export const uninstallPlugin = (pluginId: string, onProgress: OnProgress) =>
   callWithProgress<null>('catalog_uninstall', { pluginId }, onProgress);

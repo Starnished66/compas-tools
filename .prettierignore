@@ -9,3 +9,5 @@ package-lock.json
 src/i18n/translate.ts
 # Translation tables: one entry per line, kept as written.
 src/i18n/catalogs/
+# Snapshot of the public plugin index, used by a test.
+crates/compas-core/src/catalog/fixtures

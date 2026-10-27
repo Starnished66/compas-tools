@@ -43,7 +43,7 @@ export function PluginCard({
       </button>
       <div className="plugin-card__footer">
         <div className="row">
-          <Badge tone={stateTone(entry)}>{stateLabel(entry.state)}</Badge>
+          <Badge tone={stateTone(entry)}>{stateLabel(entry)}</Badge>
           <span className="muted">v{entry.installed_version ?? entry.version}</span>
         </div>
         {active && <ProgressBar progress={progress} label={entry.name} />}

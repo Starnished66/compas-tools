@@ -7,7 +7,10 @@ interface Props {
   open: boolean;
   title: string;
   message: string;
+  /** Lines listed under the message, such as the files a change would replace. */
+  details?: string[];
   confirmLabel: string;
+  cancelLabel?: string;
   destructive?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -17,7 +20,9 @@ export function ConfirmDialog({
   open,
   title,
   message,
+  details = [],
   confirmLabel,
+  cancelLabel,
   destructive = false,
   onConfirm,
   onCancel,
@@ -43,9 +48,16 @@ export function ConfirmDialog({
     >
       <h2 id="confirm-title">{title}</h2>
       <p>{message}</p>
+      {details.length > 0 && (
+        <ul className="dialog__details">
+          {details.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      )}
       <div className="dialog__actions">
         <Button icon="close" onClick={onCancel}>
-          {t('Cancel')}
+          {cancelLabel ?? t('Cancel')}
         </Button>
         <Button
           variant={destructive ? 'danger' : 'primary'}

@@ -124,3 +124,8 @@
 .language-picker .field {
   width: 100%;
 }
+
+.sidebar__support {
+  padding: 0 var(--space-3) var(--space-2);
+  font-size: 0.9em;
+}

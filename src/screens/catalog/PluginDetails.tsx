@@ -36,7 +36,7 @@ export function PluginDetails({
     >
       <div className="row">
         <h2>{entry.name}</h2>
-        <Badge tone={stateTone(entry)}>{stateLabel(entry.state)}</Badge>
+        <Badge tone={stateTone(entry)}>{stateLabel(entry)}</Badge>
       </div>
       {entry.incompatible && entry.state !== 'installed' && (
         <Notice tone="warning">

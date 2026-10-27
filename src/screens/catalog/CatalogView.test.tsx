@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { installPlugin, loadEntries, moveRecordAside } from '../../api/catalog';
+import { installPlugin, loadEntries, moveRecordAside, updateAllPlugins } from '../../api/catalog';
 import { OperationProvider, useOperation } from '../../hooks/useOperation';
 import { CatalogProvider } from '../../state/CatalogContext';
 import { ActionDialog } from './ActionDialog';
@@ -73,18 +73,66 @@ describe('CatalogView', () => {
 
   it('asks before replacing a local file, then retries with force', async () => {
     vi.mocked(installPlugin)
-      .mockResolvedValueOnce('needs_confirmation')
+      .mockResolvedValueOnce({ needs_confirmation: ['.plugins/Alpha.lua'] })
       .mockResolvedValueOnce('done');
     renderView();
 
     await userEvent.click(await screen.findByRole('button', { name: 'Install Alpha' }));
-    expect(await screen.findByRole('dialog', { name: 'Replace a local file?' })).toBeVisible();
+    expect(await screen.findByRole('dialog', { name: 'Replace local files?' })).toBeVisible();
     expect(installPlugin).toHaveBeenLastCalledWith('a', false, expect.any(Function));
 
-    await userEvent.click(screen.getByRole('button', { name: 'Replace' }));
+    expect(screen.getByText('.plugins/Alpha.lua')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Yes' }));
     await waitFor(() => {
       expect(installPlugin).toHaveBeenLastCalledWith('a', true, expect.any(Function));
     });
+  });
+
+  it('asks once for everything an update-all would replace, then updates exactly those', async () => {
+    vi.mocked(updateAllPlugins)
+      .mockResolvedValueOnce({
+        updated: [],
+        needs_confirmation: [{ id: 'b', files: ['.plugins/Beta.lua', 'Themes/Beta.theme'] }],
+        failed: [],
+      })
+      .mockResolvedValueOnce({ updated: ['b'], needs_confirmation: [], failed: [] });
+    renderView();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update all (1)' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Replace local files?' });
+    expect(dialog).toHaveTextContent('Beta: .plugins/Beta.lua, Themes/Beta.theme');
+    expect(updateAllPlugins).toHaveBeenLastCalledWith([], expect.any(Function));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Yes' }));
+    await waitFor(() => {
+      expect(updateAllPlugins).toHaveBeenLastCalledWith(['b'], expect.any(Function));
+    });
+  });
+
+  it('cancelling the question replaces nothing', async () => {
+    vi.mocked(installPlugin).mockResolvedValueOnce({ needs_confirmation: ['.plugins/Alpha.lua'] });
+    renderView();
+    await userEvent.click(await screen.findByRole('button', { name: 'Install Alpha' }));
+    await screen.findByRole('dialog', { name: 'Replace local files?' });
+    await userEvent.click(screen.getByRole('button', { name: 'No' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    expect(installPlugin).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a package that a bundle installed as present, with nothing to install', async () => {
+    vi.mocked(loadEntries).mockResolvedValue([
+      entry({
+        id: 'th',
+        name: 'Earthy',
+        state: 'manual',
+        files_match: true,
+        installed_by: 'Themes',
+      }),
+    ]);
+    renderView();
+    expect(await screen.findByText('Installed with Themes')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Install Earthy' })).not.toBeInTheDocument();
   });
 
   it('shows the failure message when an install fails', async () => {
@@ -95,13 +143,13 @@ describe('CatalogView', () => {
   });
 
   it('keeps the confirmation open when the view is switched away', async () => {
-    vi.mocked(installPlugin).mockResolvedValueOnce('needs_confirmation');
+    vi.mocked(installPlugin).mockResolvedValueOnce({ needs_confirmation: ['.plugins/Alpha.lua'] });
     const { rerender } = renderView();
     await userEvent.click(await screen.findByRole('button', { name: 'Install Alpha' }));
-    await screen.findByRole('dialog', { name: 'Replace a local file?' });
+    await screen.findByRole('dialog', { name: 'Replace local files?' });
 
     rerender(tree(false));
-    expect(screen.getByRole('dialog', { name: 'Replace a local file?' })).toBeVisible();
+    expect(screen.getByRole('dialog', { name: 'Replace local files?' })).toBeVisible();
   });
 
   it('says compatibility is unknown when the card has no device.json', async () => {
@@ -126,10 +174,10 @@ describe('CatalogView', () => {
   });
 
   it('drops a pending confirmation when the card changes', async () => {
-    vi.mocked(installPlugin).mockResolvedValueOnce('needs_confirmation');
+    vi.mocked(installPlugin).mockResolvedValueOnce({ needs_confirmation: ['.plugins/Alpha.lua'] });
     const { rerender } = renderView();
     await userEvent.click(await screen.findByRole('button', { name: 'Install Alpha' }));
-    await screen.findByRole('dialog', { name: 'Replace a local file?' });
+    await screen.findByRole('dialog', { name: 'Replace local files?' });
 
     mockedCard.root = '/media/other';
     rerender(tree());

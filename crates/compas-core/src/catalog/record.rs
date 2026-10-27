@@ -150,7 +150,7 @@ impl Record {
         out
     }
 
-    fn parse(text: &str) -> Option<Self> {
+    pub(super) fn parse(text: &str) -> Option<Self> {
         let mut record = Self::default();
         let mut dests = HashSet::new();
         for line in text.split_inclusive('\n') {

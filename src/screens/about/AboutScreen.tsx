@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { aboutNotices } from '../../api/about';
 import breezeLicence from '../../assets/icons/COPYING-ICONS?raw';
 import notoLicence from '../../assets/fonts/OFL.txt?raw';
+import { SupportLink } from '../../components/SupportLink';
 import { t } from '../../i18n';
 import gpl from '../../../LICENSE?raw';
 import thirdParty from '../../../THIRD_PARTY.md?raw';
@@ -51,6 +52,16 @@ export function AboutScreen() {
           {t(
             'The installer also carries these texts in its licenses folder, together with the notices for the library code inside compas-sdtool and the exact sources it was built from.',
           )}
+        </p>
+      </div>
+      <div className="panel stack">
+        <p>
+          {t(
+            'Compás Tools is made and kept up by one person. If it helps you, you can support the project.',
+          )}
+        </p>
+        <p>
+          <SupportLink label={t('Support the project on Ko-fi')} />
         </p>
       </div>
       <section className="panel stack" aria-label={t('Licences and notices')}>

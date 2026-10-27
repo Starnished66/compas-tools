@@ -18,6 +18,8 @@ export function entry(overrides: Partial<PluginEntry> = {}): PluginEntry {
     has_preview: false,
     script: 'Example.lua',
     enabled: true,
+    files_match: false,
+    installed_by: null,
     ...overrides,
   };
 }

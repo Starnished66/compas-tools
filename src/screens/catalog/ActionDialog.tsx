@@ -8,19 +8,24 @@ export function ActionDialog() {
     entries,
     actions: { dialog, confirm, cancelDialog },
   } = useCatalog();
-  const name = entries.find((e) => e.id === dialog?.id)?.name ?? '';
+  const name = (id: string) => entries.find((e) => e.id === id)?.name ?? id;
 
-  let title = t('Replace a local file?');
-  let message = t('{name} would replace a file on the player that the store did not install.', {
-    name,
-  });
-  let confirmLabel = t('Replace');
-  if (dialog?.type === 'remove') {
+  let title = t('Replace local files?');
+  let message = '';
+  let details: string[] = [];
+  let confirmLabel = t('Yes');
+  let cancelLabel: string | undefined = t('No');
+  if (dialog?.type === 'replace') {
+    message = t('{name} would replace these files on the player:', { name: name(dialog.id) });
+    details = dialog.files;
+  } else if (dialog?.type === 'replace_all') {
+    message = t('These plugins would replace local files on the player:');
+    details = dialog.items.map((item) => `${name(item.id)}: ${item.files.join(', ')}`);
+  } else if (dialog?.type === 'remove') {
     title = t('Remove this plugin?');
-    message = t('{name} and its files will be removed from the player.', { name });
+    message = t('{name} and its files will be removed from the player.', { name: name(dialog.id) });
     confirmLabel = t('Remove');
-  } else if (dialog?.kind === 'update') {
-    message = t('Updating {name} would replace a file you changed.', { name });
+    cancelLabel = undefined;
   }
 
   return (
@@ -28,7 +33,9 @@ export function ActionDialog() {
       open={dialog !== null}
       title={title}
       message={message}
+      details={details}
       confirmLabel={confirmLabel}
+      cancelLabel={cancelLabel}
       destructive
       onConfirm={() => void confirm()}
       onCancel={cancelDialog}

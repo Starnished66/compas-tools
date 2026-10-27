@@ -18,24 +18,27 @@ pub(super) struct Applied {
     pub backup: Option<PathBuf>,
 }
 
-/// Whether installing `plugin` would replace a file the store does not own:
-/// an existing destination must be a regular file whose hash is the one
-/// recorded for this plugin. Files marked `keep` are never replaced.
-pub(super) fn conflict(card: &Card, plugin: &Plugin, record: &Record) -> Result<bool> {
+/// The files installing `plugin` would replace although the store does not own them: an
+/// existing destination must be a regular file whose hash is the one recorded for this
+/// plugin, or already the very bytes about to be written (nothing is lost then). Files marked
+/// `keep` are never replaced.
+pub(super) fn conflicts(card: &Card, plugin: &Plugin, record: &Record) -> Result<Vec<String>> {
+    let mut files = Vec::new();
     for file in plugin.files.iter().filter(|f| !f.keep) {
         let target = card.resolve(&file.dest, false)?;
         match fs::symlink_metadata(&target) {
             Ok(meta) if meta.is_file() => {
-                if !record.tracks(&plugin.id, &file.dest, &sha256_file(&target)?) {
-                    return Ok(true);
+                let sha = sha256_file(&target)?;
+                if sha != file.sha256 && !record.tracks(&plugin.id, &file.dest, &sha) {
+                    files.push(file.dest.clone());
                 }
             }
-            Ok(_) => return Ok(true),
+            Ok(_) => files.push(file.dest.clone()),
             Err(e) if e.kind() == ErrorKind::NotFound => {}
             Err(e) => return Err(e).at(&target),
         }
     }
-    Ok(false)
+    Ok(files)
 }
 
 /// Moves the staged `<i>.part` files into place, records the plugin, then
@@ -48,8 +51,11 @@ pub(super) fn apply(
     force: bool,
     record: &Record,
 ) -> Result<Outcome> {
-    if !force && conflict(card, plugin, record)? {
-        return Ok(Outcome::NeedsConfirmation);
+    if !force {
+        let files = conflicts(card, plugin, record)?;
+        if !files.is_empty() {
+            return Ok(Outcome::NeedsConfirmation(files));
+        }
     }
     let mut applied = Vec::new();
     let result = place_files(card, &stage, plugin, &mut applied)

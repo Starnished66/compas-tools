@@ -1,10 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import { openUrl } from '@tauri-apps/plugin-opener';
+
 import { aboutNotices } from '../../api/about';
 import { AboutScreen } from './AboutScreen';
 
 vi.mock('../../api/about');
+vi.mock('@tauri-apps/plugin-opener', () => ({ openUrl: vi.fn() }));
 
 describe('AboutScreen', () => {
   beforeEach(() => {
@@ -34,5 +37,11 @@ describe('AboutScreen', () => {
     render(<AboutScreen />);
     await userEvent.click(screen.getByText('Libraries inside the app'));
     expect(await screen.findByText(/not in this build/)).toBeInTheDocument();
+  });
+
+  it('opens the Ko-fi page in the system browser', async () => {
+    render(<AboutScreen />);
+    await userEvent.click(screen.getByRole('link', { name: 'Support the project on Ko-fi' }));
+    expect(openUrl).toHaveBeenCalledWith('https://ko-fi.com/starnished');
   });
 });

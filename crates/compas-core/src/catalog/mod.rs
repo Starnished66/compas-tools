@@ -28,7 +28,7 @@ pub use preview::ensure_preview;
 pub use record::move_aside as move_record_aside;
 pub use state::PluginState;
 pub use uninstall::uninstall;
-pub use update_all::{update_all, UpdateAllReport};
+pub use update_all::{update_all, Conflict, UpdateAllReport};
 
 pub const INDEX_URL: &str =
     "https://github.com/Starnished66/compas-plugins/releases/latest/download/index.json";

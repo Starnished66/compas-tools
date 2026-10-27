@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 use super::classify::classify;
+use super::index::Plugin;
 use super::record::{Record, RecordedPlugin};
 use super::state::{self, PluginState};
 use super::{disabled, Catalog};
@@ -29,15 +30,52 @@ pub struct Entry {
     /// Key of the `.disabled` list; absent when the plugin has no script.
     pub script: Option<String>,
     pub enabled: bool,
+    /// The card holds this plugin's content byte for byte, whoever put it there.
+    pub files_match: bool,
+    /// Another installed package (a bundle, say) owns files of this plugin; its name.
+    pub installed_by: Option<String>,
 }
 
 pub fn list(catalog: &Catalog, card: &Card, plugin_api: Option<u32>) -> Result<Vec<Entry>> {
     let record = Record::read(card)?;
     let disabled_names = disabled::read(card)?;
+    Ok(build(
+        catalog,
+        &record,
+        &disabled_names,
+        &state::card_probe(card),
+        plugin_api,
+    ))
+}
+
+/// The rows for a catalog, a record, the `.disabled` list and a view of the card's files.
+fn build(
+    catalog: &Catalog,
+    record: &Record,
+    disabled_names: &[Vec<u8>],
+    probe: &state::Probe<'_>,
+    plugin_api: Option<u32>,
+) -> Vec<Entry> {
     let is_enabled = |script: &Option<String>| {
         script
             .as_ref()
-            .is_none_or(|s| !disabled::contains(&disabled_names, s))
+            .is_none_or(|s| !disabled::contains(disabled_names, s))
+    };
+    let owner_of = |p: &Plugin| {
+        record
+            .plugins
+            .iter()
+            .filter(|r| r.id != p.id)
+            .find(|r| {
+                r.files
+                    .iter()
+                    .any(|f| p.dests().any(|d| d.eq_ignore_ascii_case(&f.dest)))
+            })
+            .map(|r| {
+                catalog
+                    .get(&r.id)
+                    .map_or_else(|_| r.id.clone(), |o| o.name.clone())
+            })
     };
 
     let mut entries: Vec<Entry> = catalog
@@ -52,12 +90,13 @@ pub fn list(catalog: &Catalog, card: &Card, plugin_api: Option<u32>) -> Result<V
                 .map_or_else(|| p.script(), RecordedPlugin::script)
                 .map(str::to_string);
             let class = classify(p.dests());
+            let local = state::local_files(p, probe);
             Entry {
                 id: p.id.clone(),
                 name: p.name.clone(),
                 version: p.version.clone(),
                 installed_version: installed.map(str::to_string),
-                state: state::compute(p, installed, card, plugin_api),
+                state: state::compute(p, installed, local, plugin_api),
                 incompatible: state::is_incompatible(p, plugin_api),
                 api_min: Some(p.api_min),
                 description: p.description.clone(),
@@ -69,6 +108,12 @@ pub fn list(catalog: &Catalog, card: &Card, plugin_api: Option<u32>) -> Result<V
                 has_preview: p.preview.is_some(),
                 enabled: is_enabled(&script),
                 script,
+                files_match: local.matches,
+                installed_by: if recorded.is_none() {
+                    owner_of(p)
+                } else {
+                    None
+                },
             }
         })
         .collect();
@@ -80,7 +125,7 @@ pub fn list(catalog: &Catalog, card: &Card, plugin_api: Option<u32>) -> Result<V
             .filter(|r| catalog.get(&r.id).is_err())
             .map(|r| removed_entry(r, is_enabled)),
     );
-    Ok(entries)
+    entries
 }
 
 fn removed_entry(r: &RecordedPlugin, is_enabled: impl Fn(&Option<String>) -> bool) -> Entry {
@@ -103,6 +148,8 @@ fn removed_entry(r: &RecordedPlugin, is_enabled: impl Fn(&Option<String>) -> boo
         has_preview: false,
         enabled: is_enabled(&script),
         script,
+        files_match: false,
+        installed_by: None,
     }
 }
 
@@ -173,5 +220,106 @@ mod tests {
             rows[0].enabled,
             "the new file name is not in the disabled list"
         );
+    }
+
+    /// The metadata of a real player card (record and file facts, no music): its themes were
+    /// installed through the old "Themes" bundle, one through the individual theme.
+    #[test]
+    fn themes_installed_through_a_bundle_show_as_present_and_not_as_available() {
+        use std::collections::HashMap;
+
+        let index = include_bytes!("fixtures/index-2026-10-26.json");
+        let catalog = Catalog::parse(index, "https://example.test").unwrap();
+        let record = Record::parse(include_str!("fixtures/store_installed")).unwrap();
+        let facts: HashMap<&str, (u64, &str)> = include_str!("fixtures/card_files.tsv")
+            .lines()
+            .map(|l| {
+                let mut f = l.split('\t');
+                (
+                    f.next().unwrap(),
+                    (f.next().unwrap().parse().unwrap(), f.next().unwrap()),
+                )
+            })
+            .collect();
+        let probe = |dest: &str, _| {
+            facts
+                .get(dest)
+                .map(|(size, sha)| (*size, (*sha).to_string()))
+        };
+
+        let rows = build(&catalog, &record, &[], &probe, Some(17));
+        let themes: Vec<&Entry> = rows
+            .iter()
+            .filter(|r| r.id.starts_with("org.compas.theme."))
+            .collect();
+        assert_eq!(themes.len(), 21);
+        for t in &themes {
+            if t.id == "org.compas.theme.cherry_noir" {
+                assert_eq!(t.state, PluginState::Installed, "installed on its own");
+                assert_eq!(t.installed_by, None);
+            } else {
+                assert_eq!(t.state, PluginState::Manual, "{}", t.id);
+                assert!(t.files_match, "{} has the catalog's exact files", t.id);
+                assert_eq!(
+                    t.installed_by.as_deref(),
+                    Some("example.themes"),
+                    "{}",
+                    t.id
+                );
+            }
+            assert_ne!(t.state, PluginState::Available, "{} is on the card", t.id);
+        }
+        let bundle = rows.iter().find(|r| r.id == "example.themes").unwrap();
+        assert_eq!(bundle.state, PluginState::Removed);
+        // No duplicates: every id appears once.
+        let mut ids: Vec<_> = rows.iter().map(|r| r.id.as_str()).collect();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), rows.len());
+    }
+
+    #[tokio::test]
+    async fn a_bundle_over_individually_installed_packages_is_present_once() {
+        use super::super::install::install;
+
+        let (_dir, card) = fake_card();
+        let single = |id: &str, name: &str| {
+            spec(
+                id,
+                "1.0",
+                &[
+                    (&format!(".plugins/{name}.lua"), "s", false),
+                    (&format!("Themes/{name}.theme"), name, false),
+                ],
+            )
+        };
+        let bundle = spec(
+            "bundle",
+            "1.0",
+            &[
+                (".plugins/Bundle.lua", "b", false),
+                ("Themes/A.theme", "A", false),
+                ("Themes/B.theme", "B", false),
+            ],
+        );
+        // The catalog never lists a bundle next to its parts, but it can swap one for the other.
+        let (_s1, parts) = publish(&[single("a", "A"), single("b", "B")]).await;
+        install(&card, &parts, "a", false, &|_| {}).await.unwrap();
+        install(&card, &parts, "b", false, &|_| {}).await.unwrap();
+
+        let (_s2, catalog) = publish(&[bundle]).await;
+        let rows = list(&catalog, &card, None).unwrap();
+        let by_id = |id: &str| rows.iter().find(|r| r.id == id).unwrap();
+        assert_eq!(
+            rows.len(),
+            3,
+            "the bundle and the two recorded parts, once each"
+        );
+        assert_eq!(by_id("a").state, PluginState::Removed);
+        assert_eq!(by_id("b").state, PluginState::Removed);
+        let bundle = by_id("bundle");
+        assert_eq!(bundle.state, PluginState::Manual);
+        assert!(bundle.files_match);
+        assert_eq!(bundle.installed_by.as_deref(), Some("a"));
     }
 }

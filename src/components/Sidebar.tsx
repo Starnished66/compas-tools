@@ -1,5 +1,6 @@
 import { t } from '../i18n';
 import { Icon } from './Icon';
+import { SupportLink } from './SupportLink';
 import { LanguagePicker } from './LanguagePicker';
 
 export type ScreenId =
@@ -41,6 +42,7 @@ export function Sidebar({ current, cardLabel, onNavigate }: Props) {
         </button>
       ))}
       <p className="sidebar__card">{cardLabel ?? t('No player selected')}</p>
+      <SupportLink className="sidebar__support" />
       <LanguagePicker />
     </nav>
   );

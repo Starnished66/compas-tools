@@ -1,8 +1,12 @@
-import type { PluginEntry, PluginState } from '../../api/types';
+import type { PluginEntry } from '../../api/types';
 import { t } from '../../i18n';
 
-export function stateLabel(state: PluginState): string {
-  switch (state) {
+export function stateLabel(entry: PluginEntry): string {
+  // A package whose files are on the player through another one, a bundle for instance.
+  if (entry.state === 'manual' && entry.files_match && entry.installed_by) {
+    return t('Installed with {name}', { name: entry.installed_by });
+  }
+  switch (entry.state) {
     case 'available':
       return t('Not installed');
     case 'installed':
@@ -36,7 +40,11 @@ export function stateTone(entry: PluginEntry): 'neutral' | 'accent' | 'success' 
 
 /** The store entry can be installed or updated from the catalog. */
 export function canInstall(entry: PluginEntry): boolean {
-  return !entry.incompatible && (entry.state === 'available' || entry.state === 'manual');
+  // Content that is already there byte for byte has nothing to install.
+  return (
+    !entry.incompatible &&
+    (entry.state === 'available' || (entry.state === 'manual' && !entry.files_match))
+  );
 }
 
 export function canUpdate(entry: PluginEntry): boolean {

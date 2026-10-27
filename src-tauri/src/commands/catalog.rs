@@ -57,11 +57,12 @@ pub async fn catalog_update(
 #[tauri::command]
 pub async fn catalog_update_all(
     state: State<'_, AppState>,
+    confirmed: Vec<String>,
     on_progress: Channel<Progress>,
 ) -> CommandResult<UpdateAllReport> {
     let _busy = state.try_busy()?;
     let (card, catalog) = (state.card()?, state.catalog()?);
-    Ok(catalog::update_all(&card, &catalog, &reporter(on_progress)).await?)
+    Ok(catalog::update_all(&card, &catalog, &confirmed, &reporter(on_progress)).await?)
 }
 
 #[tauri::command]

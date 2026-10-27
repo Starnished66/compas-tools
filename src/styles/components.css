@@ -241,3 +241,12 @@
 .dialog h2 {
   margin-bottom: var(--space-2);
 }
+
+.dialog__details {
+  max-height: 40vh;
+  overflow: auto;
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-4);
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}

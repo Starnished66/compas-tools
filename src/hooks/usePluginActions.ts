@@ -14,7 +14,10 @@ import { useOperation } from './useOperation';
 type ChangeKind = 'install' | 'update';
 
 export type Dialog =
-  { type: 'replace'; id: string; kind: ChangeKind } | { type: 'remove'; id: string } | null;
+  | { type: 'replace'; id: string; kind: ChangeKind; files: string[] }
+  | { type: 'replace_all'; items: { id: string; files: string[] }[] }
+  | { type: 'remove'; id: string }
+  | null;
 
 /** Every way the user changes the card from a catalog view. */
 export type PluginActions = ReturnType<typeof usePluginActions>;
@@ -45,7 +48,9 @@ export function usePluginActions(reload: () => Promise<void>) {
     async (id: string, kind: ChangeKind, force: boolean) => {
       const apply = kind === 'install' ? installPlugin : updatePlugin;
       const outcome = await track(id, (onProgress) => apply(id, force, onProgress));
-      if (outcome === 'needs_confirmation') setDialog({ type: 'replace', id, kind });
+      if (outcome && outcome !== 'done') {
+        setDialog({ type: 'replace', id, kind, files: outcome.needs_confirmation });
+      }
     },
     [track],
   );
@@ -54,6 +59,11 @@ export function usePluginActions(reload: () => Promise<void>) {
     const current = dialog;
     setDialog(null);
     if (current?.type === 'replace') await change(current.id, current.kind, true);
+    if (current?.type === 'replace_all') {
+      const ids = current.items.map((item) => item.id);
+      const result = await track(null, (onProgress) => updateAllPlugins(ids, onProgress));
+      if (result) setReport(result);
+    }
     if (current?.type === 'remove') {
       await track(current.id, (onProgress) => uninstallPlugin(current.id, onProgress));
     }
@@ -94,8 +104,12 @@ export function usePluginActions(reload: () => Promise<void>) {
     ),
     updateAll: useCallback(async () => {
       setReport(null);
-      const result = await track(null, (onProgress) => updateAllPlugins(onProgress));
+      const result = await track(null, (onProgress) => updateAllPlugins([], onProgress));
       if (result) setReport(result);
+      // One question for everything that would replace local files.
+      if (result && result.needs_confirmation.length > 0) {
+        setDialog({ type: 'replace_all', items: result.needs_confirmation });
+      }
     }, [track]),
   };
 }

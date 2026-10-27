@@ -13,29 +13,41 @@ pub struct Failure {
     pub message: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct Conflict {
+    pub id: String,
+    pub files: Vec<String>,
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct UpdateAllReport {
     pub updated: Vec<String>,
-    /// Plugins whose update would replace a local file; update them one by one.
-    pub needs_confirmation: Vec<String>,
+    /// Plugins whose update would replace local files, with those files; they are updated
+    /// once the user agrees (`confirmed`).
+    pub needs_confirmation: Vec<Conflict>,
     pub failed: Vec<Failure>,
 }
 
 const SCALE: u64 = 1000;
 
-/// Updates every compatible plugin that has a newer version, without
-/// replacing local files. One failure does not stop the others.
+/// Updates every compatible plugin that has a newer version, without replacing local files;
+/// those that would are reported with their files. With `confirmed` ids, only those plugins are
+/// updated and may replace local files: the user has seen the list. One failure does not stop
+/// the others.
 pub async fn update_all(
     card: &Card,
     catalog: &Catalog,
+    confirmed: &[String],
     on_progress: OnProgress<'_>,
 ) -> Result<UpdateAllReport> {
     let plugin_api = card.device()?.map(|d| d.plugin_api);
     let ids: Vec<String> = entry::list(catalog, card, plugin_api)?
         .into_iter()
         .filter(|e| e.state == PluginState::Update)
+        .filter(|e| confirmed.is_empty() || confirmed.contains(&e.id))
         .map(|e| e.id)
         .collect();
+    let force = !confirmed.is_empty();
 
     // Each plugin gets SCALE steps; its own download and install fill them.
     let total = ids.len() as u64 * SCALE;
@@ -61,9 +73,11 @@ pub async fn update_all(
             done: 0,
             total: 1,
         });
-        match update(card, catalog, &id, false, &step).await {
+        match update(card, catalog, &id, force, &step).await {
             Ok(Outcome::Done) => report.updated.push(id),
-            Ok(Outcome::NeedsConfirmation) => report.needs_confirmation.push(id),
+            Ok(Outcome::NeedsConfirmation(files)) => {
+                report.needs_confirmation.push(Conflict { id, files });
+            }
             Err(e) => report.failed.push(Failure {
                 id,
                 message: e.to_string(),
@@ -110,7 +124,7 @@ mod tests {
         c2.plugins[3].files[0].sha256 = "f".repeat(64);
 
         let seen = std::sync::Mutex::new(Vec::new());
-        let report = update_all(&card, &c2, &|p| seen.lock().unwrap().push(p))
+        let report = update_all(&card, &c2, &[], &|p| seen.lock().unwrap().push(p))
             .await
             .unwrap();
         let seen = seen.into_inner().unwrap();
@@ -123,7 +137,9 @@ mod tests {
         );
         assert_eq!(seen.last().unwrap().done, 3 * SCALE);
         assert_eq!(report.updated, ["a"]);
-        assert_eq!(report.needs_confirmation, ["b"]);
+        assert_eq!(report.needs_confirmation.len(), 1);
+        assert_eq!(report.needs_confirmation[0].id, "b");
+        assert_eq!(report.needs_confirmation[0].files, [".plugins/B.lua"]);
         assert_eq!(report.failed.len(), 1);
         assert_eq!(report.failed[0].id, "d");
         assert_eq!(
@@ -134,5 +150,37 @@ mod tests {
             std::fs::read_to_string(dir.path().join(".plugins/B.lua")).unwrap(),
             "edited"
         );
+    }
+
+    #[tokio::test]
+    async fn confirmed_plugins_replace_local_files_and_nothing_else_is_touched() {
+        let (dir, card) = fake_card();
+        let (_s1, c1) = publish(&[
+            spec("b", "1.0", &[(".plugins/B.lua", "b1", false)]),
+            spec("a", "1.0", &[(".plugins/A.lua", "a1", false)]),
+        ])
+        .await;
+        for id in ["a", "b"] {
+            install(&card, &c1, id, false, &|_| {}).await.unwrap();
+        }
+        write_file(dir.path(), ".plugins/B.lua", b"edited");
+        let (_s2, c2) = publish(&[
+            spec("b", "1.1", &[(".plugins/B.lua", "b2", false)]),
+            spec("a", "1.1", &[(".plugins/A.lua", "a2", false)]),
+        ])
+        .await;
+
+        let report = update_all(&card, &c2, &["b".to_string()], &|_| {})
+            .await
+            .unwrap();
+        assert_eq!(report.updated, ["b"]);
+        assert!(report.needs_confirmation.is_empty() && report.failed.is_empty());
+        let read = |p: &str| std::fs::read_to_string(dir.path().join(p)).unwrap();
+        assert_eq!(
+            read(".plugins/B.lua"),
+            "b2",
+            "replaced after the user agreed"
+        );
+        assert_eq!(read(".plugins/A.lua"), "a1", "not on the confirmed list");
     }
 }

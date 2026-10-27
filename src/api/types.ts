@@ -41,13 +41,18 @@ export interface PluginEntry {
   has_preview: boolean;
   script: string | null;
   enabled: boolean;
+  /** The player holds this package's content byte for byte, whoever installed it. */
+  files_match: boolean;
+  /** Another installed package (a bundle) owns its files; that package's name. */
+  installed_by: string | null;
 }
 
-export type Outcome = 'done' | 'needs_confirmation';
+/** `needs_confirmation` carries the local files that would be replaced. */
+export type Outcome = 'done' | { needs_confirmation: string[] };
 
 export interface UpdateAllReport {
   updated: string[];
-  needs_confirmation: string[];
+  needs_confirmation: { id: string; files: string[] }[];
   failed: { id: string; message: string }[];
 }
 
