@@ -510,7 +510,7 @@ dependencies = [
 
 [[package]]
 name = "compas-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dunce",
  "regex",
@@ -527,7 +527,7 @@ dependencies = [
 
 [[package]]
 name = "compas-tools"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "compas-core",
  "serde",
