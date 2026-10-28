@@ -1,9 +1,11 @@
 import { t } from '../i18n';
 import { Icon } from './Icon';
+import type { IconName } from './icons';
 import { LanguagePicker } from './LanguagePicker';
 import { SupportLink } from './SupportLink';
 
-export type ScreenId = 'install' | 'library' | 'plugins' | 'layouts' | 'themes' | 'about';
+export type ScreenId =
+  'install' | 'library' | 'plugins' | 'layouts' | 'themes' | 'player-settings' | 'about';
 
 interface Props {
   current: ScreenId;
@@ -13,12 +15,17 @@ interface Props {
 }
 
 export function Sidebar({ current, playerLabel, onNavigate }: Props) {
-  const items: { id: ScreenId; label: string; icon: 'updates' | 'library' | ScreenId }[] = [
+  const items: {
+    id: ScreenId;
+    label: string;
+    icon: IconName;
+  }[] = [
     { id: 'install', label: t('Installation and Updates'), icon: 'updates' },
     { id: 'library', label: t('Music Library'), icon: 'library' },
     { id: 'plugins', label: t('Plugins'), icon: 'plugins' },
     { id: 'layouts', label: t('Layouts'), icon: 'layouts' },
     { id: 'themes', label: t('Themes'), icon: 'themes' },
+    { id: 'player-settings', label: t('Player settings'), icon: 'settings' },
     { id: 'about', label: t('About'), icon: 'about' },
   ];
   return (

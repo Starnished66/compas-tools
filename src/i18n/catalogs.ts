@@ -11,6 +11,10 @@ export type TranslationValue = string | Partial<Record<Intl.LDMLPluralRule, stri
 /** English source strings are the keys; English only needs entries for plurals. */
 export const catalogs: Record<Language, Record<string, TranslationValue>> = {
   en: {
+    '{count} changes not sent yet': {
+      one: '{count} change not sent yet',
+      other: '{count} changes not sent yet',
+    },
     '{count} plugin': { one: '{count} plugin', other: '{count} plugins' },
     '{count} update installed': {
       one: '{count} update installed',

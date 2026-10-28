@@ -12,6 +12,7 @@ pub mod catalog;
 pub mod library;
 pub mod music;
 pub mod releases;
+pub mod settings;
 
 /// Adapts a Tauri channel into core's progress callback.
 fn reporter(channel: Channel<Progress>) -> impl Fn(Progress) + Send + Sync {

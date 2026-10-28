@@ -1,0 +1,170 @@
+/* Player settings: a group list on the left and a Kirigami-FormLayout-style panel on the right. */
+.settings-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.settings-strip {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--frame);
+  border-radius: var(--radius);
+  background: var(--window-alt);
+}
+
+.settings-strip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--positive);
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.settings-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-panel {
+  border: 1px solid var(--frame);
+  border-radius: var(--radius);
+  background: var(--view);
+}
+
+.settings-panel__title {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--frame);
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--header);
+}
+
+.settings-panel__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+}
+
+/* Labels right-aligned against the controls, as in a Kirigami FormLayout. */
+.settings-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 40%) 1fr;
+  gap: var(--space-4);
+  align-items: start;
+  padding: var(--space-1) var(--space-2) var(--space-1) 0;
+  border-left: 3px solid transparent;
+}
+
+.settings-row--staged {
+  border-left-color: var(--highlight);
+  background: color-mix(in srgb, var(--highlight) 12%, transparent);
+}
+
+.settings-row__label {
+  padding-top: var(--space-1);
+  text-align: right;
+}
+
+.settings-row--locked .settings-row__label {
+  color: var(--text-muted);
+}
+
+.settings-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-row__control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+}
+
+.settings-select {
+  min-width: 220px;
+}
+
+.settings-number {
+  width: 90px;
+}
+
+.settings-slider {
+  width: 220px;
+  accent-color: var(--highlight);
+}
+
+.settings-slider__value {
+  min-width: 4em;
+  text-align: right;
+}
+
+.settings-row__hint,
+.settings-row__done {
+  font-size: 0.9em;
+  color: var(--text-muted);
+}
+
+.settings-row__done {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--positive);
+}
+
+.settings-row__warn {
+  font-size: 0.9em;
+  color: var(--neutral);
+}
+
+.settings-pending {
+  position: sticky;
+  bottom: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--highlight);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--highlight) 18%, var(--view));
+}
+
+.settings-pending__text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+
+  .settings-row__label {
+    text-align: left;
+  }
+}

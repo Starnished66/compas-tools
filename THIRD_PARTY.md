@@ -8,6 +8,15 @@ installed under `/usr/share/icons/breeze` and `/usr/share/icons/breeze-dark`). O
 the app uses are included. Symbolic links in the theme were resolved by copying the target file
 under the name the app asks for; the contents are unchanged.
 
+The icons of the "Player settings" screen (`configure-symbolic`, `audio-volume-high-symbolic`,
+`preferences-desktop-display-randr-symbolic`, `phone-battery-symbolic`,
+`media-playback-start-symbolic`, `preferences-system-bluetooth-symbolic`,
+`configure-shortcuts-symbolic`, all size 22) were added from the pinned release
+`breeze-icons-6.31.0.tar.xz` (https://download.kde.org/stable/frameworks/6.31/, SHA-256
+`82ab1c13f782cb37176e7c13c5fb2c77536a65f24b85d09127f3575f917fb56d`, as published by KDE).
+The `breeze/` files are the tarball's SVGs with symbolic links resolved; the `breeze-dark/` files are
+the colour-patched variants the same release's build installs, unmodified.
+
 - Copyright (C) 2014 Uri Herrera and others.
 - Licence: GNU Lesser General Public License, version 3 or (at your option) any later version.
   The licence statement shipped with the theme is in `src/assets/icons/COPYING-ICONS`.

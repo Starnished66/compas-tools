@@ -13,6 +13,7 @@ mod process;
 pub mod progress;
 pub mod releases;
 pub mod sdtool;
+pub mod settings;
 pub mod transfer;
 pub mod version;
 

@@ -8,6 +8,7 @@ import { CatalogView } from './screens/catalog/CatalogView';
 import { BOARD_NAMES } from './screens/install/labels';
 import { InstallScreen } from './screens/install/InstallScreen';
 import { LibraryScreen } from './screens/library/LibraryScreen';
+import { PlayerSettingsScreen } from './screens/settings/PlayerSettingsScreen';
 import { OperationProvider } from './hooks/useOperation';
 import { t } from './i18n';
 import { CardProvider, useCard } from './state/CardContext';
@@ -49,6 +50,7 @@ function Shell() {
         {(screen === 'plugins' || screen === 'layouts' || screen === 'themes') && (
           <CatalogView key={screen} view={screen} />
         )}
+        {screen === 'player-settings' && <PlayerSettingsScreen />}
         {screen === 'about' && <AboutScreen />}
       </main>
       <ActionDialog />

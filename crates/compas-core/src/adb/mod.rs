@@ -3,6 +3,7 @@
 mod backup;
 #[cfg(all(test, unix))]
 pub(crate) mod fake;
+mod forward;
 mod identify;
 mod install;
 mod locate;
@@ -19,6 +20,7 @@ use tokio::process::Command;
 use crate::error::{Error, Result};
 
 pub use backup::{backup_user_data, BackupQuality, BackupReport, SkipReason, Skipped};
+pub use forward::PLAYER_PORT;
 pub use identify::{identify, DeviceInfo, Firmware};
 pub use install::{
     install_full_image, install_player_only, remove_staged_image, InstallReport, InstallRequest,

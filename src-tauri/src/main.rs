@@ -6,7 +6,7 @@ mod error;
 mod sidecar;
 mod state;
 
-use commands::{about, adb, app_update, card, catalog, library, music, releases};
+use commands::{about, adb, app_update, card, catalog, library, music, releases, settings};
 use tauri::Manager;
 
 fn main() {
@@ -20,7 +20,8 @@ fn main() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .manage(state::AppState::default());
+        .manage(state::AppState::default())
+        .manage(settings::SettingsSession::default());
     #[cfg(feature = "updater")]
     let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
     builder
@@ -57,7 +58,20 @@ fn main() {
             music::music_tidy,
             music::music_update_library,
             releases::releases_latest,
+            settings::settings_connect,
+            settings::settings_status,
+            settings::settings_values,
+            settings::settings_apply,
+            settings::settings_rescan,
+            settings::settings_disconnect,
         ])
-        .run(tauri::generate_context!())
-        .expect("failed to run Compás Tools");
+        .build(tauri::generate_context!())
+        .expect("failed to build Compás Tools")
+        .run(|app, event| {
+            // Take the adb forward of the settings screen away again.
+            if let tauri::RunEvent::Exit = event {
+                let session = app.state::<settings::SettingsSession>();
+                tauri::async_runtime::block_on(session.close());
+            }
+        });
 }
