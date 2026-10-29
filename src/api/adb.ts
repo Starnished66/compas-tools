@@ -19,6 +19,18 @@ export const downloadAdb = (onProgress: OnProgress) =>
 
 export const listDevices = () => call<DeviceView[]>('adb_devices');
 
+/**
+ * The device list alone, without asking any device anything (`info` is there only for players
+ * identified before). Cheap enough to poll; `identifyDevice` fills the rest in.
+ */
+export const listDevicesQuick = () => call<DeviceView[]>('adb_devices_quick');
+
+/** Identifies one player; the backend keeps the answer until the player disconnects. */
+export const identifyDevice = (serial: string) => call<DeviceInfo>('adb_identify', { serial });
+
+/** Stops and starts the adb server again. */
+export const restartAdbServer = () => call<null>('adb_restart_server');
+
 export const backupDevice = (serial: string, onProgress: OnProgress) =>
   callWithProgress<BackupReport>('adb_backup', { serial }, onProgress);
 

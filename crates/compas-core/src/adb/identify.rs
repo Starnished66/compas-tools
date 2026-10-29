@@ -1,8 +1,10 @@
 //! Which player is on the other end of the cable, and what runs on it.
 
+use std::collections::HashMap;
+
 use serde::Serialize;
 
-use super::{Adb, AdbDevice, SD_ROOT};
+use super::{Adb, AdbDevice};
 use crate::card::{Device, Model};
 use crate::error::Result;
 
@@ -95,7 +97,9 @@ pub(super) fn firmware_from_processes(ps: &str) -> Firmware {
 }
 
 /// The running player program from the `ps` output; the firmware installs it as
-/// `/usr/bin/compas_player`, a player-only install may put it elsewhere.
+/// `/usr/bin/compas_player`, a player-only install may put it elsewhere. The device script
+/// ([`SCRIPT`]) applies the same rule on the player; this is the reference the tests hold it to.
+#[cfg(test)]
 pub(super) fn player_binary(ps: &str) -> String {
     const DEFAULT: &str = "/usr/bin/compas_player";
     ps.split_whitespace()
@@ -109,99 +113,106 @@ pub(super) fn player_binary(ps: &str) -> String {
         .to_string()
 }
 
-/// The version label baked into the program: exactly one `vX.Y.Z` string in it. A development
-/// build, several versions, no program or any adb error mean it is not known (never guessed).
-async fn version_from_binary(adb: &Adb, serial: &str, binary: &str) -> Option<String> {
-    let out = adb
-        .shell(
-            serial,
-            &format!(
-                "if [ -r {binary} ]; then grep -a -o 'v[0-9][0-9]*\\.[0-9][0-9]*\\.[0-9][0-9]*' {binary} | sort -u; fi"
-            ),
-        )
-        .await
-        .ok()?;
-    let mut found = out.lines().map(str::trim).filter(|l| !l.is_empty());
-    match (found.next(), found.next()) {
-        (Some(version), None) => Some(version.to_string()),
+/// Everything [`identify`] needs, read with a single `adb shell` (each adb call costs a round
+/// trip over USB, and the player's shell starts slowly). The answer is cut into sections by
+/// lines starting with `@@` (`m` prints one after a line break, so output without a final newline cannot hide it). The program is read only for a Compás firmware, with one `grep`
+/// for both the `vX.Y.Z` label and the board marker.
+const SCRIPT: &str = r#"m() { printf '\n@@%s\n' "$1"; }
+m size
+cat /sys/class/graphics/fb0/virtual_size 2>/dev/null
+m ps
+P=$(ps 2>/dev/null)
+echo "$P"
+m device
+cat /data/mnt/sd_0/.compas/device.json 2>/dev/null
+m mounted
+if grep -q 'mnt/sd_0 ' /proc/mounts 2>/dev/null; then echo mounted; fi
+m program
+L=$(echo "$P" | tr 'A-Z' 'a-z')
+case "$L" in
+*compas_player*|*compas_boot*)
+  B=/usr/bin/compas_player
+  set -f
+  for w in $P; do
+    case "$w" in
+      *[!A-Za-z0-9/._-]*) ;;
+      /*compas_player) B=$w; break ;;
+    esac
+  done
+  if [ -r "$B" ]; then
+    grep -a -o -e 'v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*' -e 'COMPAS_PLAYER_BOARD:[a-z0-9_]*' "$B" | sort -u
+  fi
+  ;;
+esac
+"#;
+
+/// The sections of [`SCRIPT`]'s output by name; text before the first marker is dropped.
+fn sections(output: &str) -> HashMap<&str, String> {
+    let mut found: HashMap<&str, String> = HashMap::new();
+    let mut current: Option<&str> = None;
+    for line in output.lines() {
+        if let Some(name) = line.trim_end().strip_prefix("@@") {
+            current = Some(name);
+            found.entry(name).or_default();
+        } else if let Some(name) = current {
+            let text = found.entry(name).or_default();
+            text.push_str(line);
+            text.push('\n');
+        }
+    }
+    found
+}
+
+/// The single value of a kind in the program's `grep` output; none or several mean unknown.
+fn only<'a>(lines: impl Iterator<Item = &'a str>) -> Option<&'a str> {
+    let mut lines = lines.filter(|l| !l.is_empty());
+    match (lines.next(), lines.next()) {
+        (Some(one), None) => Some(one),
         _ => None,
     }
 }
 
-/// The board id compiled into every Compás program as `COMPAS_PLAYER_BOARD:<board>`.
-/// `None` when it cannot be read or names a board this app does not know.
-async fn board_from_binary(adb: &Adb, serial: &str, binary: &str) -> Option<Model> {
-    let out = adb
-        .shell(
-            serial,
-            &format!(
-                "if [ -r {binary} ]; then grep -a -o 'COMPAS_PLAYER_BOARD:[a-z0-9_]*' {binary} | sort -u; fi"
-            ),
-        )
-        .await
-        .ok()?;
-    let mut found = out
-        .lines()
-        .filter_map(|l| l.trim().strip_prefix("COMPAS_PLAYER_BOARD:"))
-        .filter(|b| !b.is_empty());
-    match (found.next(), found.next()) {
-        (Some(board), None) => Model::from_board(board),
-        _ => None,
-    }
-}
-
-/// Whether the SD card is mounted: updates are staged on it. `/proc/mounts` names it
-/// `/usr/data/mnt/sd_0` (and `/data/mnt/sd_0` is the same place).
-async fn sd_is_mounted(adb: &Adb, serial: &str) -> bool {
-    adb.shell(
-        serial,
-        "if grep -q 'mnt/sd_0 ' /proc/mounts; then echo mounted; fi",
-    )
-    .await
-    .is_ok_and(|out| out.trim() == "mounted")
-}
-
-pub async fn identify(adb: &Adb, serial: &str) -> Result<DeviceInfo> {
-    let size = adb
-        .shell(
-            serial,
-            "cat /sys/class/graphics/fb0/virtual_size 2>/dev/null",
-        )
-        .await
-        .unwrap_or_default();
-    let processes = adb.shell(serial, "ps").await.unwrap_or_default();
-    let device_json = adb
-        .shell(
-            serial,
-            &format!("cat {SD_ROOT}/.compas/device.json 2>/dev/null"),
-        )
-        .await
-        .unwrap_or_default();
-    let device: Option<Device> = serde_json::from_str(device_json.trim()).ok();
-
-    let firmware = firmware_from_processes(&processes);
+/// Reads the answer of [`SCRIPT`]. An empty or garbled answer gives an unknown player.
+pub(super) fn parse_identify(serial: &str, output: &str) -> DeviceInfo {
+    let sections = sections(output);
+    let text = |name: &str| sections.get(name).map_or("", String::as_str);
+    let device: Option<Device> = serde_json::from_str(text("device").trim()).ok();
+    let firmware = firmware_from_processes(text("ps"));
+    let program = || text("program").lines().map(str::trim);
     // The version comes from the running program itself, not from a file on the card.
     let (player_version, marker_board) = if firmware == Firmware::Compas {
-        let binary = player_binary(&processes);
-        (
-            version_from_binary(adb, serial, &binary).await,
-            board_from_binary(adb, serial, &binary).await,
-        )
+        let version = only(program().filter(|l| l.starts_with('v'))).map(str::to_string);
+        let board = only(program().filter_map(|l| l.strip_prefix("COMPAS_PLAYER_BOARD:")))
+            .and_then(Model::from_board);
+        (version, board)
     } else {
         (None, None)
     };
-    let sd_mounted = sd_is_mounted(adb, serial).await;
-
-    Ok(DeviceInfo {
+    DeviceInfo {
         serial: serial.to_string(),
         // A Compás program names its own board; otherwise the screen size. The card's
         // device.json is never used: a card moved between players describes another one.
-        board: marker_board.or_else(|| board_from_size(&size)),
+        board: marker_board.or_else(|| board_from_size(text("size"))),
         firmware,
         player_version,
         plugin_api: device.as_ref().map(|d| d.plugin_api),
-        sd_mounted,
-    })
+        sd_mounted: text("mounted").trim() == "mounted",
+    }
+}
+
+/// Identifies the player; when the shell does not answer the result is an unknown player.
+pub async fn identify(adb: &Adb, serial: &str) -> Result<DeviceInfo> {
+    // The install path waits as long as it always did.
+    let output = adb.shell(serial, SCRIPT).await;
+    Ok(parse_identify(serial, &output.unwrap_or_default()))
+}
+
+/// Like [`identify`], but for the background look: a shell that does not answer within a
+/// few seconds is an error, so the caller can try again later instead of keeping an unknown
+/// player.
+pub async fn try_identify(adb: &Adb, serial: &str) -> Result<DeviceInfo> {
+    let output = adb.shell_for_identify(serial, SCRIPT).await?;
+    Ok(parse_identify(serial, &output))
 }
 
 #[cfg(test)]

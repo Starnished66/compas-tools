@@ -14,7 +14,11 @@ function HowToSwitch() {
     <details>
       <summary>{t('How to switch')}</summary>
       <ol className="steps">
-        <li>{t('On the player, turn ADB off: Settings ▸ Developer Options ▸ ADB.')}</li>
+        <li>
+          {t(
+            'On the player, turn ADB off: Settings ▸ System ▸ Developer Options ▸ ADB (on v1.3.0 and earlier: Settings ▸ System ▸ About ▸ Developer Options ▸ ADB).',
+          )}
+        </li>
         <li>{t('Then choose Settings ▸ System ▸ USB Mode ▸ Storage.')}</li>
         <li>{t('Unplug and plug in the USB cable, then press Scan again.')}</li>
       </ol>
@@ -28,8 +32,9 @@ function HowToSwitch() {
  */
 export function StorageGate({ need, children }: { need: StorageNeed; children: ReactNode }) {
   const { card } = useCard();
-  const { adbPlayers, cards } = useMode();
-  if (card) return <>{children}</>;
+  const { adbPlayers, cards, cardMissing } = useMode();
+  // A selected drive that is no longer there counts as no drive: the scan clears it shortly.
+  if (card && !cardMissing) return <>{children}</>;
   if (adbPlayers.length > 0 && cards.length === 0) {
     return (
       <Notice tone="info">

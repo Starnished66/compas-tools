@@ -11,6 +11,8 @@ interface CardContextValue {
   select: (path: string) => Promise<void>;
   refresh: () => Promise<void>;
   clear: () => Promise<void>;
+  /** The backend has already deselected the player; drop it here too. */
+  forget: (root: string) => void;
 }
 
 const CardContext = createContext<CardContextValue | null>(null);
@@ -29,6 +31,10 @@ export function CardProvider({ children }: { children: ReactNode }) {
     await clearCard();
     setCard(null);
   }, []);
+  const forget = useCallback((root: string) => {
+    // A card chosen meanwhile stays.
+    setCard((now) => (now?.root === root ? null : now));
+  }, []);
   const chooseModel = useCallback(
     (model: Model) => {
       if (card) setChosen({ root: card.root, model });
@@ -38,8 +44,8 @@ export function CardProvider({ children }: { children: ReactNode }) {
 
   const model = card?.device?.model ?? (chosen && chosen.root === card?.root ? chosen.model : null);
   const value = useMemo(
-    () => ({ card, model, chooseModel, select, refresh, clear }),
-    [card, model, chooseModel, select, refresh, clear],
+    () => ({ card, model, chooseModel, select, refresh, clear, forget }),
+    [card, model, chooseModel, select, refresh, clear, forget],
   );
   return <CardContext.Provider value={value}>{children}</CardContext.Provider>;
 }

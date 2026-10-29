@@ -1,6 +1,7 @@
 import { open } from '@tauri-apps/plugin-dialog';
 import { useState } from 'react';
 
+import { restartAdbServer } from '../api/adb';
 import { errorMessage } from '../api/invoke';
 import { t } from '../i18n';
 import { CardList } from '../screens/library/CardList';
@@ -12,8 +13,9 @@ import { ErrorBanner } from './ErrorBanner';
 /** Finds a player that shows up as a drive: the list, Scan again and the folder picker. */
 export function FindPlayer() {
   const { card, select } = useCard();
-  const { cards, scanning, rescan } = useMode();
+  const { cards, scanning, rescan, adbError } = useMode();
   const [error, setError] = useState<string | null>(null);
+  const [restarting, setRestarting] = useState(false);
 
   const guard = async (task: () => Promise<void>) => {
     setError(null);
@@ -23,6 +25,16 @@ export function FindPlayer() {
       setError(errorMessage(failure));
     }
   };
+  const restartAdb = () =>
+    guard(async () => {
+      setRestarting(true);
+      try {
+        await restartAdbServer();
+      } finally {
+        setRestarting(false);
+      }
+      await rescan();
+    });
   const chooseFolder = () =>
     guard(async () => {
       const folder = await open({
@@ -42,6 +54,20 @@ export function FindPlayer() {
           {t('Choose folder…')}
         </Button>
       </div>
+      {adbError && (
+        <>
+          <ErrorBanner message={adbError} />
+          <div className="row">
+            <Button
+              icon="refresh"
+              onClick={() => void restartAdb()}
+              disabled={scanning || restarting}
+            >
+              {t('Restart adb')}
+            </Button>
+          </div>
+        </>
+      )}
       {error && (
         <ErrorBanner
           message={error}

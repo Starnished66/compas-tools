@@ -9,6 +9,7 @@ import { ProgressBar } from '../../components/ProgressBar';
 import { t } from '../../i18n';
 import { useCard } from '../../state/CardContext';
 import { useCatalog } from '../../state/CatalogContext';
+import { useMode } from '../../state/ModeContext';
 import { categoriesOf, countUpdates, inView, matches, type CatalogView as View } from './filters';
 import { PluginCard } from './PluginCard';
 import { PluginDetails } from './PluginDetails';
@@ -21,6 +22,7 @@ interface Props {
 
 export function CatalogView({ view }: Props) {
   const { card } = useCard();
+  const { cardMissing } = useMode();
   const { entries, loading, error, recordDamaged, load, actions } = useCatalog();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
@@ -39,7 +41,7 @@ export function CatalogView({ view }: Props) {
   const selected = entries.find((e) => e.id === selectedId) ?? null;
   const title = { plugins: t('Plugins'), layouts: t('Layouts'), themes: t('Themes') }[view];
 
-  if (!card) {
+  if (!card || cardMissing) {
     return (
       <section className="screen">
         <h1>{title}</h1>

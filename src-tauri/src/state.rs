@@ -41,6 +41,17 @@ impl AppState {
         lock(&self.card).clone()
     }
 
+    /// Deselects the card only if it is still the one at `root`; true when it did.
+    pub fn clear_card_if(&self, root: &std::path::Path) -> bool {
+        let mut card = lock(&self.card);
+        if card.as_ref().is_some_and(|c| c.root() == root) {
+            *card = None;
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn set_card(&self, card: Option<Card>) {
         *lock(&self.card) = card;
     }

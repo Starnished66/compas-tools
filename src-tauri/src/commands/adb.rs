@@ -1,5 +1,9 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use std::time::{Duration, Instant};
+
+use adb::Firmware;
 
 use serde::Serialize;
 use tauri::ipc::Channel;
@@ -54,6 +58,30 @@ fn adb(app: &AppHandle) -> CommandResult<Adb> {
         .ok_or_else(|| CommandError::new("no_adb", "adb is not installed yet."))
 }
 
+fn locked<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// What was learned about each connected player, until it disconnects.
+fn identified() -> &'static Mutex<HashMap<String, DeviceInfo>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, DeviceInfo>>> = OnceLock::new();
+    CACHE.get_or_init(Mutex::default)
+}
+
+/// When and how often asking a player who it is has failed, per serial: a player whose shell
+/// does not answer is not asked on every look.
+fn failed_asks() -> &'static Mutex<HashMap<String, (u32, Instant)>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, (u32, Instant)>>> = OnceLock::new();
+    CACHE.get_or_init(Mutex::default)
+}
+
+/// Wait before asking again after `failures` failed attempts: 5 s, 10 s, ... up to a minute.
+fn ask_backoff(failures: u32) -> Duration {
+    Duration::from_secs((5u64 << failures.saturating_sub(1).min(4)).min(60))
+}
+
 async fn status(app: &AppHandle) -> CommandResult<ToolsStatus> {
     let located = adb::locate(&dir(app, "data")?);
     let version = match &located {
@@ -101,7 +129,12 @@ pub async fn adb_devices(app: AppHandle) -> CommandResult<Vec<DeviceView>> {
     for device in adb.devices().await? {
         let likely_player = device.looks_like_player();
         let info = if device.state == "device" && likely_player {
-            adb::identify(&adb, &device.serial).await.ok()
+            let info = adb::identify(&adb, &device.serial).await.ok();
+            if let Some(info) = &info {
+                // Keeps the quick listing in step with what this full look found.
+                locked(identified()).insert(device.serial.clone(), info.clone());
+            }
+            info
         } else {
             None
         };
@@ -115,6 +148,93 @@ pub async fn adb_devices(app: AppHandle) -> CommandResult<Vec<DeviceView>> {
         });
     }
     Ok(views)
+}
+
+fn view(device: adb::AdbDevice, info: Option<DeviceInfo>) -> DeviceView {
+    DeviceView {
+        likely_player: device.looks_like_player(),
+        serial: device.serial,
+        state: device.state,
+        product: device.product,
+        model: device.model,
+        info,
+    }
+}
+
+/// The device list straight from `adb devices`, without asking any device anything: players
+/// already identified carry what was learned, the others `info: None` until `adb_identify`
+/// answers. Cheap enough to poll. Forgets players that are no longer online.
+#[tauri::command]
+pub async fn adb_devices_quick(app: AppHandle) -> CommandResult<Vec<DeviceView>> {
+    let devices = adb(&app)?.devices_quick().await?;
+    let online = |serial: &String| {
+        devices
+            .iter()
+            .any(|d| d.state == "device" && &d.serial == serial)
+    };
+    locked(failed_asks()).retain(|serial, _| online(serial));
+    let mut known = locked(identified());
+    known.retain(|serial, _| online(serial));
+    Ok(devices
+        .into_iter()
+        .map(|d| {
+            let info = known.get(&d.serial).cloned();
+            view(d, info)
+        })
+        .collect())
+}
+
+/// Identifies one player, once per connection: the answer is kept until `adb_devices_quick`
+/// sees it go. A failed attempt is not kept.
+#[tauri::command]
+pub async fn adb_identify(app: AppHandle, serial: String) -> CommandResult<DeviceInfo> {
+    if let Some(info) = locked(identified()).get(&serial) {
+        return Ok(info.clone());
+    }
+    if let Some((failures, at)) = locked(failed_asks()).get(&serial) {
+        if at.elapsed() < ask_backoff(*failures) {
+            return Err(CommandError::new(
+                "adb",
+                "The player did not answer; asking again shortly.",
+            ));
+        }
+    }
+    match adb::try_identify(&adb(&app)?, &serial).await {
+        Ok(info) => {
+            if info.firmware == Firmware::Unknown {
+                // Still starting up, or a firmware that shows no known program: not kept, and
+                // asked again only after a growing wait, not on every look.
+                let mut asks = locked(failed_asks());
+                let failures = asks.get(&serial).map_or(0, |(n, _)| *n);
+                asks.insert(serial, (failures.saturating_add(1), Instant::now()));
+            } else {
+                locked(failed_asks()).remove(&serial);
+                locked(identified()).insert(serial, info.clone());
+            }
+            Ok(info)
+        }
+        Err(failure) => {
+            let mut asks = locked(failed_asks());
+            let failures = asks.get(&serial).map_or(0, |(n, _)| *n);
+            asks.insert(serial, (failures.saturating_add(1), Instant::now()));
+            Err(failure.into())
+        }
+    }
+}
+
+/// Restarts the adb server, only because the user pressed the button: it also drops whatever
+/// else uses the server (a shell, scrcpy, forwards), and it must not cut an install or backup.
+#[tauri::command]
+pub async fn adb_restart_server(app: AppHandle, state: State<'_, AppState>) -> CommandResult<()> {
+    let _busy = state.try_busy().map_err(|_| {
+        CommandError::new(
+            "busy",
+            "An install or backup is running. Restart adb when it has finished.",
+        )
+    })?;
+    locked(identified()).clear();
+    locked(failed_asks()).clear();
+    Ok(adb(&app)?.restart_server().await?)
 }
 
 /// Looks at a device that did not look like the player, because the user said to.
@@ -172,10 +292,14 @@ pub async fn adb_install(
     };
     let progress = reporter(on_progress);
     let adb = adb(&app)?;
-    Ok(match kind {
-        Kind::FullImage => adb::install_full_image(&adb, &serial, &request, &progress).await?,
-        Kind::PlayerOnly => adb::install_player_only(&adb, &serial, &request, &progress).await?,
-    })
+    // What was learned about the player is out of date once an install starts.
+    locked(identified()).clear();
+    let report = match kind {
+        Kind::FullImage => adb::install_full_image(&adb, &serial, &request, &progress).await,
+        Kind::PlayerOnly => adb::install_player_only(&adb, &serial, &request, &progress).await,
+    };
+    locked(identified()).clear();
+    Ok(report?)
 }
 
 /// Collects and masks the logs; the result is kept so saving writes exactly what was shown.

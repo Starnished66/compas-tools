@@ -21,7 +21,7 @@ use crate::error::{Error, Result};
 
 pub use backup::{backup_user_data, BackupQuality, BackupReport, SkipReason, Skipped};
 pub use forward::PLAYER_PORT;
-pub use identify::{identify, DeviceInfo, Firmware};
+pub use identify::{identify, try_identify, DeviceInfo, Firmware};
 pub use install::{
     install_full_image, install_player_only, remove_staged_image, InstallReport, InstallRequest,
     WaitOptions,
@@ -39,6 +39,12 @@ pub const SD_ROOT: &str = "/data/mnt/sd_0";
 pub const USER_DATA: &str = "/usr/data";
 
 const SHORT: Duration = Duration::from_secs(60);
+/// Looking for a player (`adb devices`, `adb version`) must answer fast; a stuck adb server is
+/// reported instead of leaving the screen waiting for a minute.
+const DETECT: Duration = Duration::from_secs(5);
+/// The one script that identifies a player reads its program with `grep`, which a slow player
+/// needs a few seconds for; still far below [`SHORT`].
+const IDENTIFY: Duration = Duration::from_secs(20);
 const LONG: Duration = Duration::from_secs(60 * 30);
 
 /// One line of `adb devices`.
@@ -119,15 +125,37 @@ impl Adb {
         self.run(&["version"], SHORT).await
     }
 
+    /// Stops and starts the adb server again; a wedged server is the usual reason a player
+    /// that is plugged in does not show up. It also drops whatever else uses the server, so
+    /// only the user asks for it.
+    pub async fn restart_server(&self) -> Result<()> {
+        // `kill-server` fails when no server runs; that is the state we want anyway.
+        let _ = self.run(&["kill-server"], DETECT).await;
+        // A cold start of the server can take a while; it is not an error.
+        self.run(&["start-server"], SHORT).await.map(drop)
+    }
+
     pub async fn devices(&self) -> Result<Vec<AdbDevice>> {
         Ok(identify::parse_devices(
             &self.run(&["devices", "-l"], SHORT).await?,
         ))
     }
 
+    /// [`Adb::devices`] for polling: a stuck adb server is reported after a few seconds.
+    pub async fn devices_quick(&self) -> Result<Vec<AdbDevice>> {
+        Ok(identify::parse_devices(
+            &self.run(&["devices", "-l"], DETECT).await?,
+        ))
+    }
+
     /// Runs a command on the device and returns what it printed.
     pub async fn shell(&self, serial: &str, command: &str) -> Result<String> {
         self.run(&["-s", serial, "shell", command], SHORT).await
+    }
+
+    /// A shell command that may take a few seconds (see [`IDENTIFY`]).
+    pub(super) async fn shell_for_identify(&self, serial: &str, command: &str) -> Result<String> {
+        self.run(&["-s", serial, "shell", command], IDENTIFY).await
     }
 
     /// A command's raw output, safe for binary data (`exec-out` does not translate line ends).

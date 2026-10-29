@@ -19,7 +19,11 @@ export function SetupGuide({ platform }: { platform: string }) {
         </ol>
         <h3>{t('Compás')}</h3>
         <ol className="steps">
-          <li>{t('Open Settings > System > About > Developer Options.')}</li>
+          <li>
+            {t(
+              'Open Settings > System > Developer Options (on v1.3.0 and earlier: Settings > System > About > Developer Options).',
+            )}
+          </li>
           <li>{t('Turn on ADB, then connect the USB cable.')}</li>
         </ol>
         <p>
