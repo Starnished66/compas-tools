@@ -50,9 +50,10 @@ impl Model {
         }
     }
 
-    /// The board name the library tool accepts for album art. Its caches (a 72 px thumbnail
-    /// and a 480 px cover) are the same on every board, and the player's V1 build uses the
-    /// same sizes, so the tool's closest known board stands in for the V1.
+    /// The board name the library tool accepts for album art. This selects the reported
+    /// board only; sdtool's current build writes 80 px thumbnails and 480 px covers.
+    /// The player uses 80 px thumbnails on R1/R3 Pro II, 53 px on R3 II 2025 and
+    /// 40 px on V1. The r1 alias for V1 does not select its thumbnail size.
     pub fn art_board(self) -> &'static str {
         match self {
             Model::TempotecV1 => "r1",

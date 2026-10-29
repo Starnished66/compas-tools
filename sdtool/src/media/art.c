@@ -12,11 +12,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Builds the album cover caches the player's warmer builds: a 72 px thumbnail
- * and a 480 px player cover per album, from a cover file beside the music or
- * else a track's embedded picture, with the player's keys, BMP format and
- * source-mtime rule (albumart.c). The caches do not depend on the board, so
- * --board is validated and reported but changes nothing written. */
+/* Builds album cover caches using the player's warmer code: a build-time
+ * ALBUMART_THUMBNAIL_SIZE thumbnail (80 px with the current sdtool flags) and
+ * a 480 px player cover per album, from a cover file beside the music or else
+ * a track's embedded picture, with the player's keys, BMP format and
+ * source-mtime rule (albumart.c). --board is validated and reported but does
+ * not select the thumbnail size. The player's smaller boards use 53 or 40 px. */
 
 typedef struct {
     long albums;
