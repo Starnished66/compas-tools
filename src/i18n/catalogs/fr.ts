@@ -344,7 +344,6 @@ export const fr: Record<string, TranslationValue> = {
   "The player is busy. Wait a moment and try again; the list was reloaded in case the change went through.": "Le lecteur est occupé. Patientez un instant et réessayez ; la liste a été rechargée au cas où la modification serait passée.",
   "The player is applying another change. Try again in a moment.": "Le lecteur applique une autre modification. Réessayez dans un instant.",
   "The player is already updating its music database.": "Le lecteur met déjà à jour sa base de données musicale.",
-  "The player does not allow changes from this connection.": "Le lecteur n’autorise pas les modifications depuis cette connexion.",
   "The player did not accept the change.": "Le lecteur n’a pas accepté la modification.",
   "{name}: the value must be between {min} and {max}.": "{name} : la valeur doit être comprise entre {min} et {max}.",
   "{name} needs another setting to be on first.": "{name} nécessite qu’un autre réglage soit d’abord activé.",

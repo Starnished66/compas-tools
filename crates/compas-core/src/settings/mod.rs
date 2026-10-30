@@ -1,7 +1,6 @@
 //! Changing a player's settings from the computer over ADB. The same HTTP API the phone app uses,
 //! reached through `adb forward` (see [`crate::adb::Adb::forward`]); `settings.txt` is never touched.
-//! A request from loopback does not need the player's "Allow remote settings changes" switch, but
-//! it still needs the Remote Control PIN, which is kept in memory only.
+//! Every write needs the Remote Control PIN, which is kept in memory only.
 
 mod client;
 mod model;

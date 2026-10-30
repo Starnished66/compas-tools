@@ -344,7 +344,6 @@ export const ru: Record<string, TranslationValue> = {
   "The player is busy. Wait a moment and try again; the list was reloaded in case the change went through.": "Плеер занят. Подождите немного и повторите; список перечитан на случай, если изменение всё же применилось.",
   "The player is applying another change. Try again in a moment.": "Плеер применяет другое изменение. Повторите через минуту.",
   "The player is already updating its music database.": "Плеер уже обновляет свою музыкальную базу данных.",
-  "The player does not allow changes from this connection.": "Плеер не разрешает изменения по этому соединению.",
   "The player did not accept the change.": "Плеер не принял изменение.",
   "{name}: the value must be between {min} and {max}.": "{name}: значение должно быть от {min} до {max}.",
   "{name} needs another setting to be on first.": "Для {name} сначала нужно включить другую настройку.",

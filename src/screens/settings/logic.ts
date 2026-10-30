@@ -135,8 +135,6 @@ export function refusalMessage(refusal: Refusal, schema: SettingsSchema): string
       return t('The player is applying another change. Try again in a moment.');
     case 'rescan_running':
       return t('The player is already updating its music database.');
-    case 'remote_changes_disabled':
-      return t('The player does not allow changes from this connection.');
     case 'validation_failed': {
       const first = refusal.errors?.[0];
       if (!first) return t('The player did not accept the change.');
