@@ -11,6 +11,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   PLAYER_REPO: Starnished66/compas-player
   # The compas-player commit compas-sdtool is built against. Move it to a release tag once there is one.
@@ -38,8 +41,11 @@ jobs:
           - { name: macos-arm64, os: macos-14, triple: aarch64-apple-darwin, dir: sdtool }
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          persist-credentials: false
           repository: ${{ env.PLAYER_REPO }}
           ref: ${{ env.PLAYER_REF }}
           path: player
@@ -104,8 +110,11 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          persist-credentials: false
           repository: ${{ env.PLAYER_REPO }}
           ref: ${{ env.PLAYER_REF }}
           path: player
@@ -148,6 +157,8 @@ jobs:
               target/release/bundle/msi/*.msi.sig
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
@@ -347,6 +358,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
