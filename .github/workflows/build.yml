@@ -366,7 +366,7 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: compas-tools-*
-          path: installers
+          path: downloaded-installers
           merge-multiple: true
       - name: Create the draft release
         env:
@@ -374,6 +374,11 @@ jobs:
           TAG: ${{ github.ref_name }}
           MACOS_NOTARIZED: ${{ secrets.APPLE_ID != '' }}
         run: |
+          # GitHub's merged artifact output preserves some per-runner subdirectories, and release
+          # uploads require safe ASCII names. Preflight, rename, and flatten before manifesting.
+          python3 scripts/stage-release-assets.py \
+            --input downloaded-installers \
+            --output installers
           # Every platform artifact (including signatures) is required before manifest generation.
           mapfile -t files < <(find installers -type f)
           python3 scripts/create-updater-manifest.py \
