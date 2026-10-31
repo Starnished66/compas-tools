@@ -141,7 +141,7 @@ jobs:
             signatures: target/release/bundle/appimage/*.AppImage.sig
           - name: macos
             os: macos-14
-            build: npx tauri build --target aarch64-apple-darwin --bundles dmg
+            build: npx tauri build --target aarch64-apple-darwin --bundles app,dmg
             bundles: |
               target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
               target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz

@@ -27,7 +27,7 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "targets": ["appimage", "dmg", "nsis", "msi"],
+    "targets": ["appimage", "app", "dmg", "nsis", "msi"],
     "category": "Utility",
     "externalBin": ["binaries/compas-sdtool"],
     "resources": {
