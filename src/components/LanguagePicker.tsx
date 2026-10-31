@@ -7,6 +7,14 @@ const NAMES: { value: LanguagePreference; label: string }[] = [
   { value: 'fr', label: 'Français' },
   { value: 'it', label: 'Italiano' },
   { value: 'ru', label: 'Русский' },
+  { value: 'fi', label: 'Suomi' },
+  { value: 'ja', label: '日本語' },
+  { value: 'nl', label: 'Nederlands' },
+  { value: 'pt_BR', label: 'Português (Brasil)' },
+  { value: 'pt_PT', label: 'Português (Portugal)' },
+  { value: 'uk', label: 'Українська' },
+  { value: 'vi', label: 'Tiếng Việt' },
+  { value: 'zh_CN', label: '简体中文' },
 ];
 
 /** Language names stay in their own language so anyone can find theirs. */

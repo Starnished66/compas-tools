@@ -6,11 +6,29 @@ import { resolveLanguage, translate, type TranslationVariables } from './transla
 export type LanguagePreference = Language | 'system';
 
 const STORAGE_KEY = 'compas_tools.language';
-const LANGUAGES: readonly Language[] = ['en', 'es', 'de', 'fr', 'it', 'ru'];
+const LANGUAGES: readonly Language[] = [
+  'en',
+  'es',
+  'de',
+  'fr',
+  'it',
+  'ru',
+  'fi',
+  'ja',
+  'nl',
+  'pt_BR',
+  'pt_PT',
+  'uk',
+  'vi',
+  'zh_CN',
+];
 
 function readPreference(): LanguagePreference {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'pt-BR') return 'pt_BR';
+    if (stored === 'pt-PT') return 'pt_PT';
+    if (stored === 'zh-CN') return 'zh_CN';
     return LANGUAGES.includes(stored as Language) ? (stored as Language) : 'system';
   } catch {
     return 'system';
@@ -24,7 +42,7 @@ function current(): Language {
   return resolveLanguage(preference, navigator.language);
 }
 
-document.documentElement.lang = current();
+document.documentElement.lang = current().replace('_', '-');
 
 /** Translates a static English source string. Every UI string goes through here. */
 export function t(source: string, variables?: TranslationVariables): string {
@@ -39,7 +57,7 @@ export function setLanguagePreference(next: LanguagePreference): void {
   } catch {
     // The choice then lasts until the app closes.
   }
-  document.documentElement.lang = current();
+  document.documentElement.lang = current().replace('_', '-');
   listeners.forEach((listener) => {
     listener();
   });

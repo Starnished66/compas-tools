@@ -208,6 +208,7 @@ jobs:
         shell: bash
         run: |
           npm run typecheck
+          npm run check:translations
           npm run lint
           scripts/check-file-length.sh
           cargo clippy --workspace -- -D warnings

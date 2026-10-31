@@ -1,17 +1,18 @@
-// Shared verbatim with compas-app (src/i18n/translate.ts); change both together.
+// Shared between Compás App and Compás Tools; keep translation rules in sync.
 import { catalogs, Language, TranslationValue } from './catalogs';
 
 export type TranslationVariables = Record<string, string | number> & { count?: number };
 
 export function normalizeLanguageTag(tag?: string | null): Language {
-  const language = tag?.trim().replace('_', '-').split('-')[0]?.toLowerCase();
-  return language === 'es' ||
-    language === 'de' ||
-    language === 'fr' ||
-    language === 'it' ||
-    language === 'ru'
+  const normalized = tag?.trim().replaceAll('_', '-').toLowerCase();
+  if (!normalized) return 'en';
+  const parts = normalized.split('-');
+  const language = parts[0];
+  if (language === 'pt') return parts.slice(1).includes('pt') ? 'pt_PT' : 'pt_BR';
+  if (language === 'zh') return 'zh_CN';
+  return (['es', 'de', 'fr', 'it', 'ru', 'fi', 'ja', 'nl', 'uk', 'vi'].includes(language ?? '')
     ? language
-    : 'en';
+    : 'en') as Language;
 }
 
 export function resolveLanguage(
@@ -22,24 +23,17 @@ export function resolveLanguage(
 }
 
 /**
- * Return the small subset of CLDR cardinal rules needed by our six supported
+ * Return the subset of CLDR cardinal rules needed by our supported
  * locales, without depending on Intl.PluralRules.
  */
-function pluralCategory(language: Language, count: number): 'one' | 'few' | 'many' | 'other' {
+export function pluralCategory(language: Language, count: number): 'one' | 'few' | 'many' | 'other' {
   if (!Number.isFinite(count)) return 'other';
   const absolute = Math.abs(count);
 
-  if (
-    (language === 'es' || language === 'fr' || language === 'it') &&
-    absolute !== 0 &&
-    Number.isInteger(absolute) &&
-    absolute % 1_000_000 === 0
-  ) {
-    return 'many';
-  }
-  if (language === 'fr') return Math.floor(absolute) <= 1 ? 'one' : 'other';
-  if (language === 'ru') {
-    // Russian uses the integer part only when there are no visible fraction digits.
+  if (['es', 'fr', 'it', 'pt_BR', 'pt_PT'].includes(language) &&
+      absolute !== 0 && Number.isInteger(absolute) && absolute % 1_000_000 === 0) return 'many';
+  if (language === 'fr' || language === 'pt_BR') return Math.floor(absolute) <= 1 ? 'one' : 'other';
+  if (language === 'ru' || language === 'uk') {
     if (!Number.isInteger(absolute)) return 'other';
     const mod10 = absolute % 10;
     const mod100 = absolute % 100;
@@ -48,6 +42,7 @@ function pluralCategory(language: Language, count: number): 'one' | 'few' | 'man
     if (mod10 === 0 || (mod10 >= 5 && mod10 <= 9) || (mod100 >= 11 && mod100 <= 14)) return 'many';
     return 'other';
   }
+  if (language === 'ja' || language === 'zh_CN' || language === 'vi') return 'other';
 
   return absolute === 1 ? 'one' : 'other';
 }

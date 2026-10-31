@@ -3,8 +3,30 @@ import { es } from './catalogs/es';
 import { fr } from './catalogs/fr';
 import { it } from './catalogs/it';
 import { ru } from './catalogs/ru';
+import { fi } from './catalogs/fi';
+import { ja } from './catalogs/ja';
+import { nl } from './catalogs/nl';
+import { pt_BR } from './catalogs/pt_BR';
+import { pt_PT } from './catalogs/pt_PT';
+import { uk } from './catalogs/uk';
+import { vi } from './catalogs/vi';
+import { zh_CN } from './catalogs/zh_CN';
 
-export type Language = 'en' | 'es' | 'de' | 'fr' | 'it' | 'ru';
+export type Language =
+  | 'en'
+  | 'es'
+  | 'de'
+  | 'fr'
+  | 'it'
+  | 'ru'
+  | 'fi'
+  | 'ja'
+  | 'nl'
+  | 'pt_BR'
+  | 'pt_PT'
+  | 'uk'
+  | 'vi'
+  | 'zh_CN';
 
 export type TranslationValue = string | Partial<Record<Intl.LDMLPluralRule, string>>;
 
@@ -88,4 +110,12 @@ export const catalogs: Record<Language, Record<string, TranslationValue>> = {
   fr,
   it,
   ru,
+  fi,
+  ja,
+  nl,
+  pt_BR,
+  pt_PT,
+  uk,
+  vi,
+  zh_CN,
 };
