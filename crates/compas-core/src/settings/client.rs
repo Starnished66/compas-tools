@@ -64,7 +64,7 @@ impl Player {
         })
     }
 
-    async fn send(
+    pub(super) async fn send(
         &self,
         method: Method,
         path: &str,
@@ -91,11 +91,23 @@ impl Player {
                 url: path.to_string(),
             });
         }
-        let bytes = response.bytes().await?;
-        if bytes.len() > BODY_LIMIT {
+        if response
+            .content_length()
+            .is_some_and(|length| length > BODY_LIMIT as u64)
+        {
             return Err(Error::Rejected(
                 "The player sent an answer that is too large.".into(),
             ));
+        }
+        let mut response = response;
+        let mut bytes = Vec::new();
+        while let Some(chunk) = response.chunk().await? {
+            if bytes.len().saturating_add(chunk.len()) > BODY_LIMIT {
+                return Err(Error::Rejected(
+                    "The player sent an answer that is too large.".into(),
+                ));
+            }
+            bytes.extend_from_slice(&chunk);
         }
         // An empty or non-JSON body (an old status page, a proxy) is kept as null.
         Ok((
@@ -105,7 +117,7 @@ impl Player {
     }
 
     /// Turns an answer into data on 2xx and a [`Refusal`] otherwise.
-    fn reply<T: DeserializeOwned>(status: u16, body: Value) -> Result<Reply<T>> {
+    pub(super) fn reply<T: DeserializeOwned>(status: u16, body: Value) -> Result<Reply<T>> {
         if (200..300).contains(&status) {
             let data = serde_json::from_value(body)
                 .map_err(|_| Error::Rejected("The player's answer was not understood.".into()))?;

@@ -57,6 +57,7 @@ const fromSnapshot = (schema: SettingsSchema, snap: SettingsSnapshot): Data => (
  */
 export function usePlayerSettings(serial: string) {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
+  const [sessionId, setSessionId] = useState<number | null>(null);
   const [data, setData] = useState<Data | null>(null);
   const [staged, setStaged] = useState<Values>({});
   const [outcomes, setOutcomes] = useState<Record<string, Outcome>>({});
@@ -83,6 +84,7 @@ export function usePlayerSettings(serial: string) {
     async (pin?: string): Promise<void> => {
       window.clearTimeout(retryTimer.current); // a manual Retry replaces a pending automatic one
       setPhase({ kind: 'loading' });
+      setSessionId(null);
       setError(null);
       setStaged({});
       setOutcomes({});
@@ -102,6 +104,7 @@ export function usePlayerSettings(serial: string) {
           return;
         }
         busyTries.current = 0;
+        setSessionId(result.session);
         if (result.state === 'ready') {
           setCurrent(fromSnapshot(result.schema, result.snapshot));
           setPhase({ kind: 'ready' });
@@ -324,6 +327,7 @@ export function usePlayerSettings(serial: string) {
 
   const effective = data ? merged(data.values, staged) : {};
   return {
+    sessionId: data ? sessionId : null,
     phase,
     schema: data?.schema ?? null,
     values: data?.values ?? {},

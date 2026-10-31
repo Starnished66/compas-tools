@@ -7,7 +7,6 @@ import { ErrorBanner } from '../../components/ErrorBanner';
 import { t } from '../../i18n';
 import { useCard } from '../../state/CardContext';
 import { useMode } from '../../state/ModeContext';
-import { AppUpdatePanel } from './AppUpdatePanel';
 import { DeviceList } from './DeviceList';
 import { InstallPanel } from './InstallPanel';
 import { LogsPanel } from './LogsPanel';
@@ -87,7 +86,6 @@ export function InstallScreen() {
       <p className="muted">
         {t('Install or update the player’s software and collect logs over USB, using adb.')}
       </p>
-      <AppUpdatePanel />
       {error && (
         <ErrorBanner
           message={error}

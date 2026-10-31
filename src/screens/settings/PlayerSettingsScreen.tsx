@@ -13,6 +13,7 @@ import { BOARD_NAMES } from '../install/labels';
 import { ConnectPanel } from './ConnectPanel';
 import { PendingBar } from './PendingBar';
 import { SettingsForm } from './SettingsForm';
+import { PlayerManagement } from './PlayerManagement';
 import { describe, loudChanges } from './logic';
 import { usePlayerSettings } from './useSettings';
 
@@ -79,24 +80,26 @@ function AdbSettings({ serial }: { serial: string }) {
           </p>
         </Notice>
       )}
-      <SettingsForm
-        schema={schema}
-        values={s.values}
-        effective={s.effective}
-        staged={s.staged}
-        outcomes={s.outcomes}
-        rescanStarted={s.rescanState === 'started'}
-        disabled={s.busy}
-        onChange={s.change}
-        onRescan={() => void s.rescan()}
-      />
-      <PendingBar
-        schema={schema}
-        staged={s.staged}
-        busy={s.busy}
-        onDiscard={s.discard}
-        onApply={send}
-      />
+      <PlayerManagement session={s.sessionId}>
+        <SettingsForm
+          schema={schema}
+          values={s.values}
+          effective={s.effective}
+          staged={s.staged}
+          outcomes={s.outcomes}
+          rescanStarted={s.rescanState === 'started'}
+          disabled={s.busy}
+          onChange={s.change}
+          onRescan={() => void s.rescan()}
+        />
+        <PendingBar
+          schema={schema}
+          staged={s.staged}
+          busy={s.busy}
+          onDiscard={s.discard}
+          onApply={send}
+        />
+      </PlayerManagement>
       <ConfirmDialog
         open={confirming}
         title={t('Raise the volume limit?')}

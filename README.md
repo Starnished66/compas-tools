@@ -8,6 +8,8 @@ A desktop app for managing a player running [Compás](https://github.com/Starnis
 
 It runs on Linux (AppImage), macOS on Apple Silicon and Windows. Download it from [Releases](https://github.com/Starnished66/compas-tools/releases). The [user guide](https://compasplayer.org/guide.html) explains the player itself.
 
+On macOS, community builds are not Apple-notarized and may show an “app is damaged” warning. Follow the [macOS installation instructions](docs/MACOS_INSTALL.md) for the official download.
+
 ## Building it yourself
 
 You need Node 22. On Linux the Rust side builds in a Podman container (`Containerfile`), so you don't need Rust installed. On macOS and Windows, install Rust and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) and run the same commands directly.

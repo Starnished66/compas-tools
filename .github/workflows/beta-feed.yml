@@ -1,0 +1,48 @@
+name: Update beta updater feed
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  beta-feed:
+    if: github.event.release.prerelease && startsWith(github.event.release.tag_name, 'v')
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Download the published signed prerelease artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release download "$SOURCE_TAG" --repo "$GITHUB_REPOSITORY" --dir updater-artifacts
+      - name: Generate and validate the beta manifest
+        env:
+          SOURCE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python3 scripts/create-updater-manifest.py \
+            --artifacts updater-artifacts \
+            --tag "$SOURCE_TAG" \
+            --repository "$GITHUB_REPOSITORY" \
+            --output updater-artifacts/latest.json
+      - name: Publish the fixed beta feed manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if ! gh release view updates-beta --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create updates-beta --repo "$GITHUB_REPOSITORY" \
+              --target "$SOURCE_TAG" --prerelease \
+              --title "Compás Tools beta updater feed" \
+              --notes "Machine-readable updater manifest for the beta channel."
+          fi
+          gh release upload updates-beta updater-artifacts/latest.json \
+            --repo "$GITHUB_REPOSITORY" --clobber

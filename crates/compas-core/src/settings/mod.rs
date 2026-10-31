@@ -4,6 +4,7 @@
 
 mod client;
 mod model;
+mod plugins;
 
 #[cfg(test)]
 mod tests;
@@ -14,6 +15,10 @@ pub use client::{Pin, Player};
 pub use model::{
     Accepted, ActionDef, Applied, ApplyRequest, Capabilities, Device, EnumOption, Group, Pending,
     Refusal, Reply, Schema, SettingDef, Snapshot, Status,
+};
+pub use plugins::{
+    InstalledPlugin, InstalledSnapshot, LayoutSnapshot, PlayerLayout, PluginAction, PreviewImage,
+    PreviewPending, PreviewResult, StorePlugin, StoreSnapshot,
 };
 
 use crate::adb::Adb;

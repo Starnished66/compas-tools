@@ -78,7 +78,7 @@ impl SettingsSession {
         }
     }
 
-    async fn player(&self, id: u64) -> CommandResult<Arc<Player>> {
+    pub(crate) async fn player(&self, id: u64) -> CommandResult<Arc<Player>> {
         self.slot
             .lock()
             .await

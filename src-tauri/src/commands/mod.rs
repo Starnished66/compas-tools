@@ -7,10 +7,13 @@ use compas_core::Progress;
 pub mod about;
 pub mod adb;
 pub mod app_update;
+#[cfg(feature = "updater")]
+mod app_update_feed;
 pub mod card;
 pub mod catalog;
 pub mod library;
 pub mod music;
+pub mod plugins;
 pub mod releases;
 pub mod settings;
 

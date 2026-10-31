@@ -7,6 +7,7 @@ import { ActionDialog } from './screens/catalog/ActionDialog';
 import { CatalogView } from './screens/catalog/CatalogView';
 import { BOARD_NAMES } from './screens/install/labels';
 import { InstallScreen } from './screens/install/InstallScreen';
+import { AppUpdatePanel } from './screens/install/AppUpdatePanel';
 import { LibraryScreen } from './screens/library/LibraryScreen';
 import { PlayerSettingsScreen } from './screens/settings/PlayerSettingsScreen';
 import { OperationProvider } from './hooks/useOperation';
@@ -45,6 +46,7 @@ function Shell() {
     <div className="shell">
       <Sidebar current={screen} playerLabel={playerLabel} onNavigate={setScreen} />
       <main className="main">
+        <AppUpdatePanel visible={screen === 'install'} />
         {screen === 'install' && <InstallScreen />}
         {screen === 'library' && <LibraryScreen />}
         {(screen === 'plugins' || screen === 'layouts' || screen === 'themes') && (

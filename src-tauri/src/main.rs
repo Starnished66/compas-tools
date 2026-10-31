@@ -6,7 +6,9 @@ mod error;
 mod sidecar;
 mod state;
 
-use commands::{about, adb, app_update, card, catalog, library, music, releases, settings};
+use commands::{
+    about, adb, app_update, card, catalog, library, music, plugins, releases, settings,
+};
 use tauri::Manager;
 
 fn main() {
@@ -69,6 +71,21 @@ fn main() {
             settings::settings_apply,
             settings::settings_rescan,
             settings::settings_disconnect,
+            plugins::player_plugins_capabilities,
+            plugins::player_plugin_store,
+            plugins::player_plugin_store_preview,
+            plugins::player_plugin_store_refresh,
+            plugins::player_plugin_install,
+            plugins::player_plugin_update,
+            plugins::player_plugin_update_all,
+            plugins::player_plugin_uninstall,
+            plugins::player_plugins_installed,
+            plugins::player_plugin_set_enabled,
+            plugins::player_plugins_refresh,
+            plugins::player_plugin_open_settings,
+            plugins::player_layouts,
+            plugins::player_layout_preview,
+            plugins::player_layout_select,
         ])
         .build(tauri::generate_context!())
         .expect("failed to build Compás Tools")
