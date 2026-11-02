@@ -26,6 +26,8 @@ bool sdtool_root_set(const char *card_root);
 const char *sdtool_root(void);
 /* Reads "model" from <card>/.compas/device.json into out; false when absent. */
 bool sdtool_root_device_model(char *out, size_t size);
+/* True when device.json says the player's "Join albums" setting is on. */
+bool sdtool_root_join_albums(void);
 
 /* mtime.c: card file times in the player's frame (see there). */
 void sdtool_mtime_set_manual(long seconds);

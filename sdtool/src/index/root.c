@@ -49,17 +49,30 @@ const char *storage_stored_path(const char *stored, char *out, size_t size) {
     return out;
 }
 
-bool sdtool_root_device_model(char *out, size_t size) {
+/* The parsed <card>/.compas/device.json, or NULL when absent or unreadable.
+ * The caller frees it. */
+static cJSON *read_device_json(void) {
     FILE *file = fopen(storage_sd_path(COMPAS_STORAGE_DIR "/device.json"), "rb");
-    if (!file) return false;
+    if (!file) return NULL;
     char text[1024];
     size_t length = fread(text, 1, sizeof(text) - 1, file);
     fclose(file);
     text[length] = '\0';
-    cJSON *json = cJSON_Parse(text);
+    return cJSON_Parse(text);
+}
+
+bool sdtool_root_device_model(char *out, size_t size) {
+    cJSON *json = read_device_json();
     const cJSON *model = json ? cJSON_GetObjectItemCaseSensitive(json, "model") : NULL;
     bool found = cJSON_IsString(model) && model->valuestring &&
                  snprintf(out, size, "%s", model->valuestring) < (int) size;
     cJSON_Delete(json);
     return found;
+}
+
+bool sdtool_root_join_albums(void) {
+    cJSON *json = read_device_json();
+    bool join = cJSON_IsTrue(json ? cJSON_GetObjectItemCaseSensitive(json, "join_albums") : NULL);
+    cJSON_Delete(json);
+    return join;
 }

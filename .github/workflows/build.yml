@@ -17,7 +17,7 @@ permissions:
 env:
   PLAYER_REPO: Starnished66/compas-player
   # The compas-player commit compas-sdtool is built against. Move it to a release tag once there is one.
-  PLAYER_REF: b20ae6803ebab0e0dd1faea902962c92dcdad203
+  PLAYER_REF: d06c11689be2ac3b5a7e8f976ac4026d36cce535
 
 jobs:
   # compas-sdtool is a C program, so it is built per operating system and passed on as an

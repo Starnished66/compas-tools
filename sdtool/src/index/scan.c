@@ -116,7 +116,7 @@ static bool update_batch(const file_list_t *list, long first, long count, bool f
         }
         if (!full && metadata_db_get(path, mtimes[wanted], sizes[wanted], &cached)) continue;
         snprintf(stored[wanted], PATH_MAX, "%s", path);
-        had_previous[wanted] = full && metadata_db_get_song_by_path(path, &previous[wanted]);
+        had_previous[wanted] = full && metadata_db_get_song_by_path_raw(path, &previous[wanted]);
         if (had_previous[wanted]) result->matched_existing++;
         todo[wanted++] = host;
     }
@@ -175,6 +175,9 @@ static int fail(file_list_t *list, const char *code, const char *message) {
 int sdtool_cmd_scan(const sdtool_options_t *options) {
     sdtool_database_t db;
     if (!sdtool_open_database(&db)) return SDTOOL_FAILED;
+    /* As the player's scan: a refresh with joining on always commits. */
+    tagcache_set_album_join(sdtool_root_join_albums(), options->full);
+    bool join_forced = options->full && tagcache_album_join_active();
     sdtool_mtime_calibrate();
     bool migrated = tagcache_indexes_migrated();
     file_list_t list = {0};
@@ -226,8 +229,8 @@ int sdtool_cmd_scan(const sdtool_options_t *options) {
     }
 
     bool missing = options->full && result.matched_existing != metadata_db_get_song_count();
-    if (library_scan_refresh_skips_commit(options->full, db.preserve_rebuild, skipped, (int) result.changed,
-                                          result.inserted, missing)) {
+    if (!join_forced && library_scan_refresh_skips_commit(options->full, db.preserve_rebuild, skipped,
+                                                          (int) result.changed, result.inserted, missing)) {
         metadata_db_abort_update();
         int rc = finish(&list, &result, skipped, false, migrated);
         list_free(&list);
