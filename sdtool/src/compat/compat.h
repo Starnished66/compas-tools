@@ -88,6 +88,8 @@ ssize_t pwrite(int fd, const void *buffer, size_t length, off_t offset);
 #define _SC_PAGESIZE 1
 #define _SC_AVPHYS_PAGES (-1)
 #define _SC_NPROCESSORS_ONLN 3
+/* Background threads keep the default priority. */
+#define nice(increment) ((void) (increment), 0)
 
 /* Folders, opened by name or by descriptor. */
 typedef struct compat_dir compat_dir_t;
