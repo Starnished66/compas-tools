@@ -43,7 +43,10 @@ SDTOOL_OWN_SRCS = $(addprefix $(SDTOOL_SRC_DIR)/,cli/main.c output/json_out.c in
                   $(SDTOOL_PLATFORM_SRCS)
 # The player's own library code, unchanged: tagcache and metadata_db for the
 # database, albumart and cover_decode for the covers, metadata for the tags.
-SDTOOL_PLAYER_SRCS = $(addprefix src/library/,tagcache/core/tagcache.c metadata/db/metadata_db.c metadata/parsing/metadata.c \
+SDTOOL_PLAYER_SRCS = $(addprefix src/library/,tagcache/core/tagcache.c tagcache/core/tagcache_storage.c \
+                       tagcache/core/tagcache_numeric.c tagcache/core/tagcache_scan.c tagcache/core/tagcache_commit.c \
+                       tagcache/core/tagcache_snapshot.c tagcache/reader/tagcache_reader.c metadata/db/metadata_db.c metadata/db/metadata_db_browse.c metadata/db/metadata_db_catalog.c metadata/db/metadata_db_library_lists.c metadata/parsing/metadata.c \
+                       metadata/parsing/metadata_id3.c metadata/parsing/metadata_xiph_mp4.c metadata/parsing/metadata_iff.c \
                        artwork/albumart/albumart.c browser/paths/path_cache.c remote/remote_state.c \
                        remote/subsonic/subsonic_saved_servers.c parsers/cue/cue_parser.c sacd/sacd_iso.c \
                        text/lyrics/lyrics.c artwork/decode/cover_decode.c artwork/coordinator/artwork_coordinator.c \
