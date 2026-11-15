@@ -8,6 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use base64::Engine as _;
 use serde::Serialize;
 
 use super::redact::{is_secret_name, redact};
@@ -48,6 +49,9 @@ const NEVER: [&str; 4] = [
 
 /// What the device prints for a file it cannot read.
 const UNREADABLE: &str = "__COMPAS_UNREADABLE__";
+
+/// Printed after the base64 text, so a cut-off or failed transfer is told apart from a file.
+const END: &str = "__COMPAS_END__";
 
 /// Larger files are not settings.
 const MAX_BYTES: usize = 1 << 20;
@@ -94,12 +98,61 @@ pub struct BackupReport {
     pub redacted: usize,
 }
 
-/// Whether a path (relative to `/usr/data`) must not be copied.
+/// Whether a path (relative to `/usr/data`) must not be fetched at all. Secret-looking names
+/// are judged later, once the content is known to be text.
 pub(super) fn is_left_out(rel: &str) -> bool {
-    let never = NEVER
+    NEVER
         .iter()
-        .any(|n| rel == *n || rel.starts_with(&format!("{n}/")));
-    never || rel.split('/').any(is_secret_name)
+        .any(|n| rel == *n || rel.starts_with(&format!("{n}/")))
+}
+
+/// Whether the device's output holds its unreadable marker, even after partial content.
+fn has_unreadable_marker(bytes: &[u8]) -> bool {
+    bytes
+        .windows(UNREADABLE.len())
+        .any(|w| w == UNREADABLE.as_bytes())
+}
+
+/// The file inside the shell fallback's output: base64 text, then the end marker. The shell
+/// of the player runs in a terminal that adds `\r` to line ends, so whitespace is ignored.
+fn parse_shell_read(output: &str) -> Option<Vec<u8>> {
+    let encoded: String = output
+        .split_once(END)?
+        .0
+        .chars()
+        .filter(|c| !c.is_ascii_whitespace())
+        .collect();
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(encoded)
+        .ok()?;
+    (!has_unreadable_marker(&bytes)).then_some(bytes)
+}
+
+/// One file's bytes, or `None` when the device cannot give it. The first choice is `exec-out`,
+/// which is binary safe; the stock adbd refuses it, and then (for this file and every later
+/// one) the file is read through the shell as base64, since the shell would mangle raw bytes.
+async fn read_device_file(
+    adb: &Adb,
+    serial: &str,
+    path: &str,
+    use_shell: &mut bool,
+) -> Option<Vec<u8>> {
+    let size = MAX_BYTES + 1;
+    if !*use_shell {
+        // adb's exit status is not reliable, so the shell says it in-band.
+        let command = format!(
+            "if [ -r {path} ] && head -c {size} {path}; then :; else echo {UNREADABLE}; fi"
+        );
+        match adb.exec_out(serial, &command).await {
+            // A read that fails half-way prints the marker after the partial content.
+            Ok(bytes) => return (!has_unreadable_marker(&bytes)).then_some(bytes),
+            Err(_) => *use_shell = true,
+        }
+    }
+    let command = format!(
+        "{{ [ -r {path} ] && head -c {size} {path} || echo {UNREADABLE}; }} | base64; echo {END}"
+    );
+    parse_shell_read(&adb.shell(serial, &command).await.ok()?)
 }
 
 /// A device-supplied path that stays below the backup folder and can be quoted safely.
@@ -156,6 +209,7 @@ pub async fn backup_user_data(
 
     let (mut copied, mut redacted, mut skipped) = (0, 0, Vec::new());
     let mut settings_copied = false;
+    let mut use_shell = false;
     let total = files.len() as u64;
     for (i, rel) in files.iter().enumerate() {
         on_progress(Progress {
@@ -175,25 +229,10 @@ pub async fn backup_user_data(
             skipped.push(skip(SkipReason::UnsupportedName));
             continue;
         }
-        // adb's exit status is not reliable, so the shell says it in-band.
         let path = format!("'{USER_DATA}/{rel}'");
-        let command = format!(
-            "if [ -r {path} ] && head -c {} {path}; then :; else echo {UNREADABLE}; fi",
-            MAX_BYTES + 1
-        );
-        let bytes = match adb.exec_out(serial, &command).await {
-            // A read that fails half-way prints the marker after the partial content.
-            Ok(bytes)
-                if !bytes
-                    .windows(UNREADABLE.len())
-                    .any(|w| w == UNREADABLE.as_bytes()) =>
-            {
-                bytes
-            }
-            _ => {
-                skipped.push(skip(SkipReason::Unreadable));
-                continue;
-            }
+        let Some(bytes) = read_device_file(adb, serial, &path, &mut use_shell).await else {
+            skipped.push(skip(SkipReason::Unreadable));
+            continue;
         };
         if bytes.len() > MAX_BYTES {
             skipped.push(skip(SkipReason::TooLarge));
@@ -206,6 +245,11 @@ pub async fn backup_user_data(
             skipped.push(skip(SkipReason::Binary));
             continue;
         };
+        // A text file named like a credential is never written.
+        if rel.split('/').any(is_secret_name) {
+            skipped.push(skip(SkipReason::Private));
+            continue;
+        }
         let masked = redact(text);
         let target = dir.join(rel);
         if let Some(parent) = target.parent() {
