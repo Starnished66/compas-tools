@@ -544,7 +544,7 @@ dependencies = [
 
 [[package]]
 name = "compas-core"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "base64 0.22.1",
  "dunce",
@@ -562,7 +562,7 @@ dependencies = [
 
 [[package]]
 name = "compas-tools"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "compas-core",
  "reqwest 0.13.5",
